@@ -1,0 +1,46 @@
+# dependencies (bun install)
+node_modules
+
+# output
+out
+dist
+*.tgz
+
+# code coverage
+coverage
+*.lcov
+
+# logs
+logs
+_.log
+report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
+
+# dotenv environment variable files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# caches
+.eslintcache
+.cache
+*.tsbuildinfo
+
+# IntelliJ based IDEs
+.idea
+
+# Finder (MacOS) folder config
+.DS_Store
+artifac/*
+!artifac/.gitkeep
+
+# If you use agent dont commit this files
+.agent/rules
+CLAUDE.md
+
+docs/.vitepress/dist
+docs/.vitepress/cache
+
+# Benchmark data (downloaded during CI/local runs)
+benchmarks/data

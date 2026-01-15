@@ -1,0 +1,65 @@
+{
+  "name": "mornye",
+  "version": "0.0.1",
+  "description": "Ergonomic data analysis.",
+  "keywords": [
+    "dataframe",
+    "pandas",
+    "data-analysis",
+    "bun",
+    "typescript",
+    "csv",
+    "etl"
+  ],
+  "author": "xirf",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xirf/mornye.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xirf/mornye/issues"
+  },
+  "homepage": "https://github.com/xirf/mornye#readme",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "type": "module",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && bun build src/index.ts --outdir dist --target bun && tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build",
+    "test": "bun test",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "bench": "bun run benchmarks/csv-load.bench.ts && bun run benchmarks/operations.bench.ts",
+    "demo": "bun run examples/demo.ts",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/bun": "latest",
+    "arquero": "^8.0.3",
+    "danfojs-node": "^1.2.0",
+    "mitata": "^1.0.34",
+    "tsx": "^4.21.0",
+    "vitepress": "^1.6.4"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
