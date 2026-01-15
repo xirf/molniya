@@ -1,5 +1,5 @@
 /**
- * Node.js-compatible CSV reader for cross-runtime benchmarking.
+ * Node.js-compatible CSV reader not optimized.
  * Uses Node's fs module instead of Bun APIs.
  */
 

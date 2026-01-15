@@ -25,6 +25,42 @@ describe('DataFrame', () => {
       const df = DataFrame.empty(schema);
       expect(df.shape).toEqual([0, 3]);
     });
+
+    test('fromColumns() creates DataFrame with manual initialization', () => {
+      const df = DataFrame.fromColumns({
+        age: [25, 30, 22],
+        name: ['Alice', 'Bob', 'Carol'],
+        score: [95.5, 87.2, 91.8],
+      });
+
+      expect(df.shape).toEqual([3, 3]);
+      expect([...df.col('age')]).toEqual([25, 30, 22]);
+      expect([...df.col('name')]).toEqual(['Alice', 'Bob', 'Carol']);
+      expect([...df.col('score')]).toEqual([95.5, 87.2, 91.8]);
+    });
+
+    test('fromColumns() infers int32 for integers', () => {
+      const df = DataFrame.fromColumns({
+        age: [25, 30, 22],
+      });
+      expect(df.col('age').dtype.kind).toBe('int32');
+    });
+
+    test('fromColumns() infers float64 for decimals', () => {
+      const df = DataFrame.fromColumns({
+        score: [95.5, 87.2, 91.8],
+      });
+      expect(df.col('score').dtype.kind).toBe('float64');
+    });
+
+    test('fromColumns() throws on mismatched lengths', () => {
+      expect(() => {
+        DataFrame.fromColumns({
+          age: [25, 30],
+          name: ['Alice', 'Bob', 'Carol'],
+        });
+      }).toThrow();
+    });
   });
 
   describe('column access', () => {

@@ -93,9 +93,8 @@ export class LazyFrame<S extends Schema> implements ILazyFrame<S> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Column Access
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   /**
    * Get a column as Series (loads all data for that column).
@@ -112,9 +111,8 @@ export class LazyFrame<S extends Schema> implements ILazyFrame<S> {
     return [...this._columnOrder];
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Row Operations
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   /**
    * Get first n rows as DataFrame.
@@ -181,9 +179,8 @@ export class LazyFrame<S extends Schema> implements ILazyFrame<S> {
     return DataFrame.from(this.schema, rows);
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Info & Display
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   /**
    * Get info about the LazyFrame.
@@ -222,9 +219,8 @@ export class LazyFrame<S extends Schema> implements ILazyFrame<S> {
     this._cache.clear();
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Internal: Row Loading
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   /**
    * Load rows from file (with caching).

@@ -11,7 +11,7 @@ import {
 } from './parse-result';
 
 /**
- * Ultra-fast CSV reader using optimized byte-level parsing.
+ * CSV reader using optimized byte-level parsing.
  *
  * Performance profile (387MB, 7.38M rows):
  * - Target: ~1.5s on Bun

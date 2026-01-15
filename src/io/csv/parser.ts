@@ -82,9 +82,8 @@ export class CsvChunkParser {
     return this.pendingRows.length;
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Internal State Machine
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   private processByte(byte: number): void {
     switch (this.state) {
@@ -149,9 +148,8 @@ export class CsvChunkParser {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Buffer Management
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   private appendByte(byte: number): void {
     // Grow buffer if needed

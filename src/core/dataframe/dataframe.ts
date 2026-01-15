@@ -47,9 +47,8 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
     this.shape = [rowCount, columnOrder.length] as const;
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Factory Methods
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   /**
    * Creates a DataFrame from schema and row data.
@@ -69,6 +68,108 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
     }
 
     return new DataFrame<S>(schema, columns, columnOrder, rowCount);
+  }
+
+  /**
+   * Creates a DataFrame from column data
+   * Automatically infers schema from provided data.
+   *
+   * @example
+   * ```ts
+   * const df = DataFrame.fromColumns({
+   *   age: [25, 30, 22],               // float64
+   *   name: ['Alice', 'Bob', 'Carol'], // string
+   *   score: [95.5, 87.2, 91.8]        // float64
+   * });
+   * ```
+   */
+  static fromColumns<T extends Record<string, unknown[]>>(
+    data: T
+  ): DataFrame<{
+    [K in keyof T]: DType<
+      T[K] extends (number | null | undefined)[]
+        ? 'float64'
+        : T[K] extends (string | null | undefined)[]
+          ? 'string'
+          : T[K] extends (boolean | null | undefined)[]
+            ? 'bool'
+            : never
+    >;
+  }> {
+    const columnOrder = Object.keys(data);
+    const columns = new Map<string, Series<DTypeKind>>();
+    const schema: Record<string, DType<DTypeKind>> = {};
+    let rowCount = 0;
+
+    for (let i = 0; i < columnOrder.length; i++) {
+      const colName = columnOrder[i]!;
+      const values = data[colName];
+      
+      if (!Array.isArray(values)) {
+        throw new SchemaError(
+          `Column '${colName}' must be an array`,
+          'All column values must be arrays'
+        );
+      }
+
+      if (i === 0) {
+        rowCount = values.length;
+      } else if (values.length !== rowCount) {
+        throw new SchemaError(
+          `Column '${colName}' has ${values.length} rows, expected ${rowCount}`,
+          'All columns must have the same length'
+        );
+      }
+
+      const series = DataFrame._inferAndCreateSeries(values);
+      columns.set(colName, series);
+      schema[colName] = series.dtype;
+    }
+
+    return new DataFrame(schema, columns, columnOrder, rowCount) as any;
+  }
+
+  /** @internal */
+  static _inferAndCreateSeries(values: unknown[]): Series<DTypeKind> {
+    const len = values.length;
+    if (len === 0) return Series.float64([]);
+
+    // Find first non-null value
+    let sampleValue: unknown;
+    for (let i = 0; i < len; i++) {
+      const v = values[i];
+      if (v !== null && v !== undefined) {
+        sampleValue = v;
+        break;
+      }
+    }
+
+    if (sampleValue === undefined) {
+      return Series.float64(values as number[]);
+    }
+
+    const sampleType = typeof sampleValue;
+
+    if (sampleType === 'number') {
+      // Check if all are integers (no object creation in loop)
+      let allIntegers = true;
+      for (let i = 0; i < len; i++) {
+        const v = values[i];
+        if (v !== null && v !== undefined && !Number.isInteger(v as number)) {
+          allIntegers = false;
+          break;
+        }
+      }
+      return allIntegers ? Series.int32(values as number[]) : Series.float64(values as number[]);
+    }
+
+    if (sampleType === 'string') return Series.string(values as string[]);
+    if (sampleType === 'boolean') return Series.bool(values as boolean[]);
+
+    throw new SchemaError(
+      `Cannot infer dtype from value type: ${sampleType}`,
+      'Supported types: number, string, boolean'
+    );
   }
 
   /**
@@ -106,9 +207,9 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
+
   // Column Access
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   /**
    * Gets a column as a typed Series.
@@ -129,9 +230,8 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
     return [...this._columnOrder];
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Row Operations
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   /**
    * Returns first n rows (default: 5).
@@ -181,9 +281,8 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Iteration
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   /**
    * Iterates over rows as objects.
@@ -199,9 +298,8 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Filtering & Selection (delegated to operations.ts)
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   /**
    * Filter rows by predicate function.
@@ -231,9 +329,8 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
     return ops.sort(this, column, ascending);
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Groupby & Aggregation
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   /**
    * Group by one or more columns.
@@ -243,9 +340,8 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
     return new GroupBy(this, columns);
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Apply & Transform (delegated to operations.ts)
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   /**
    * Apply a function to each row.
@@ -276,9 +372,8 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
     return [...this.rows()];
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Column Manipulation (delegated to columns.ts)
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   /**
    * Drop specified columns.
@@ -307,9 +402,8 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
     return cols.assign(this, DataFrame._fromColumns, name, values) as unknown as DataFrame<S & Record<NewCol, DType<D>>>;
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Missing Value Operations (delegated to columns.ts)
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   /**
    * Drop rows with any missing values (null, undefined, NaN).
@@ -334,9 +428,8 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
     return cols.isna(this, DataFrame._fromColumns);
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Copying & Sampling (delegated to columns.ts)
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   /**
    * Create a deep copy of the DataFrame.
@@ -353,9 +446,8 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
     return cols.sample(this, n);
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Indexing (delegated to columns.ts)
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   /**
    * Integer-location based indexing.
@@ -377,9 +469,8 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
     return this._selectRows(indices);
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Data Cleaning (delegated to columns.ts)
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   /**
    * Remove duplicate rows.
@@ -425,9 +516,8 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
     return cols.bfill(this, DataFrame._fromColumns);
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Internal Helpers
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   /** @internal */
   _selectRows(indices: number[]): DataFrame<S> {
@@ -443,9 +533,8 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
     return DataFrame._fromColumns(this.schema, newColumns, this._columnOrder, indices.length);
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Display (delegated to display.ts)
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   /**
    * Prints DataFrame to console as ASCII table.

@@ -538,9 +538,8 @@ export class Series<T extends DTypeKind> implements ISeries<T> {
     return [...this];
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Missing Value Operations
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   /**
    * Detect missing values (null, undefined, NaN).
@@ -581,9 +580,8 @@ export class Series<T extends DTypeKind> implements ISeries<T> {
     return this._createFromValues([...this]);
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Display
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   /**
    * Prints Series to console in formatted output.
@@ -641,9 +639,8 @@ export class Series<T extends DTypeKind> implements ISeries<T> {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
   // Internal
-  // ─────────────────────────────────────────────────────────────
+  // ===============================================================
 
   /**
    * Returns underlying storage (for internal/advanced use).

@@ -16,15 +16,22 @@ bun add mornye
 ## 🏁 Quick Start
 
 ```typescript
-import { readCsv } from 'mornye';
+import { readCsv, DataFrame } from 'mornye';
 
-// 1. Load data (Lazy parsing by default)
+// 1. Load data from CSV
 const { df } = await readCsv('./bitcoin_history.csv');
 
-// 2. Inspect the first few rows
-df.print(5);
+// 2. Or create manually
+const df2 = DataFrame.fromColumns({
+  age: [25, 30, 22],
+  name: ['Alice', 'Bob', 'Carol'],
+  score: [95.5, 87.2, 91.8]
+});
 
-// 3. Perform analysis
+// 3. Inspect the data
+df2.print();
+
+// 4. Perform analysis
 const highVolume = df
   .filter(row => row.Volume > 1000)
   .select(['Timestamp', 'Close', 'Volume']);
