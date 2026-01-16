@@ -1,23 +1,23 @@
 /**
  * DataFrame Operations Benchmark
- * 
+ *
  * Benchmarks common DataFrame operations using real-world data from Kaggle (Online Retail II).
- * 
+ *
  * Note: The dataset contains some dirty data (e.g. "TEST" in Quantity column), so
  * columns like 'Quantity' and 'Price' are inferred as strings.
  * We use 'Invoice' (float64) for numeric benchmarks and demonstrate cleaning for others.
  */
 
 import { bench, group, run } from 'mitata';
-import { ensureDataset } from './setup';
 import { readCsv } from '../src';
+import { ensureDataset } from './setup';
 
 // Load dataset
 const dataPath = await ensureDataset('retail-2010');
 console.log('\n📊 Loading dataset for operations benchmark...');
 const { df } = await readCsv(dataPath);
 console.log(`   Loaded ${df.shape[0].toLocaleString()} rows × ${df.shape[1]} columns\n`);
-console.log('=' .repeat(60));
+console.log('='.repeat(60));
 
 // Prepare columns
 const invoiceCol = df.col('Invoice'); // Already float64

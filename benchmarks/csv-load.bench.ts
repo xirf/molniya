@@ -1,21 +1,21 @@
 /**
  * CSV Loading Benchmark
- * 
+ *
  * Compares Mornye CSV loading performance against raw Node.js fs.
  * Uses real-world Online Retail II dataset.
  */
 
-import { bench, group, run } from 'mitata';
 import * as fs from 'node:fs';
-import { ensureDataset } from './setup';
+import { bench, group, run } from 'mitata';
 import { readCsv } from '../src';
+import { ensureDataset } from './setup';
 
 // Ensure real datasets exist
 const dataset2010 = await ensureDataset('retail-2010');
 const dataset2011 = await ensureDataset('retail-2011');
 
 console.log('\n📊 CSV Loading Benchmarks (Real World Data)\n');
-console.log('=' .repeat(60));
+console.log('='.repeat(60));
 
 // Warm up
 await readCsv(dataset2010);
