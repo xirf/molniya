@@ -20,15 +20,15 @@ export class MornyeError extends Error {
     const lines = stack.split('\n');
     for (const line of lines) {
       if (line.includes('node_modules') || line.includes('MornyeError')) continue;
-      
-      const match = line.match(/at .+? \((.+?):(\d+):(\d+)\)/) ||
-                    line.match(/at (.+?):(\d+):(\d+)/);
-      
+
+      const match =
+        line.match(/at .+? \((.+?):(\d+):(\d+)\)/) || line.match(/at (.+?):(\d+):(\d+)/);
+
       if (match) {
         return {
           file: match[1]!,
-          line: parseInt(match[2]!, 10),
-          column: parseInt(match[3]!, 10),
+          line: Number.parseInt(match[2]!, 10),
+          column: Number.parseInt(match[3]!, 10),
         };
       }
     }
@@ -37,21 +37,21 @@ export class MornyeError extends Error {
 
   format(): string {
     const lines: string[] = [];
-    
-    const loc = this.location 
+
+    const loc = this.location
       ? ` at ${this.location.file.split('/').slice(-1)[0]}:${this.location.line}:${this.location.column}`
       : '';
-    
+
     lines.push(`error: ${this.message}${loc}`);
     lines.push(`  --> ${this._getExpression()}`);
     lines.push('   |');
     lines.push(`   └── ${this._getDetail()}`);
-    
+
     if (this.hint) {
       lines.push('');
       lines.push(`help: ${this.hint}`);
     }
-    
+
     return lines.join('\n');
   }
 

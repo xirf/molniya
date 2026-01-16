@@ -11,8 +11,8 @@ export class TypeMismatchError extends MornyeError {
   constructor(operation: string, actualType: string, expectedTypes: string[]) {
     const expected = expectedTypes.join(' or ');
     const hint = `'${operation}' requires ${expected} Series`;
-    
-    super(`type mismatch`, hint);
+
+    super('type mismatch', hint);
     this.name = 'TypeMismatchError';
     this.operation = operation;
     this.actualType = actualType;

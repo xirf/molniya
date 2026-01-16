@@ -7,7 +7,7 @@ export class SchemaError extends MornyeError {
   private _detail: string;
 
   constructor(detail: string, hint?: string) {
-    super(`schema error`, hint);
+    super('schema error', hint);
     this.name = 'SchemaError';
     this._detail = detail;
   }

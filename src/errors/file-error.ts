@@ -8,7 +8,7 @@ export class FileError extends MornyeError {
   readonly reason: string;
 
   constructor(path: string, reason: string, hint?: string) {
-    super(`file error`, hint);
+    super('file error', hint);
     this.name = 'FileError';
     this.path = path;
     this.reason = reason;

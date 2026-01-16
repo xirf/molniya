@@ -8,11 +8,12 @@ export class ColumnNotFoundError extends MornyeError {
   readonly available: string[];
 
   constructor(column: string, available: string[]) {
-    const hint = available.length > 0
-      ? `available columns are: ${available.map(c => `'${c}'`).join(', ')}`
-      : 'DataFrame has no columns';
-    
-    super(`column not found`, hint);
+    const hint =
+      available.length > 0
+        ? `available columns are: ${available.map((c) => `'${c}'`).join(', ')}`
+        : 'DataFrame has no columns';
+
+    super('column not found', hint);
     this.name = 'ColumnNotFoundError';
     this.column = column;
     this.available = available;

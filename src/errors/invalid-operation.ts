@@ -8,7 +8,7 @@ export class InvalidOperationError extends MornyeError {
   readonly reason: string;
 
   constructor(operation: string, reason: string, hint?: string) {
-    super(`invalid operation`, hint);
+    super('invalid operation', hint);
     this.name = 'InvalidOperationError';
     this.operation = operation;
     this.reason = reason;

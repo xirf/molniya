@@ -9,11 +9,9 @@ export class IndexOutOfBoundsError extends MornyeError {
   readonly max: number;
 
   constructor(index: number, min: number, max: number) {
-    const hint = max >= min
-      ? `valid range is ${min} to ${max}`
-      : 'collection is empty';
-    
-    super(`index out of bounds`, hint);
+    const hint = max >= min ? `valid range is ${min} to ${max}` : 'collection is empty';
+
+    super('index out of bounds', hint);
     this.name = 'IndexOutOfBoundsError';
     this.index = index;
     this.min = min;

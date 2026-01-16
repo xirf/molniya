@@ -8,7 +8,7 @@ export class ParseError extends MornyeError {
   readonly value: string;
 
   constructor(what: string, value: string, hint?: string) {
-    super(`parse error`, hint);
+    super('parse error', hint);
     this.name = 'ParseError';
     this.what = what;
     this.value = value;
