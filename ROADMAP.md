@@ -13,12 +13,6 @@ A prioritized list of features needed for pandas API parity.
 - [x] `groupby()` with `sum`, `mean`, `min`, `max`, `count`, `first`, `last`
 - [x] Series: `map()`, `unique()`, `valueCounts()`, `slice()`
 
----
-
-## ✅ Completed (v0.1.0 - DataFrame Operations)
-
-### High Priority
-
 | Method               | Description                     | Status |
 | -------------------- | ------------------------------- | ------ |
 | `drop()`             | Remove columns or rows by index | ✅      |
@@ -33,12 +27,6 @@ A prioritized list of features needed for pandas API parity.
 | `loc()`              | Label-based indexing            | ✅      |
 
 
----
-
-## ✅ Completed (v0.1.1 - Large File Support)
-
-### LazyFrame for 10GB+ Files
-
 | Feature             | Description                                | Status |
 | ------------------- | ------------------------------------------ | ------ |
 | `scanCsv()`         | Lazy CSV loading (on-demand parsing)       | ✅      |
@@ -51,22 +39,22 @@ A prioritized list of features needed for pandas API parity.
 | `collect()`         | Convert to full DataFrame when needed      | ✅      |
 
 
-
-## 📋 Planned (v0.2.0 - Joining & I/O)
-
 ### Joining & Combining
 - [ ] `merge()` - SQL-like joins (inner, left, right, outer)
 - [ ] `concat()` - Concatenate DataFrames vertically/horizontally
 - [ ] `join()` - Join on index
+- [ ] `append()` - Append rows to DataFrame
+
+
+- [ ] `dropDuplicates()` - Drop duplicate rows
+- [ ] `duplicate()` - Duplicate the dataframe
+- [ ] `unique()` - Get unique rows
 
 ### I/O
 - [ ] `toCsv()` - Write DataFrame to CSV
 - [ ] `toJson()` / `readJson()` - JSON support
 - [ ] `toParquet()` / `readParquet()` - Parquet support (optional)
 
----
-
-## 📋 Planned (v0.3.0 - Advanced Features)
 
 ### Aggregation
 - [ ] `median()`, `mode()`, `quantile()`
@@ -85,10 +73,6 @@ A prioritized list of features needed for pandas API parity.
 ### Rolling/Window
 - [ ] `rolling()` with `mean`, `sum`, `min`, `max`
 - [ ] `shift()`, `diff()`
-
----
-
-## 🔮 Future (v1.0.0+)
 
 - [ ] `pivot_table()`, `melt()`, `stack()`, `unstack()`
 - [ ] `corr()`, `cov()` - Correlation/covariance
