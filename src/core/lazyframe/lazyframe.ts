@@ -1,5 +1,5 @@
 import { DataFrame } from '../dataframe';
-import { Series } from '../series';
+import type { Series } from '../series';
 import type { DType, DTypeKind, InferSchema, Schema } from '../types';
 import { ChunkCache, type ChunkData } from './chunk-cache';
 import type { ILazyFrame, LazyFrameConfig } from './interface';
@@ -364,9 +364,9 @@ export class LazyFrame<S extends Schema> implements ILazyFrame<S> {
 
     switch (dtype.kind) {
       case 'float64':
-        return parseFloat(value) || 0;
+        return Number.parseFloat(value) || 0;
       case 'int32':
-        return parseInt(value, 10) || 0;
+        return Number.parseInt(value, 10) || 0;
       case 'bool':
         return value === 'true' || value === 'True' || value === '1';
       default:
@@ -418,14 +418,22 @@ class LazyFrameColumnView<S extends Schema, K extends keyof S> implements ILazyF
     for (const colName of cols) {
       newSchema[colName] = this.schema[colName];
     }
-    return new LazyFrameColumnView<S, C>(this._source, cols, newSchema as Pick<S, C>) as unknown as ILazyFrame<Pick<Pick<S, K>, C>>;
+    return new LazyFrameColumnView<S, C>(
+      this._source,
+      cols,
+      newSchema as Pick<S, C>,
+    ) as unknown as ILazyFrame<Pick<Pick<S, K>, C>>;
   }
 
-  async filter(fn: (row: InferSchema<Pick<S, K>>, index: number) => boolean): Promise<DataFrame<Pick<S, K>>> {
+  async filter(
+    fn: (row: InferSchema<Pick<S, K>>, index: number) => boolean,
+  ): Promise<DataFrame<Pick<S, K>>> {
     const df = await this._source.filter((row, idx) => {
       const projected = {} as InferSchema<Pick<S, K>>;
       for (const col of this._columns) {
-        (projected as Record<string, unknown>)[col as string] = (row as Record<string, unknown>)[col as string];
+        (projected as Record<string, unknown>)[col as string] = (row as Record<string, unknown>)[
+          col as string
+        ];
       }
       return fn(projected, idx);
     });

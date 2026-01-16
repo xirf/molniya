@@ -119,7 +119,10 @@ export class ChunkCache<T = unknown> {
     }
 
     // Evict until we have room
-    while (this._memoryUsed + chunk.sizeBytes > this._config.maxMemoryBytes && this._lruOrder.length > 0) {
+    while (
+      this._memoryUsed + chunk.sizeBytes > this._config.maxMemoryBytes &&
+      this._lruOrder.length > 0
+    ) {
       this._evictLru();
     }
 

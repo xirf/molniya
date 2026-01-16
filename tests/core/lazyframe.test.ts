@@ -1,7 +1,7 @@
-import { describe, expect, test, beforeAll, afterAll } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { scanCsv } from '../../src/io/csv';
-import { writeFileSync, unlinkSync, mkdirSync, existsSync } from 'fs';
-import { join } from 'path';
 
 const TEST_DIR = join(import.meta.dir, '..', 'fixtures');
 const LAZY_CSV_PATH = join(TEST_DIR, 'lazy-test.csv');
@@ -56,7 +56,7 @@ describe('LazyFrame', () => {
     test('head() returns first n rows as DataFrame', async () => {
       const lazy = await scanCsv(LAZY_CSV_PATH);
       const first5 = await lazy.head(5);
-      
+
       expect(first5.shape[0]).toBe(5);
       expect(first5.shape[1]).toBe(5);
       expect(first5.col('id').at(0)).toBe(1);
@@ -66,7 +66,7 @@ describe('LazyFrame', () => {
     test('tail() returns last n rows as DataFrame', async () => {
       const lazy = await scanCsv(LAZY_CSV_PATH);
       const last5 = await lazy.tail(5);
-      
+
       expect(last5.shape[0]).toBe(5);
       expect(last5.col('id').at(0)).toBe(996);
       expect(last5.col('id').at(4)).toBe(1000);
@@ -83,9 +83,9 @@ describe('LazyFrame', () => {
     test('select() returns LazyFrame with fewer columns', async () => {
       const lazy = await scanCsv(LAZY_CSV_PATH);
       const selected = lazy.select('id', 'price');
-      
+
       expect(selected.columns()).toEqual(['id', 'price']);
-      
+
       const df = await selected.head(3);
       expect(df.shape[1]).toBe(2);
       expect(df.col('id').at(0)).toBe(1);
@@ -96,7 +96,7 @@ describe('LazyFrame', () => {
     test('filter() returns matching rows as DataFrame', async () => {
       const lazy = await scanCsv(LAZY_CSV_PATH);
       const filtered = await lazy.filter((row) => (row as { id: number }).id <= 10);
-      
+
       expect(filtered.shape[0]).toBe(10);
       expect(filtered.col('id').at(0)).toBe(1);
       expect(filtered.col('id').at(9)).toBe(10);
@@ -108,7 +108,7 @@ describe('LazyFrame', () => {
         const r = row as { price: number; quantity: number };
         return r.price > 100 && r.quantity > 500;
       });
-      
+
       // price > 100 means id > 66.67, quantity > 500 means id > 50
       // Both conditions: id > 67
       expect(filtered.shape[0]).toBeGreaterThan(0);
@@ -119,7 +119,7 @@ describe('LazyFrame', () => {
     test('collect() returns full DataFrame', async () => {
       const lazy = await scanCsv(LAZY_CSV_PATH);
       const df = await lazy.collect();
-      
+
       expect(df.shape[0]).toBe(1000);
       expect(df.shape[1]).toBe(5);
     });
@@ -127,7 +127,7 @@ describe('LazyFrame', () => {
     test('collect(limit) returns limited DataFrame', async () => {
       const lazy = await scanCsv(LAZY_CSV_PATH);
       const df = await lazy.collect(100);
-      
+
       expect(df.shape[0]).toBe(100);
     });
   });
@@ -135,26 +135,26 @@ describe('LazyFrame', () => {
   describe('caching', () => {
     test('clearCache() resets cache', async () => {
       const lazy = await scanCsv(LAZY_CSV_PATH);
-      
+
       // Load some data to populate cache
       await lazy.head(100);
       expect(lazy.info().cached).toBeGreaterThan(0);
-      
+
       lazy.clearCache();
       expect(lazy.info().cached).toBe(0);
     });
 
     test('repeated access uses cache', async () => {
       const lazy = await scanCsv(LAZY_CSV_PATH);
-      
+
       // First access
       const first = await lazy.head(10);
       const cachedBefore = lazy.info().cached;
-      
+
       // Second access should use cache
       const second = await lazy.head(10);
       const cachedAfter = lazy.info().cached;
-      
+
       expect(cachedAfter).toBe(cachedBefore);
       expect(first.shape).toEqual(second.shape);
     });
@@ -164,7 +164,7 @@ describe('LazyFrame', () => {
     test('correctly infers column types', async () => {
       const lazy = await scanCsv(LAZY_CSV_PATH);
       const info = lazy.info();
-      
+
       expect(info.dtypes.id).toBe('int32');
       expect(info.dtypes.name).toBe('string');
       expect(info.dtypes.price).toBe('float64');
