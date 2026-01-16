@@ -1,11 +1,11 @@
-import { Series } from '../series';
-import type { DType, DTypeKind, InferSchema, Schema } from '../types';
 import { ColumnNotFoundError, SchemaError } from '../../errors';
+import { Series } from '../series';
+import type { DType, DTypeKind, InferSchema, RenameSchema, Schema } from '../types';
+import * as cols from './columns';
+import { formatDataFrame } from './display';
 import { GroupBy } from './groupby';
 import type { IDataFrame } from './interface';
-import { formatDataFrame } from './display';
 import * as ops from './operations';
-import * as cols from './columns';
 
 /**
  * DataFrame - A typed 2D columnar data structure.
@@ -84,11 +84,11 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
    * ```
    */
   static fromColumns<T extends Record<string, unknown[]>>(
-    data: T
+    data: T,
   ): DataFrame<{
     [K in keyof T]: DType<
       T[K] extends (number | null | undefined)[]
-        ? 'float64'
+        ? 'float64' | 'int32'
         : T[K] extends (string | null | undefined)[]
           ? 'string'
           : T[K] extends (boolean | null | undefined)[]
@@ -104,11 +104,11 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
     for (let i = 0; i < columnOrder.length; i++) {
       const colName = columnOrder[i]!;
       const values = data[colName];
-      
+
       if (!Array.isArray(values)) {
         throw new SchemaError(
           `Column '${colName}' must be an array`,
-          'All column values must be arrays'
+          'All column values must be arrays',
         );
       }
 
@@ -117,7 +117,7 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
       } else if (values.length !== rowCount) {
         throw new SchemaError(
           `Column '${colName}' has ${values.length} rows, expected ${rowCount}`,
-          'All columns must have the same length'
+          'All columns must have the same length',
         );
       }
 
@@ -126,7 +126,24 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
       schema[colName] = series.dtype;
     }
 
-    return new DataFrame(schema, columns, columnOrder, rowCount) as any;
+    type InferredSchema = {
+      [K in keyof T]: DType<
+        T[K] extends (number | null | undefined)[]
+          ? 'float64' | 'int32'
+          : T[K] extends (string | null | undefined)[]
+            ? 'string'
+            : T[K] extends (boolean | null | undefined)[]
+              ? 'bool'
+              : never
+      >;
+    };
+
+    return new DataFrame(
+      schema as InferredSchema,
+      columns as Map<keyof InferredSchema, Series<DTypeKind>>,
+      columnOrder as (keyof InferredSchema)[],
+      rowCount,
+    );
   }
 
   /** @internal */
@@ -168,7 +185,7 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
 
     throw new SchemaError(
       `Cannot infer dtype from value type: ${sampleType}`,
-      'Supported types: number, string, boolean'
+      'Supported types: number, string, boolean',
     );
   }
 
@@ -203,10 +220,12 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
       case 'bool':
         return Series.bool(values as boolean[]);
       default:
-        throw new SchemaError(`unknown dtype '${dtype.kind}'`, `supported types: float64, int32, string, bool`);
+        throw new SchemaError(
+          `unknown dtype '${dtype.kind}'`,
+          'supported types: float64, int32, string, bool',
+        );
     }
   }
-
 
   // Column Access
   // ===============================================================
@@ -354,7 +373,10 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
   /**
    * Summary statistics for all numeric columns.
    */
-  describe(): Record<string, { count: number; mean: number; std: number; min: number; max: number }> {
+  describe(): Record<
+    string,
+    { count: number; mean: number; std: number; min: number; max: number }
+  > {
     return ops.describe(this);
   }
 
@@ -387,8 +409,12 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
    * Rename columns by mapping.
    * Returns a new DataFrame with renamed columns.
    */
-  rename<M extends Partial<Record<keyof S, string>>>(mapping: M): DataFrame<S> {
-    return cols.rename(this, DataFrame._fromColumns, mapping);
+  rename<const M extends { [K in keyof S]?: string }>(mapping: M): DataFrame<RenameSchema<S, M>> {
+    // Cast through unknown since TypeScript can't prove RenameSchema<S,M> extends Schema
+    // at the generic level, though it always does at concrete instantiation
+    return cols.rename(this, DataFrame._fromColumns, mapping) as unknown as DataFrame<
+      RenameSchema<S, M>
+    >;
   }
 
   /**
@@ -399,7 +425,9 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
     name: NewCol,
     values: unknown[] | ((row: InferSchema<S>, index: number) => unknown),
   ): DataFrame<S & Record<NewCol, DType<D>>> {
-    return cols.assign(this, DataFrame._fromColumns, name, values) as unknown as DataFrame<S & Record<NewCol, DType<D>>>;
+    return cols.assign(this, DataFrame._fromColumns, name, values) as unknown as DataFrame<
+      S & Record<NewCol, DType<D>>
+    >;
   }
 
   // Missing Value Operations (delegated to columns.ts)
@@ -454,12 +482,17 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
    * Single index returns row object, range returns DataFrame.
    */
   iloc(index: number): InferSchema<S>;
+  iloc(range: string): DataFrame<S>;
   iloc(start: number, end: number): DataFrame<S>;
-  iloc(startOrIndex: number, end?: number): InferSchema<S> | DataFrame<S> {
-    if (end === undefined) {
-      return cols.ilocSingle(this, startOrIndex);
+  iloc(startOrIndexOrRange: number | string, end?: number): InferSchema<S> | DataFrame<S> {
+    if (typeof startOrIndexOrRange === 'string') {
+      return cols.ilocString(this, startOrIndexOrRange);
     }
-    return cols.ilocRange(this, startOrIndex, end);
+
+    if (end === undefined) {
+      return cols.ilocSingle(this, startOrIndexOrRange);
+    }
+    return cols.ilocRange(this, startOrIndexOrRange, end);
   }
 
   /**
