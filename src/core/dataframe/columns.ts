@@ -1,6 +1,6 @@
-import type { DataFrame } from './dataframe';
-import type { DType, DTypeKind, InferSchema, Schema } from '../types';
 import { Series } from '../series';
+import type { DType, DTypeKind, InferSchema, Schema } from '../types';
+import type { DataFrame } from './dataframe';
 
 /**
  * Internal DataFrame context for column operations.
@@ -207,7 +207,10 @@ export function isna<S extends Schema>(
 
   for (const colName of ctx._columnOrder) {
     const series = ctx._columns.get(colName)!;
-    (newSchema as Record<string, DType<'bool'>>)[colName as string] = { kind: 'bool', nullable: false };
+    (newSchema as Record<string, DType<'bool'>>)[colName as string] = {
+      kind: 'bool',
+      nullable: false,
+    };
     newColumns.set(colName as keyof BoolSchema, series.isna());
   }
 
@@ -283,6 +286,43 @@ export function ilocRange<S extends Schema>(
     indices.push(i);
   }
   return ctx._selectRows(indices);
+}
+
+/**
+ * Integer-location based indexing - string slice.
+ * Supports "start:end", "start:", ":end", ":"
+ */
+export function ilocString<S extends Schema>(ctx: ColumnContext<S>, slice: string): DataFrame<S> {
+  const parts = slice.split(':');
+  if (parts.length !== 2) {
+    throw new Error(
+      `Invalid row split parameter: If using row split string, it must be of the form; rows: ["start:end"]`,
+    );
+  }
+
+  // We already checked that parts.length is 2, so we can safely access parts[0] and parts[1]
+  const startStr = parts[0]!.trim();
+  const endStr = parts[1]!.trim();
+  const len = ctx.shape[0];
+
+  let start = 0;
+  let end = len;
+
+  if (startStr !== '') {
+    start = Number.parseInt(startStr, 10);
+    if (Number.isNaN(start)) {
+      throw new Error(`Invalid row parameter: row index ${startStr} must be a number`);
+    }
+  }
+
+  if (endStr !== '') {
+    end = Number.parseInt(endStr, 10);
+    if (Number.isNaN(end)) {
+      throw new Error(`Invalid row parameter: row index ${endStr} must be a number`);
+    }
+  }
+
+  return ilocRange(ctx, start, end);
 }
 
 /**

@@ -66,10 +66,11 @@ export class GroupBy<S extends Schema, K extends keyof S> {
     for (const [groupKey, indices] of this._groups) {
       const row: Record<string, unknown> = {};
 
-      // Add group column values
-      const keyParts = groupKey.split('|||');
-      this._groupCols.forEach((col, i) => {
-        row[col as string] = keyParts[i];
+      // Add group column values (preserved types)
+      const firstIdx = indices[0];
+      if (firstIdx === undefined) continue; 
+      this._groupCols.forEach((col) => {
+          row[col as string] = this._df.col(col).at(firstIdx);
       });
 
       // Apply aggregations
@@ -117,9 +118,10 @@ export class GroupBy<S extends Schema, K extends keyof S> {
     for (const [groupKey, indices] of this._groups) {
       const row: Record<string, unknown> = {};
 
-      const keyParts = groupKey.split('|||');
-      this._groupCols.forEach((col, i) => {
-        row[col as string] = keyParts[i];
+      const firstIdx = indices[0];
+      if (firstIdx === undefined) continue;
+      this._groupCols.forEach((col) => {
+        row[col as string] = this._df.col(col).at(firstIdx);
       });
 
       row.count = indices.length;
