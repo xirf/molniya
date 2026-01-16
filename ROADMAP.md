@@ -40,19 +40,19 @@ A prioritized list of features needed for pandas API parity.
 
 
 ### Joining & Combining
-- [ ] `merge()` - SQL-like joins (inner, left, right, outer)
-- [ ] `concat()` - Concatenate DataFrames vertically/horizontally
+- [x] `merge()` - SQL-like joins (inner, left, right, outer)
+- [x] `concat()` - Concatenate DataFrames vertically/horizontally
 - [ ] `join()` - Join on index
 - [ ] `append()` - Append rows to DataFrame
 
 
-- [ ] `dropDuplicates()` - Drop duplicate rows
+- [x] `dropDuplicates()` - Drop duplicate rows
 - [ ] `duplicate()` - Duplicate the dataframe
-- [ ] `unique()` - Get unique rows
+- [x] `unique()` - Get unique rows
 
 ### I/O
-- [ ] `toCsv()` - Write DataFrame to CSV
-- [ ] `toJson()` / `readJson()` - JSON support
+- [x] `toCsv()` - Write DataFrame to CSV
+- [x] `toJson()` / `readJson()` - JSON support (toJson done)
 - [ ] `toParquet()` / `readParquet()` - Parquet support (optional)
 
 

@@ -140,7 +140,10 @@ async function main() {
       count = df.where('Close', '>', range.min).shape[0];
     } else {
       count = df.filter(
-        (row) => row.Close != null && row.Close >= range.min && row.Close < range.max,
+        (row) =>
+          row.Close != null &&
+          (row.Close as number) >= range.min &&
+          (row.Close as number) < range.max,
       ).shape[0];
     }
     const pct = ((count / df.shape[0]) * 100).toFixed(1);
@@ -158,8 +161,10 @@ async function main() {
 
   // Calculate spread per minute using apply
   const spreads = df.apply((row) => {
-    if (row.Low === 0 || row.High === 0 || !row.Low || !row.High) return 0;
-    return ((row.High - row.Low) / row.Low) * 100;
+    const low = row.Low as number;
+    const high = row.High as number;
+    if (low === 0 || high === 0 || !low || !high) return 0;
+    return ((high - low) / low) * 100;
   });
 
   // Use reduce to avoid stack overflow with 7M+ values

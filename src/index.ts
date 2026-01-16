@@ -49,8 +49,9 @@ export { LazyFrame } from './core/lazyframe';
 export type { ILazyFrame, LazyFrameConfig, LazyFrameView } from './core/lazyframe';
 
 // I/O
-export { readCsv, readCsvNode, scanCsv } from './io/csv';
-export type { CsvOptions } from './io/csv';
+export { readCsv, readCsvNode, scanCsv, toCsv, writeCsv } from './io/csv';
+export type { CsvOptions, CsvWriteOptions } from './io/csv';
+export { toJson, toJsonRecords } from './io/json';
 
 // Errors
 export {

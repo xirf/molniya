@@ -2,22 +2,21 @@ import { DataFrame } from '../../core/dataframe';
 import { Series } from '../../core/series';
 import type { DTypeKind, Schema } from '../../core/types';
 import { inferColumnType } from './inference';
-import { type CsvOptions, DEFAULT_CSV_OPTIONS } from './options';
-import {
-  type CsvReadResult,
-  type ParseFailures,
-  createParseFailures,
-  recordFailure,
-} from './parse-result';
+import { BYTES, type CsvOptions, DEFAULT_CSV_OPTIONS } from './options';
+import { type CsvReadResult, type ParseFailures, createParseFailures } from './parse-result';
+import { CsvChunkParser } from './parser';
 
 /**
- * CSV reader using optimized byte-level parsing.
+ * CSV reader using CsvChunkParser for RFC 4180 compliance.
+ *
+ * Correctly handles:
+ * - Quoted fields containing commas
+ * - Escaped quotes ("")
+ * - Newlines within quoted fields
  *
  * Performance profile (387MB, 7.38M rows):
- * - Target: ~1.5s on Bun
- * - Approach: Direct Uint8Array processing, minimal allocations
- *
- * Returns a CsvReadResult with the DataFrame and any parse errors.
+ * - Target: ~2s on Bun
+ * - Uses streaming chunk parser for correctness
  */
 export async function readCsv<S extends Schema = Schema>(
   path: string,
@@ -27,50 +26,33 @@ export async function readCsv<S extends Schema = Schema>(
   const providedSchema = options?.schema;
   const trackErrors = opts.trackErrors ?? true;
 
-  // Read file - keep both Buffer (for SIMD indexOf) and Uint8Array (for parsing)
+  // Read file as bytes
   const file = Bun.file(path);
   const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer); // For SIMD indexOf
-  const bytes = new Uint8Array(arrayBuffer); // For byte-level parsing
-  const len = buffer.length;
+  const bytes = new Uint8Array(arrayBuffer);
 
-  const COMMA = opts.delimiter;
-  const LF = 10;
-  const CR = 13;
-  const decoder = new TextDecoder('utf-8');
+  // Use chunk parser for RFC 4180 compliance (handles quoted newlines)
+  const parser = new CsvChunkParser(opts.delimiter, opts.quote);
+  parser.processChunk(bytes);
+  parser.finish();
 
-  // SIMD-accelerated line finding using Buffer.indexOf
-  const lineStarts: number[] = [0];
-  let pos = 0;
-  while (pos < len) {
-    const idx = buffer.indexOf(LF, pos);
-    if (idx === -1) break;
-    lineStarts.push(idx + 1);
-    pos = idx + 1;
+  const allRows = parser.consumeRows();
+  if (allRows.length === 0) {
+    return {
+      df: DataFrame.empty({} as S),
+      hasErrors: false,
+    };
   }
 
-  // Get headers
-  const firstLineEnd = lineStarts[1]! - 1;
-  const headerEnd = bytes[firstLineEnd - 1] === CR ? firstLineEnd - 1 : firstLineEnd;
-  const headerLine = decoder.decode(bytes.subarray(0, headerEnd));
-  const delimiter = String.fromCharCode(COMMA);
-  const headers = opts.hasHeader
-    ? headerLine.split(delimiter)
-    : headerLine.split(delimiter).map((_, i) => `column_${i}`);
-
+  // Extract headers
+  const headers = opts.hasHeader ? allRows[0]! : allRows[0]!.map((_, i) => `column_${i}`);
   const numCols = headers.length;
-  const startLineIdx = opts.hasHeader ? 1 : 0;
+  const startRowIdx = opts.hasHeader ? 1 : 0;
 
-  // Find actual data lines
-  let numDataLines = lineStarts.length - 1;
-  while (numDataLines > startLineIdx) {
-    const start = lineStarts[numDataLines - 1]!;
-    const end = lineStarts[numDataLines] ?? len;
-    if (end - start > 1) break;
-    numDataLines--;
-  }
+  // Apply maxRows limit
+  const dataRows = allRows.slice(startRowIdx, startRowIdx + opts.maxRows);
+  const rowCount = dataRows.length;
 
-  const rowCount = Math.min(numDataLines - startLineIdx, opts.maxRows);
   if (rowCount === 0) {
     return {
       df: DataFrame.empty({} as S),
@@ -78,16 +60,14 @@ export async function readCsv<S extends Schema = Schema>(
     };
   }
 
+  // Check abort signal
+  if (opts.signal?.aborted) {
+    throw new DOMException('Operation was aborted', 'AbortError');
+  }
+
   // Sample for type inference
   const sampleSize = Math.min(opts.sampleRows, rowCount);
-  const samples: string[][] = [];
-  for (let i = 0; i < sampleSize; i++) {
-    const lineIdx = startLineIdx + i;
-    const start = lineStarts[lineIdx]!;
-    let end = lineStarts[lineIdx + 1]! - 1;
-    if (bytes[end - 1] === CR) end--;
-    samples.push(decoder.decode(bytes.subarray(start, end)).split(delimiter));
-  }
+  const samples = dataRows.slice(0, sampleSize);
 
   // Infer schema
   const schema: Schema = providedSchema ?? inferSchemaFast(headers, samples);
@@ -123,93 +103,36 @@ export async function readCsv<S extends Schema = Schema>(
     }
   }
 
-  // Parse rows directly into columns - optimized byte-level parsing
+  // Parse rows into typed columns
   for (let rowIdx = 0; rowIdx < rowCount; rowIdx++) {
-    // Periodically check abort signal (every 10000 rows for performance)
+    // Periodically check abort signal
     if (opts.signal?.aborted && rowIdx % 10000 === 0) {
       throw new DOMException('Operation was aborted', 'AbortError');
     }
 
-    const lineIdx = startLineIdx + rowIdx;
-    const lineStart = lineStarts[lineIdx]!;
-    let lineEnd = (lineStarts[lineIdx + 1] ?? len) - 1;
-    if (bytes[lineEnd - 1] === CR) lineEnd--;
-
-    let fieldStart = lineStart;
+    const row = dataRows[rowIdx]!;
 
     for (let col = 0; col < numCols; col++) {
-      // Find field end (handle quoted fields)
-      let fieldEnd = fieldStart;
-      if (bytes[fieldStart] === 34) {
-        // Quote character
-        fieldStart++; // Skip opening quote
-        fieldEnd = fieldStart;
+      const fieldStr = row[col] ?? '';
+      const dtype = colTypes[col]!;
+      const store = storage[col]!;
 
-        // Scan for closing quote, handling escaped quotes ("")
-        while (fieldEnd < lineEnd) {
-          if (bytes[fieldEnd] === 34) {
-            if (fieldEnd + 1 < lineEnd && bytes[fieldEnd + 1] === 34) {
-              // Escaped quote - skip both characters being part of the field
-              fieldEnd += 2;
-              continue;
-            }
-            // Closing quote found
-            break;
-          }
-          fieldEnd++;
+      switch (dtype) {
+        case 'float64': {
+          const val = Number.parseFloat(fieldStr);
+          (store as Float64Array)[rowIdx] = Number.isNaN(val) ? 0 : val;
+          break;
         }
-
-        const valueEnd = fieldEnd;
-        fieldEnd++; // Skip closing quote
-        if (fieldEnd < lineEnd && bytes[fieldEnd] === COMMA) fieldEnd++; // Skip comma
-
-        // For quoted fields, decode and store
-        const dtype = colTypes[col]!;
-        const store = storage[col]!;
-        let fieldStr = decoder.decode(bytes.subarray(fieldStart, valueEnd));
-        if (fieldStr.includes('""')) {
-          fieldStr = fieldStr.replaceAll('""', '"');
+        case 'int32': {
+          const val = Number.parseInt(fieldStr, 10);
+          (store as Int32Array)[rowIdx] = Number.isNaN(val) ? 0 : val;
+          break;
         }
-
-        switch (dtype) {
-          case 'float64':
-            (store as Float64Array)[rowIdx] = Number.parseFloat(fieldStr) || 0;
-            break;
-          case 'int32':
-            (store as Int32Array)[rowIdx] = Number.parseInt(fieldStr, 10) || 0;
-            break;
-          case 'bool':
-            (store as Uint8Array)[rowIdx] = fieldStr === 'true' || fieldStr === '1' ? 1 : 0;
-            break;
-          default:
-            (store as string[])[rowIdx] = fieldStr;
-        }
-        fieldStart = fieldEnd;
-      } else {
-        // Fast path: unquoted field
-        while (fieldEnd < lineEnd && bytes[fieldEnd] !== COMMA) fieldEnd++;
-
-        const dtype = colTypes[col]!;
-        const store = storage[col]!;
-
-        switch (dtype) {
-          case 'float64':
-            (store as Float64Array)[rowIdx] = parseFloatFast(bytes, fieldStart, fieldEnd);
-            break;
-          case 'int32':
-            (store as Int32Array)[rowIdx] = parseIntFast(bytes, fieldStart, fieldEnd);
-            break;
-          case 'bool':
-            (store as Uint8Array)[rowIdx] =
-              bytes[fieldStart] === 116 || bytes[fieldStart] === 84 || bytes[fieldStart] === 49
-                ? 1
-                : 0;
-            break;
-          default:
-            (store as string[])[rowIdx] = decoder.decode(bytes.subarray(fieldStart, fieldEnd));
-        }
-
-        fieldStart = fieldEnd + 1;
+        case 'bool':
+          (store as Uint8Array)[rowIdx] = fieldStr === 'true' || fieldStr === '1' ? 1 : 0;
+          break;
+        default:
+          (store as string[])[rowIdx] = fieldStr;
       }
     }
   }
@@ -260,67 +183,6 @@ export async function readCsv<S extends Schema = Schema>(
     parseErrors: hasErrors ? filteredErrors : undefined,
     hasErrors,
   };
-}
-
-// Optimized numeric parsers operating directly on bytes
-function parseFloatFast(bytes: Uint8Array, start: number, end: number): number {
-  if (start >= end) return 0;
-
-  let i = start;
-  let negative = false;
-  if (bytes[i] === 45) {
-    // '-'
-    negative = true;
-    i++;
-  } else if (bytes[i] === 43) {
-    // '+'
-    i++;
-  }
-
-  let intPart = 0;
-  while (i < end && bytes[i]! >= 48 && bytes[i]! <= 57) {
-    intPart = intPart * 10 + (bytes[i]! - 48);
-    i++;
-  }
-
-  let result = intPart;
-  if (i < end && bytes[i] === 46) {
-    // '.'
-    i++;
-    let fracPart = 0;
-    let fracDigits = 0;
-    while (i < end && bytes[i]! >= 48 && bytes[i]! <= 57) {
-      fracPart = fracPart * 10 + (bytes[i]! - 48);
-      fracDigits++;
-      i++;
-    }
-    if (fracDigits > 0) {
-      result += fracPart / 10 ** fracDigits;
-    }
-  }
-
-  return negative ? -result : result;
-}
-
-function parseIntFast(bytes: Uint8Array, start: number, end: number): number {
-  if (start >= end) return 0;
-
-  let i = start;
-  let negative = false;
-  if (bytes[i] === 45) {
-    negative = true;
-    i++;
-  } else if (bytes[i] === 43) {
-    i++;
-  }
-
-  let result = 0;
-  while (i < end && bytes[i]! >= 48 && bytes[i]! <= 57) {
-    result = result * 10 + (bytes[i]! - 48);
-    i++;
-  }
-
-  return negative ? -result : result;
 }
 
 function inferSchemaFast(headers: string[], samples: string[][]): Schema {

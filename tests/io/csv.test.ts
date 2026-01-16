@@ -122,9 +122,7 @@ Line2"
     expect(descriptions.at(1)).toBe('He said "Hi"');
   });
 
-  // TODO: Supporting newlines in quoted fields requires streaming parser architecture
-  // The current line-based reader splits on newlines before quote parsing
-  test.skip('handles newlines in quoted fields', async () => {
+  test('handles newlines in quoted fields', async () => {
     const { df } = await readCsv(quotedCsvPath);
     const descriptions = df.col('description');
 

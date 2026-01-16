@@ -208,6 +208,198 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
     return DataFrame.from(schema, []);
   }
 
+  /**
+   * Concatenate DataFrames vertically.
+   * All DataFrames must have the same schema (column names and types).
+   *
+   * @example
+   * ```ts
+   * const df1 = DataFrame.fromColumns({ a: [1, 2], b: ['x', 'y'] });
+   * const df2 = DataFrame.fromColumns({ a: [3, 4], b: ['z', 'w'] });
+   * const combined = DataFrame.concat(df1, df2);
+   * // combined has 4 rows
+   * ```
+   */
+  static concat<S extends Schema>(...dfs: DataFrame<S>[]): DataFrame<S> {
+    if (dfs.length === 0) {
+      throw new SchemaError(
+        'Cannot concat empty array of DataFrames',
+        'Provide at least one DataFrame',
+      );
+    }
+    if (dfs.length === 1) return dfs[0]!;
+
+    const first = dfs[0]!;
+    const columnOrder = first._columnOrder;
+    const schema = first.schema;
+
+    // Validate schemas match
+    for (let i = 1; i < dfs.length; i++) {
+      const df = dfs[i]!;
+      if (df._columnOrder.length !== columnOrder.length) {
+        throw new SchemaError(
+          `DataFrame at index ${i} has ${df._columnOrder.length} columns, expected ${columnOrder.length}`,
+          'All DataFrames must have the same columns',
+        );
+      }
+      for (const col of columnOrder) {
+        if (!df._columns.has(col)) {
+          throw new SchemaError(
+            `DataFrame at index ${i} is missing column '${String(col)}'`,
+            'All DataFrames must have the same columns',
+          );
+        }
+        const dtype1 = schema[col]?.kind;
+        const dtype2 = df.schema[col]?.kind;
+        if (dtype1 !== dtype2) {
+          throw new SchemaError(
+            `Column '${String(col)}' has type '${dtype2}' at index ${i}, expected '${dtype1}'`,
+            'All DataFrames must have matching column types',
+          );
+        }
+      }
+    }
+
+    // Calculate total row count
+    let totalRows = 0;
+    for (const df of dfs) totalRows += df.shape[0];
+
+    // Concatenate each column
+    const newColumns = new Map<keyof S, Series<DTypeKind>>();
+    for (const colName of columnOrder) {
+      const dtype = schema[colName]!;
+      const values: unknown[] = [];
+      for (const df of dfs) {
+        const series = df._columns.get(colName)!;
+        for (let i = 0; i < series.length; i++) {
+          values.push(series.at(i));
+        }
+      }
+      newColumns.set(colName, DataFrame._createSeries(dtype, values));
+    }
+
+    return DataFrame._fromColumns(schema, newColumns, columnOrder, totalRows);
+  }
+
+  /**
+   * SQL-like join with another DataFrame.
+   *
+   * @example
+   * ```ts
+   * const users = DataFrame.fromColumns({ id: [1, 2], name: ['Alice', 'Bob'] });
+   * const orders = DataFrame.fromColumns({ userId: [1, 1, 2], product: ['Apple', 'Banana', 'Cherry'] });
+   * const joined = users.merge(orders, { left: 'id', right: 'userId', how: 'inner' });
+   * ```
+   */
+  merge<R extends Schema>(
+    right: DataFrame<R>,
+    options: {
+      left: keyof S;
+      right: keyof R;
+      how?: 'inner' | 'left' | 'right' | 'outer';
+    },
+  ): DataFrame<S & Omit<R, keyof S>> {
+    const { left: leftCol, right: rightCol, how = 'inner' } = options;
+
+    // Build hash index on right DataFrame
+    const rightIndex = new Map<unknown, number[]>();
+    const rightSeries = right._columns.get(rightCol)!;
+    for (let i = 0; i < right.shape[0]; i++) {
+      const key = rightSeries.at(i);
+      const existing = rightIndex.get(key);
+      if (existing) {
+        existing.push(i);
+      } else {
+        rightIndex.set(key, [i]);
+      }
+    }
+
+    // Build hash index on left DataFrame for right/outer joins
+    const leftIndex = new Map<unknown, number[]>();
+    const leftSeries = this._columns.get(leftCol)!;
+    for (let i = 0; i < this.shape[0]; i++) {
+      const key = leftSeries.at(i);
+      const existing = leftIndex.get(key);
+      if (existing) {
+        existing.push(i);
+      } else {
+        leftIndex.set(key, [i]);
+      }
+    }
+
+    // Collect matched row pairs
+    const leftIndices: (number | null)[] = [];
+    const rightIndices: (number | null)[] = [];
+    const usedRightIndices = new Set<number>();
+
+    // Process left rows
+    for (let leftIdx = 0; leftIdx < this.shape[0]; leftIdx++) {
+      const key = leftSeries.at(leftIdx);
+      const rightMatches = rightIndex.get(key);
+
+      if (rightMatches && rightMatches.length > 0) {
+        for (const rightIdx of rightMatches) {
+          leftIndices.push(leftIdx);
+          rightIndices.push(rightIdx);
+          usedRightIndices.add(rightIdx);
+        }
+      } else if (how === 'left' || how === 'outer') {
+        leftIndices.push(leftIdx);
+        rightIndices.push(null);
+      }
+    }
+
+    // Add unmatched right rows for right/outer joins
+    if (how === 'right' || how === 'outer') {
+      for (let rightIdx = 0; rightIdx < right.shape[0]; rightIdx++) {
+        if (!usedRightIndices.has(rightIdx)) {
+          leftIndices.push(null);
+          rightIndices.push(rightIdx);
+        }
+      }
+    }
+
+    // Build result columns
+    type MergedSchema = S & Omit<R, keyof S>;
+    const resultColumns = new Map<keyof MergedSchema, Series<DTypeKind>>();
+    const resultColumnOrder: (keyof MergedSchema)[] = [];
+    const resultSchema = { ...this.schema } as unknown as MergedSchema;
+
+    // Add left columns
+    for (const colName of this._columnOrder) {
+      const series = this._columns.get(colName)!;
+      const dtype = this.schema[colName]!;
+      const values: unknown[] = leftIndices.map((idx) => (idx !== null ? series.at(idx) : null));
+      resultColumns.set(colName as keyof MergedSchema, DataFrame._createSeries(dtype, values));
+      resultColumnOrder.push(colName as keyof MergedSchema);
+    }
+
+    // Add right columns (excluding join key if same name)
+    for (const colName of right._columnOrder) {
+      if (this._columns.has(colName as unknown as keyof S)) continue;
+      const series = right._columns.get(colName)!;
+      const dtype = right.schema[colName]!;
+      const values: unknown[] = rightIndices.map((idx) => (idx !== null ? series.at(idx) : null));
+      resultColumns.set(colName as keyof MergedSchema, DataFrame._createSeries(dtype, values));
+      resultColumnOrder.push(colName as keyof MergedSchema);
+      (resultSchema as Record<string, unknown>)[colName as string] = dtype;
+    }
+
+    return DataFrame._fromColumns(
+      resultSchema,
+      resultColumns,
+      resultColumnOrder,
+      leftIndices.length,
+    );
+  }
+
+  /**
+   * Return DataFrame with unique rows (alias for dropDuplicates with no args).
+   */
+  unique(): DataFrame<S> {
+    return this.dropDuplicates();
+  }
+
   /** @internal */
   static _createSeries(dtype: DType<DTypeKind>, values: unknown[]): Series<DTypeKind> {
     switch (dtype.kind) {
