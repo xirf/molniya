@@ -1,7 +1,7 @@
 /**
  * Bitcoin Data Analysis Demo
  *
- * Demonstrates Mornye's data analysis features on real Bitcoin historical data.
+ * Demonstrates Molniya's data analysis features on real Bitcoin historical data.
  * File: 7.38M rows of 1-minute OHLCV data from 2012-2024
  */
 
@@ -28,7 +28,7 @@ function logMemory(label: string) {
 
 async function main() {
   console.log('╔═══════════════════════════════════════════════════════════╗');
-  console.log('║         Bitcoin Data Analysis with Mornye                 ║');
+  console.log('║         Bitcoin Data Analysis with Molniya                 ║');
   console.log('╚═══════════════════════════════════════════════════════════╝\n');
 
   // ─────────────────────────────────────────────────────────────

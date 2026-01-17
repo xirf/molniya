@@ -1,6 +1,6 @@
 # Common Recipes
 
-A collection of patterns for solving real-world data problems with Mornye.
+A collection of patterns for solving real-world data problems with Molniya.
 
 ## Cleaning Messy Data
 
@@ -109,3 +109,4 @@ const outliers = df.filter(row =>
   row.price > upperBound || row.price < lowerBound
 );
 ```
+

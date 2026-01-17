@@ -1,9 +1,9 @@
-import { MornyeError } from './base';
+import { MolniyaError } from './base';
 
 /**
  * Error thrown when accessing a non-existent column.
  */
-export class ColumnNotFoundError extends MornyeError {
+export class ColumnNotFoundError extends MolniyaError {
   readonly column: string;
   readonly available: string[];
 

@@ -115,7 +115,7 @@ describe('GroupBy Edge Cases', () => {
     });
 
     // Note: Aggregating non-numeric columns for sum/mean usually results in NaN or concatenation depending on implementation.
-    // mornye implementation for 'sum' creates 0 for reduce seed and adds.
+    // Molniya implementation for 'sum' creates 0 for reduce seed and adds.
     // invalid kinds might need check, but currently it tries to cast/filter to numbers.
   });
 });

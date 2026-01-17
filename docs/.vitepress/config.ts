@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress';
 import llmstxt from 'vitepress-plugin-llms';
 
 export default defineConfig({
-  title: 'Mornye',
+  title: 'Molniya',
   description: 'Ergonomic data analysis for TypeScript',
   head: [['link', { rel: 'icon', href: '/logo.png' }]],
   vite: {
@@ -14,19 +14,19 @@ export default defineConfig({
             description: 'Ergonomic data analysis for TypeScript',
             details: 'Ergonomic data analysis for TypeScript',
             ignoreFiles: ['index.md', 'table-of-content.md', 'blog/*', 'public/*'],
-            domain: 'https://mornye.andka.id',
+            domain: 'https://molniya.andka.id',
           })
         : undefined,
     ],
   },
-  sitemap: { hostname: 'https://mornye.andka.id' },
+  sitemap: { hostname: 'https://molniya.andka.id' },
   themeConfig: {
     logo: '/logo.png',
 
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'API', link: '/api/dataframe' },
-      { text: 'GitHub', link: 'https://github.com/xirf/mornye' },
+      { text: 'GitHub', link: 'https://github.com/xirf/molniya' },
     ],
 
     sidebar: {
@@ -69,7 +69,7 @@ export default defineConfig({
       ],
     },
 
-    socialLinks: [{ icon: 'github', link: 'https://github.com/xirf/mornye' }],
+    socialLinks: [{ icon: 'github', link: 'https://github.com/xirf/molniya' }],
 
     footer: {
       message: 'Released under the MIT License.',

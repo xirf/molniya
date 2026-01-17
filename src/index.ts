@@ -1,11 +1,11 @@
 /**
- * Mornye - High-performance data manipulation for Bun.js
+ * Molniya - High-performance data manipulation for Bun.js
  *
  * A Pandas-like library leveraging Bun's speed with Elysia-style type inference.
  *
  * @example
  * ```ts
- * import { readCsv, DataFrame, Series, m } from 'mornye';
+ * import { readCsv, DataFrame, Series, m } from 'molniya';
  *
  * // Read CSV with automatic type inference
  * const df = await readCsv('./data.csv');
@@ -55,7 +55,7 @@ export { toJson, toJsonRecords } from './io/json';
 
 // Errors
 export {
-  MornyeError,
+  MolniyaError,
   ColumnNotFoundError,
   IndexOutOfBoundsError,
   TypeMismatchError,

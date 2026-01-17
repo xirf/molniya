@@ -1,9 +1,9 @@
-import { MornyeError } from './base';
+import { MolniyaError } from './base';
 
 /**
  * Error thrown when accessing an invalid index.
  */
-export class IndexOutOfBoundsError extends MornyeError {
+export class IndexOutOfBoundsError extends MolniyaError {
   readonly index: number;
   readonly min: number;
   readonly max: number;

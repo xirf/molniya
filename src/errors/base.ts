@@ -1,14 +1,14 @@
 /**
- * Base error class for all Mornye errors.
+ * Base error class for all Molniya errors.
  * Provides formatted error output with location tracking and hints.
  */
-export class MornyeError extends Error {
+export class MolniyaError extends Error {
   readonly hint?: string;
   readonly location?: { file: string; line: number; column: number };
 
   constructor(message: string, hint?: string) {
     super(message);
-    this.name = 'MornyeError';
+    this.name = 'MolniyaError';
     this.hint = hint;
     this.location = this._extractLocation();
   }
@@ -19,7 +19,7 @@ export class MornyeError extends Error {
 
     const lines = stack.split('\n');
     for (const line of lines) {
-      if (line.includes('node_modules') || line.includes('MornyeError')) continue;
+      if (line.includes('node_modules') || line.includes('MolniyaError')) continue;
 
       const match =
         line.match(/at .+? \((.+?):(\d+):(\d+)\)/) || line.match(/at (.+?):(\d+):(\d+)/);

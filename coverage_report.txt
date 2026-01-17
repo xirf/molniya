@@ -5,7 +5,7 @@ tests\core\concat-merge.test.ts:
 (pass) DataFrame.concat() > concatenates multiple DataFrames
 (pass) DataFrame.concat() > returns single DataFrame unchanged
 (pass) DataFrame.concat() > throws on mismatched column count
-(pass) DataFrame.concat() > throws on mismatched column names [16.00ms]
+(pass) DataFrame.concat() > throws on mismatched column names
 (pass) DataFrame.merge() > inner join matches rows
 (pass) DataFrame.merge() > left join keeps unmatched left rows
 (pass) DataFrame.merge() > right join keeps unmatched right rows
@@ -62,7 +62,7 @@ tests\core\dataframe.test.ts:
 (pass) DataFrame > copy and sample > sample() returns n random rows
 (pass) DataFrame > copy and sample > sample() returns all if n > length
 (pass) DataFrame > indexing > iloc() returns single row as object
-(pass) DataFrame > indexing > iloc() returns slice as DataFrame [15.00ms]
+(pass) DataFrame > indexing > iloc() returns slice as DataFrame
 (pass) DataFrame > indexing > loc() selects rows by indices
 
 tests\core\display-format.test.ts:
@@ -111,7 +111,7 @@ tests\core\lazyframe-internals.test.ts:
 (pass) ChunkCache > provides chunk utilities and clear resets memory
 (pass) RowIndex > builds offsets and enforces bounds
 (pass) RowIndex > getRowsRange returns contiguous range to file end
-(pass) LazyFrame parse internals > parses quoted fields and booleans via scanCsv [16.00ms]
+(pass) LazyFrame parse internals > parses quoted fields and booleans via scanCsv
 (pass) LazyFrame parse internals > column view retains behavior for head/tail/collect/info
 (pass) LazyFrame parse internals > internal parse line/value helpers handle quotes and bools
 
@@ -120,20 +120,20 @@ tests\core\lazyframe-parse-private.test.ts:
 (pass) LazyFrame private parsing helpers > RowIndex memory usage reflects segments
 
 tests\core\lazyframe.test.ts:
-(pass) LazyFrame > scanCsv > creates LazyFrame with correct shape
+(pass) LazyFrame > scanCsv > creates LazyFrame with correct shape [15.00ms]
 (pass) LazyFrame > scanCsv > columns() returns column names
 (pass) LazyFrame > scanCsv > info() returns metadata
-(pass) LazyFrame > head/tail > head() returns first n rows as DataFrame [16.00ms]
+(pass) LazyFrame > head/tail > head() returns first n rows as DataFrame
 (pass) LazyFrame > head/tail > tail() returns last n rows as DataFrame
-(pass) LazyFrame > head/tail > head() defaults to 5 rows
+(pass) LazyFrame > head/tail > head() defaults to 5 rows [16.00ms]
 (pass) LazyFrame > select > select() returns LazyFrame with fewer columns
 (pass) LazyFrame > filter > filter() returns matching rows as DataFrame
 (pass) LazyFrame > filter > filter() with complex condition
 (pass) LazyFrame > collect > collect() returns full DataFrame
-(pass) LazyFrame > collect > collect(limit) returns limited DataFrame [16.00ms]
+(pass) LazyFrame > collect > collect(limit) returns limited DataFrame
 (pass) LazyFrame > caching > clearCache() resets cache
 (pass) LazyFrame > caching > repeated access uses cache
-(pass) LazyFrame > type inference > correctly infers column types
+(pass) LazyFrame > type inference > correctly infers column types [15.00ms]
 
 tests\core\series-string.test.ts:
 (pass) Series.str > casing > lower() converts to lowercase
@@ -205,9 +205,9 @@ tests\core\series.test.ts:
 (pass) Series > internal storage > _storage() returns view for sliced numeric series
 (pass) Series > internal storage > _storage() returns sliced array for sliced string series
 0    1
-(pass) Series > display > print() logs to console [15.00ms]
 1    2
 dtype: int32, length: 2
+(pass) Series > display > print() logs to console
 
 tests\errors\errors.test.ts:
 (pass) Error Messages > ColumnNotFoundError > includes column name and available columns
@@ -216,8 +216,8 @@ tests\errors\errors.test.ts:
 (pass) Error Messages > TypeMismatchError > format() shows operation and type info
 (pass) Error Messages > IndexOutOfBoundsError > includes valid range in hint
 (pass) Error Messages > SchemaError > shows detail and hint
-(pass) Error Messages > MornyeError base class > format() includes location from stack trace
-(pass) Error Messages > MornyeError base class > format() includes visual tree structure
+(pass) Error Messages > MolniyaError base class > format() includes location from stack trace
+(pass) Error Messages > MolniyaError base class > format() includes visual tree structure
 
 tests\io\csv-internals.test.ts:
 (pass) CSV inference utilities > infers string when samples are empty or null-like
@@ -234,7 +234,7 @@ tests\io\csv-internals.test.ts:
 (pass) Hybrid quoted reader > parses quoted rows with datetime and escaped strings
 (pass) Unquoted reader and writer edge cases > reads uppercase booleans and respects maxRows
 (pass) Unquoted reader and writer edge cases > toCsv formats NaN as empty string without header
-(pass) scanCsv parsing > handles quoted headers and produces lazy frame [16.00ms]
+(pass) scanCsv parsing > handles quoted headers and produces lazy frame
 
 tests\io\csv-readers-extra.test.ts:
 (pass) reader-shared helpers > parseQuotedLine splits mixed quoted/unquoted fields
@@ -248,7 +248,7 @@ tests\io\csv-readers-extra.test.ts:
 (pass) inference edge cases > parseValue handles int32 NaN and truncates float
 
 tests\io\csv.test.ts:
-(pass) CSV Reader > basic parsing > reads CSV with auto-inferred types [15.00ms]
+(pass) CSV Reader > basic parsing > reads CSV with auto-inferred types [16.00ms]
 (pass) CSV Reader > basic parsing > infers string type for names
 (pass) CSV Reader > basic parsing > infers float64 type for integers
 (pass) CSV Reader > basic parsing > infers float64 type for decimals
@@ -337,4 +337,4 @@ All files                                   |   90.62 |   94.73 |
  234 pass
  0 fail
  450 expect() calls
-Ran 234 tests across 17 files. [217.00ms]
+Ran 234 tests across 17 files. [216.00ms]

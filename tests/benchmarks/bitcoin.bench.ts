@@ -3,7 +3,7 @@
  * -----------------------------------
  * Data: https://www.kaggle.com/datasets/mczielinski/bitcoin-historical-data
  *
- * Mornye runs on Bun (its target runtime)
+ * Molniya runs on Bun (its target runtime)
  * Arquero and Danfo.js run on Node (their target runtime)
  *
  * Usage: bun run bench
@@ -15,7 +15,7 @@ import { readCsv } from '../../src';
 const RUNS = 3;
 const DATA_FILE = `${process.cwd()}/artifac/btcusd_1-min_data.csv`;
 
-async function benchmarkMornyeBun(filePath: string, runs: number): Promise<number[]> {
+async function benchmarkMolniyaBun(filePath: string, runs: number): Promise<number[]> {
   const times: number[] = [];
 
   console.log('  Warm-up...');
@@ -103,16 +103,16 @@ async function main() {
   console.log('║   Real-World Benchmark: Bitcoin Historical Data          ║');
   console.log('║   387MB CSV / 7.38 Million Rows                          ║');
   console.log('║                                                          ║');
-  console.log('║   Mornye → Bun (target runtime)                          ║');
+  console.log('║   Molniya → Bun (target runtime)                         ║');
   console.log('║   Arquero/Danfo → Node (their target runtime)            ║');
   console.log('╚══════════════════════════════════════════════════════════╝\n');
 
   console.log(`File: ${DATA_FILE}\n`);
 
-  // Mornye on Bun
-  console.log('📊 Mornye (readCsv) on Bun:');
-  const mornyeTimes = await benchmarkMornyeBun(DATA_FILE, RUNS);
-  const mornyeStats = stats(mornyeTimes);
+  // Molniya on Bun
+  console.log('📊 Molniya (readCsv) on Bun:');
+  const molniyaTimes = await benchmarkMolniyaBun(DATA_FILE, RUNS);
+  const molniyaStats = stats(molniyaTimes);
   console.log('');
 
   // Arquero on Node
@@ -139,9 +139,9 @@ async function main() {
   console.log('│ File:              387MB / 7.38M rows                      │');
   console.log('├────────────────────────────────────────────────────────────┤');
 
-  if (mornyeStats) {
+  if (molniyaStats) {
     console.log(
-      `│ Mornye (Bun):      ${(mornyeStats.avg / 1000).toFixed(2).padStart(8)}s avg                      │`,
+      `│ Molniya (Bun):     ${(molniyaStats.avg / 1000).toFixed(2).padStart(8)}s avg                      │`,
     );
   }
   if (arqueroStats) {
@@ -157,14 +157,14 @@ async function main() {
 
   console.log('├────────────────────────────────────────────────────────────┤');
 
-  if (mornyeStats && arqueroStats) {
-    const speedup = arqueroStats.avg / mornyeStats.avg;
+  if (molniyaStats && arqueroStats) {
+    const speedup = arqueroStats.avg / molniyaStats.avg;
     console.log(
       `│ vs Arquero:        ${speedup.toFixed(1).padStart(8)}x faster                     │`,
     );
   }
-  if (mornyeStats && danfoStats) {
-    const speedup = danfoStats.avg / mornyeStats.avg;
+  if (molniyaStats && danfoStats) {
+    const speedup = danfoStats.avg / molniyaStats.avg;
     console.log(
       `│ vs Danfo.js:       ${speedup.toFixed(1).padStart(8)}x faster                     │`,
     );

@@ -1,6 +1,6 @@
 # Performance Guide
 
-Mornye is built for speed, but how you use it affects performance. Here is how to keep your pipelines flying.
+Molniya is built for speed, but how you use it affects performance. Here is how to keep your pipelines flying.
 
 ## 1. Filter Early, Filter Often
 
@@ -69,7 +69,7 @@ const result = lazy
 ## 5. Type Selection
 
 - **Strings are expensive**: They take more memory and are slower to compare than numbers. If you have a categorical column like "Status" with values "OPEN", "CLOSED", consider mapping them to integers `0` and `1` if you are memory constraint.
-- **Float64 vs Int32**: Mornye defaults to `float64` for numbers for safety. If you have massive arrays of small integers, forcing `int32` can save memory (though JS engines are erratic about this).
+- **Float64 vs Int32**: Molniya defaults to `float64` for numbers for safety. If you have massive arrays of small integers, forcing `int32` can save memory (though JS engines are erratic about this).
 
 ## Benchmarking
 
@@ -80,3 +80,4 @@ console.time('analysis');
 // ... your code ...
 console.timeEnd('analysis');
 ```
+

@@ -1,9 +1,9 @@
-import { MornyeError } from './base';
+import { MolniyaError } from './base';
 
 /**
  * Error thrown when schema validation fails.
  */
-export class SchemaError extends MornyeError {
+export class SchemaError extends MolniyaError {
   private _detail: string;
 
   constructor(detail: string, hint?: string) {

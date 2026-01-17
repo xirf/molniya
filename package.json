@@ -1,18 +1,18 @@
 {
-  "name": "mornye",
+  "name": "molniya",
   "version": "0.0.1",
-  "description": "Ergonomic data analysis.",
+  "description": "Ergonomic data analysis for TypeScript.",
   "keywords": ["dataframe", "pandas", "data-analysis", "bun", "typescript", "csv", "etl"],
   "author": "xirf",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/xirf/mornye.git"
+    "url": "git+https://github.com/xirf/molniya.git"
   },
   "bugs": {
-    "url": "https://github.com/xirf/mornye/issues"
+    "url": "https://github.com/xirf/molniya/issues"
   },
-  "homepage": "https://github.com/xirf/mornye#readme",
+  "homepage": "https://github.com/xirf/molniya#readme",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "type": "module",

@@ -1,9 +1,9 @@
-import { MornyeError } from './base';
+import { MolniyaError } from './base';
 
 /**
  * Error thrown when an operation cannot be performed.
  */
-export class InvalidOperationError extends MornyeError {
+export class InvalidOperationError extends MolniyaError {
   readonly operation: string;
   readonly reason: string;
 

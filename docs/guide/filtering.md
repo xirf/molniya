@@ -4,7 +4,7 @@ Once your data is loaded, you'll need to slice and dice it to find insights.
 
 ## Filtering Rows
 
-Mornye offers two main ways to filter data: the flexible JavaScript way, and the explicit structural way.
+Molniya offers two main ways to filter data: the flexible JavaScript way, and the explicit structural way.
 
 ### 1. The Flexible Way (`.filter`)
 Use a standard JavaScript arrow function. This is the most powerful method because you can write **any** logic you want.
@@ -52,7 +52,7 @@ const mostExpensive = products.sort('price', 'desc');
 
 ### Multi-Column Sort
 Need to sort by Department first, then by Salary?
-*Currently, Mornye optimizes for single-column sorts. To achieve multi-sort, chain them in **reverse** order of importance.* 
+*Currently, Molniya optimizes for single-column sorts. To achieve multi-sort, chain them in **reverse** order of importance.* 
 
 ```typescript
 // Sort by Dept (primary), then Salary (secondary)
@@ -109,3 +109,4 @@ const report = sales
 
 report.print();
 ```
+

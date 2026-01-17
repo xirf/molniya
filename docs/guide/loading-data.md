@@ -1,13 +1,13 @@
 # Loading Data
 
-Getting data into Mornye is the first step of any analysis. We support CSV, JSON, and plain JavaScript objects.
+Getting data into Molniya is the first step of any analysis. We support CSV, JSON, and plain JavaScript objects.
 
 ## Reading CSV Files
 
 The most common way to load data is from a CSV file.
 
 ```typescript
-import { readCsv } from "mornye";
+import { readCsv } from "molniya";
 
 // 1. Basic load
 const { df } = await readCsv("./transactions.csv");
@@ -18,7 +18,7 @@ df.print();
 
 ### Configuration Options
 
-Real-world CSVs are rarely perfect. Mornye gives you fine-grained control over how they are parsed.
+Real-world CSVs are rarely perfect. Molniya gives you fine-grained control over how they are parsed.
 
 ```typescript
 const { df, errors } = await readCsv("./raw_export.csv", {
@@ -55,7 +55,7 @@ const { df, errors } = await readCsv("./raw_export.csv", {
 
 ## Loading from JSON
 
-JSON comes in many shapes. Mornye likes **arrays of objects**.
+JSON comes in many shapes. Molniya likes **arrays of objects**.
 
 ```typescript
 const jsonData = [
@@ -139,3 +139,4 @@ const filled = df.fillna({
   category: "Unknown", // Fill 'category' nulls with 'Unknown'
 });
 ```
+

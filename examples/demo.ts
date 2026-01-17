@@ -1,5 +1,5 @@
 /**
- * Mornye Demo - Quick showcase of library capabilities
+ * Molniya Demo - Quick showcase of library capabilities
  *
  * Usage: bun run examples/demo.ts
  */
@@ -7,7 +7,7 @@
 import { DataFrame, Series, m, readCsv } from '../src';
 
 console.log('╔════════════════════════════════════════╗');
-console.log('║           Mornye Demo v0.0.1           ║');
+console.log('║           Molniya Demo v0.0.1           ║');
 console.log('╚════════════════════════════════════════╝\n');
 
 // ─────────────────────────────────────────────────────────────

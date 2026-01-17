@@ -1,9 +1,9 @@
-import { MornyeError } from './base';
+import { MolniyaError } from './base';
 
 /**
  * Error thrown when parsing fails.
  */
-export class ParseError extends MornyeError {
+export class ParseError extends MolniyaError {
   readonly what: string;
   readonly value: string;
 

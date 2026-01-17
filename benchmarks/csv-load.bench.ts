@@ -1,7 +1,7 @@
 /**
  * CSV Loading Benchmark
  *
- * Compares Mornye CSV loading performance against raw Node.js fs.
+ * Compares Molniya CSV loading performance against raw Node.js fs.
  * Uses real-world Online Retail II dataset.
  */
 
@@ -26,7 +26,7 @@ group('Retail 2009-2010 (~44MB)', () => {
     return lines.length;
   });
 
-  bench('Mornye readCsv', async () => {
+  bench('Molniya readCsv', async () => {
     const { df } = await readCsv(dataset2010);
     return df.shape[0];
   });
@@ -39,7 +39,7 @@ group('Retail 2010-2011 (~45MB)', () => {
     return lines.length;
   });
 
-  bench('Mornye readCsv', async () => {
+  bench('Molniya readCsv', async () => {
     const { df } = await readCsv(dataset2011);
     return df.shape[0];
   });

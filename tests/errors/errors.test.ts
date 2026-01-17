@@ -3,7 +3,7 @@ import { DataFrame, Series, m } from '../../src';
 import {
   ColumnNotFoundError,
   IndexOutOfBoundsError,
-  MornyeError,
+  MolniyaError,
   SchemaError,
   TypeMismatchError,
 } from '../../src/errors';
@@ -89,9 +89,9 @@ describe('Error Messages', () => {
     });
   });
 
-  describe('MornyeError base class', () => {
+  describe('MolniyaError base class', () => {
     test('format() includes location from stack trace', () => {
-      const err = new MornyeError('test error', 'test hint');
+      const err = new MolniyaError('test error', 'test hint');
       const formatted = err.format();
       expect(formatted).toContain('error: test error');
       expect(formatted).toContain('-->'); // location pointer
@@ -99,7 +99,7 @@ describe('Error Messages', () => {
     });
 
     test('format() includes visual tree structure', () => {
-      const err = new MornyeError('test');
+      const err = new MolniyaError('test');
       const formatted = err.format();
       expect(formatted).toContain('   |');
       expect(formatted).toContain('   └──');

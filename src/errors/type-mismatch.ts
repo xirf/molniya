@@ -1,9 +1,9 @@
-import { MornyeError } from './base';
+import { MolniyaError } from './base';
 
 /**
  * Error thrown when an operation is called on an incompatible type.
  */
-export class TypeMismatchError extends MornyeError {
+export class TypeMismatchError extends MolniyaError {
   readonly operation: string;
   readonly actualType: string;
   readonly expectedTypes: string[];

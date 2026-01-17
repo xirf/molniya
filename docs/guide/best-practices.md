@@ -4,7 +4,7 @@ To keep your data pipelines clean, maintainable, and robust.
 
 ## 1. Define Interfaces for Row Data
 
-Mornye infers types, but explicit interfaces make your code clearer for your team.
+Molniya infers types, but explicit interfaces make your code clearer for your team.
 
 ```typescript
 // Define what your data looks like
@@ -86,3 +86,4 @@ Data analysis code contains magic numbers. Explain them.
 ```typescript
 const outliers = df.filter(r => r.load_time > 30000); // 30s timeout threshold defined in SLA
 ```
+

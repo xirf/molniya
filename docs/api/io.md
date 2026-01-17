@@ -1,6 +1,6 @@
 # I/O API
 
-Methods for reading data into and writing data out of Mornye.
+Methods for reading data into and writing data out of Molniya.
 
 ## Reading Data
 
@@ -82,3 +82,4 @@ toCsv(df: DataFrame): string
 const csvString = toCsv(df);
 console.log(csvString);
 ```
+

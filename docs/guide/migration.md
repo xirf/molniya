@@ -4,7 +4,7 @@ Coming from pandas (Python), Polars, or SQL? Here is your cheat sheet.
 
 ## From pandas (Python)
 
-| Operation      | pandas (Python)                   | Mornye (TypeScript)                       |
+| Operation      | pandas (Python)                   | Molniya (TypeScript)                       |
 | :------------- | :-------------------------------- | :---------------------------------------- |
 | **Read CSV**   | `pd.read_csv("data.csv")`         | `readCsv("data.csv")`                     |
 | **Inspect**    | `df.head()`                       | `df.head().print()`                       |
@@ -17,12 +17,12 @@ Coming from pandas (Python), Polars, or SQL? Here is your cheat sheet.
 | **Unique**     | `df["a"].unique()`                | `df.col("a").unique()`                    |
 
 > [!NOTE]
-> **Key Difference**: pandas modifies dataframes in-place for many operations (or has `inplace=True`). Mornye is **always immutable**. You must assign the result:
+> **Key Difference**: pandas modifies dataframes in-place for many operations (or has `inplace=True`). Molniya is **always immutable**. You must assign the result:
 > `df = df.sort(...)`
 
 ## From SQL
 
-| Concept      | SQL                      | Mornye                                |
+| Concept      | SQL                      | Molniya                                |
 | :----------- | :----------------------- | :------------------------------------ |
 | **SELECT**   | `SELECT name, age`       | `.select('name', 'age')`              |
 | **WHERE**    | `WHERE age > 18`         | `.filter(r => r.age > 18)`            |
@@ -34,7 +34,7 @@ Coming from pandas (Python), Polars, or SQL? Here is your cheat sheet.
 
 ## From Plain JavaScript (Arrays)
 
-| Operation  | Array of Objects           | Mornye DataFrame              |
+| Operation  | Array of Objects           | Molniya DataFrame              |
 | :--------- | :------------------------- | :---------------------------- |
 | **Memory** | Heavy (objects per row)    | Efficient (typed arrays)      |
 | **Filter** | `arr.filter(fn)`           | `df.filter(fn)`               |
@@ -49,5 +49,6 @@ One major upgrade from pandas is strict typing.
 **pandas**:
 Columns can contain mixed types ("10", 10, None) silently.
 
-**Mornye**:
+**Molniya**:
 Columns are strictly typed. If a column is `int32`, you cannot put a string in it. This prevents an entire class of "cleaning" bugs.
+

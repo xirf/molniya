@@ -68,3 +68,4 @@ df.assign('price', row =>
         datetime: { columns: { 'date': { format: 'sql' } } }
     })
     ```
+

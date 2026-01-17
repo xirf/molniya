@@ -1,9 +1,9 @@
-import { MornyeError } from './base';
+import { MolniyaError } from './base';
 
 /**
  * Error thrown when file operations fail.
  */
-export class FileError extends MornyeError {
+export class FileError extends MolniyaError {
   readonly path: string;
   readonly reason: string;
 

@@ -1,6 +1,6 @@
 # Core Concepts
 
-To use Mornye effectively, it helps to understand how it views your data. If you're coming from SQL or Excel, this will feel familiar. If you're coming from plain JavaScript arrays, it's a powerful upgrade.
+To use Molniya effectively, it helps to understand how it views your data. If you're coming from SQL or Excel, this will feel familiar. If you're coming from plain JavaScript arrays, it's a powerful upgrade.
 
 ## The Mental Model
 
@@ -24,15 +24,15 @@ A `Series` is a single column from that table.
 | 25          |
 | 30          |
 
-In Mornye, a DataFrame is essentially a collection of aligned Series. When you select a column, you get a Series back.
+In Molniya, a DataFrame is essentially a collection of aligned Series. When you select a column, you get a Series back.
 
 ---
 
 ## Type Inference
 
-One of Mornye's strongest features is its ability to guess your data types so you don't have to type them manually.
+One of Molniya's strongest features is its ability to guess your data types so you don't have to type them manually.
 
-When you load data (from CSV, JSON, or objects), Mornye scans the values to determine the best fit:
+When you load data (from CSV, JSON, or objects), Molniya scans the values to determine the best fit:
 
 | Input Value           | Inferred Type | Description                                          |
 | :-------------------- | :------------ | :--------------------------------------------------- |
@@ -44,13 +44,13 @@ When you load data (from CSV, JSON, or objects), Mornye scans the values to dete
 
 > [!IMPORTANT]
 > **Why strict types?**
-> By strictly enforcing types per column, Mornye prevents common JS bugs like adding a string `"10"` to a number `20` and getting `"1020"`. In Mornye, the math just works.
+> By strictly enforcing types per column, Molniya prevents common JS bugs like adding a string `"10"` to a number `20` and getting `"1020"`. In Molniya, the math just works.
 
 ---
 
 ## Immutability by Design
 
-Mornye follows a functional programming paradigm. **DataFrames are immutable.**
+Molniya follows a functional programming paradigm. **DataFrames are immutable.**
 
 When you perform an operation like `.filter()` or `.sort()`, you are **not** changing the original variable. Instead, you get a brand new DataFrame returned to you.
 
@@ -74,11 +74,11 @@ console.log(filtered.height); // 2
 
 ## Memory & Performance
 
-Mornye is designed to be efficient, but it's helpful to know what's happening under the hood.
+Molniya is designed to be efficient, but it's helpful to know what's happening under the hood.
 
 - **Columnar Storage**: Data is stored by column, not by row. This is why calculating the `mean()` of a column is instant—the CPU can just zip through a single contiguous array of numbers.
 - **Lazy vs Eager**: Most standard DataFrame methods (like `filter`, `sort`) are **eager**—they happen immediately. Iterating through rows is optimized, but for massive datasets (millions of rows), you should be mindful of memory usage.
-- **Copy-on-Write**: While operations return new DataFrames, Mornye tries to share underlying data buffers where possible to save memory.
+- **Copy-on-Write**: While operations return new DataFrames, Molniya tries to share underlying data buffers where possible to save memory.
 
 ## Summary
 
@@ -86,3 +86,4 @@ Mornye is designed to be efficient, but it's helpful to know what's happening un
 - **Series** = Column (typed array).
 - **Types** are inferred but enforced.
 - **Immutability** means operations return new copies, keeping your source data safe.
+

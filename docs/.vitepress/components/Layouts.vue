@@ -48,7 +48,7 @@ provide('toggle-appearance', async ({ clientX: x, clientY: y }: MouseEvent) => {
 
 const prompt = computed(() =>
   encodeURI(
-    `I'm looking at https://mornye.andka.id${router.route.path}.\n\nWould you kindly explain, summarize the concept, and answer any questions I have about it?`,
+    `I'm looking at https://molniya.andka.id${router.route.path}.\n\nWould you kindly explain, summarize the concept, and answer any questions I have about it?`,
   ),
 );
 
@@ -80,7 +80,7 @@ const copyPage = () => {
     </template>
 
     <template #doc-before>
-      <div id="open-mornye-in"
+      <div id="open-molniya-in"
         class="flex gap-2.5 justify-between items-center pt-0.5 pr-2 text-gray-400 dark:text-gray-500 text-xs mb-1">
         <div
           class="relative z-10 flex justify-center items-center gap-2.5 *:z-20 [&>a>svg]:size-4.5 sm:[&>a>svg]:size-5 [&>a>svg]:opacity-50 [&>a>svg]:interact:opacity-100 [&>a>svg]:transition-opacity">
@@ -102,7 +102,7 @@ const copyPage = () => {
             </svg>
           </a>
 
-          <a :href="`https://mornye.andka.id${router.route.path.replace(/.html$/g, '')}.md`" class="clicky"
+          <a :href="`https://molniya.andka.id${router.route.path.replace(/.html$/g, '')}.md`" class="clicky"
             target="_blank" rel="noopener noreferrer" title="Open in Markdown">
             <File stroke-width="1.5" />
           </a>

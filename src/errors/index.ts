@@ -1,8 +1,8 @@
 /**
- * Error module - exports all Mornye error types.
+ * Error module - exports all Molniya error types.
  */
 
-export { MornyeError } from './base';
+export { MolniyaError } from './base';
 export { ColumnNotFoundError } from './column-not-found';
 export { IndexOutOfBoundsError } from './index-out-of-bounds';
 export { TypeMismatchError } from './type-mismatch';

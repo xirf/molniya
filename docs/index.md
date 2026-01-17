@@ -1,5 +1,5 @@
 ---
-title: Mornye - Ergonomic data analysis for TypeScript
+title: Molniya - Ergonomic data analysis for TypeScript
 layout: page
 sidebar: false
 ---
@@ -7,3 +7,4 @@ sidebar: false
 <Hero />
 <EYN />
 <Showcase />
+

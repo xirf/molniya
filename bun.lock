@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "mornye",
+      "name": "molniya",
       "devDependencies": {
         "@biomejs/biome": "^1.9.4",
         "@types/bun": "^1.3.6",

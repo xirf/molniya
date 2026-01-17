@@ -14,7 +14,7 @@ const tabs = [
 
 const codeSamples = {
   csv: {
-    code: `import { readCsv } from 'mornye';
+    code: `import { readCsv } from 'molniya';
 
 // Blazing fast SIMD-accelerated reading
 const { df } = await readCsv('bitcoin_7m_rows.csv', {
@@ -66,7 +66,7 @@ df.col("price").std();`,
 type SampleKey = keyof typeof codeSamples;
 
 const copyInstall = () => {
-  navigator.clipboard.writeText('bun add mornye');
+  navigator.clipboard.writeText('bun add molniya');
   copied.value = true;
   setTimeout(() => {
     copied.value = false;
@@ -152,10 +152,10 @@ const copyInstall = () => {
                         <p class="text-sm text-slate-500 mb-6">Loading 387MB (7.3M rows) Bitcoin CSV dataset.</p>
 
                         <div class="space-y-4">
-                            <!-- Mornye -->
+                            <!-- Molniya -->
                             <div>
                                 <div class="flex justify-between text-sm mb-1">
-                                    <span class="font-semibold text-indigo-500">Mornye (Bun)</span>
+                                    <span class="font-semibold text-indigo-500">Molniya (Bun)</span>
                                     <span class="text-emerald-500 font-bold">1.28s</span>
                                 </div>
                                 <div class="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
@@ -217,7 +217,7 @@ const copyInstall = () => {
                     <div
                         class="glass-card p-6 rounded-2xl flex items-center justify-between gap-4 border-l-4 border-l-indigo-500">
                         <div class="font-mono text-sm dark:text-slate-200">
-                            <span class="text-indigo-500 mr-2">$</span>bun add mornye
+                            <span class="text-indigo-500 mr-2">$</span>bun add molniya
                         </div>
                         <button @click="copyInstall"
                             class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 hover:text-indigo-500 relative group"

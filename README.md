@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/public/logo.png" width="100" height="100" alt="Mornye Logo" />
+  <img src="docs/public/logo.png" width="100" height="100" alt="Molniya Logo" />
 </p>
 
-<h1 align="center">Mornye</h1>
+<h1 align="center">Molniya</h1>
 
 <p align="center">
   <b>Strictly typed dataframes for TypeScript.</b><br>
@@ -10,16 +10,16 @@
 </p>
 
 <p align="center">
-  <a href="https://mornye.andka.id"><b>Documentation</b></a> • 
+  <a href="https://molniya.andka.id"><b>Documentation</b></a> • 
   <a href="#benchmarks"><b>Benchmarks</b></a> • 
-  <a href="https://github.com/xirf/mornye/issues"><b>Issues</b></a>
+  <a href="https://github.com/xirf/molniya/issues"><b>Issues</b></a>
 </p>
 
 <br />
 
-## Why Mornye?
+## Why Molniya?
 
-Most JavaScript data libraries treat types as an afterthought. **Mornye** puts them first.
+Most JavaScript data libraries treat types as an afterthought. **Molniya** puts them first.
 
 - **🧠 True Type Inference:** It tracks your schema through filters, selects, and aggregations.
 - **⚡ Bun Native:** Built specifically to leverage Bun's fast I/O and runtime capabilities.
@@ -29,7 +29,7 @@ Most JavaScript data libraries treat types as an afterthought. **Mornye** puts t
 ## Install
 
 ```bash
-bun add mornye
+bun add molniya
 ```
 
 ## Quick Start
@@ -37,10 +37,10 @@ bun add mornye
 Experience the "IDE magic" where types follow your data.
 
 ```typescript
-import { DataFrame } from "mornye";
+import { DataFrame } from "molniya";
 
 // 1. Create a DataFrame
-// Mornye automatically infers:
+// Molniya automatically infers:
 // name: string, age: number, is_active: boolean
 const df = DataFrame.fromColumns({
   name: ["Alice", "Bob", "Carol"],
@@ -61,9 +61,9 @@ result.print();
 
 ## Performance
 
-Mornye is built for speed, utilizing SIMD instructions for parsing.
+Molniya is built for speed, utilizing SIMD instructions for parsing.
 
-| Task              | Mornye    | Native Array |
+| Task              | Molniya   | Native Array |
 | :---------------- | :-------- | :----------- |
 | **Type Safety**   | ✅ Strict | ❌ Loose     |
 | **Memory Layout** | Columnar  | Row-based    |

@@ -67,3 +67,4 @@ const unique = df.unique();
 // Unique values in a column
 const categories = df.col("category").unique();
 ```
+
