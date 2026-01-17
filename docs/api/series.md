@@ -1,82 +1,68 @@
-# Series API
+# Series
 
-A `Series` is a typed 1D array backed by TypedArrays for numerics.
-
-## Creation
-
-```typescript
-// Numeric types
-const floats = Series.float64([1.1, 2.2, 3.3]);
-const ints = Series.int32([1, 2, 3]);
-
-// String and boolean
-const names = Series.string(['Alice', 'Bob']);
-const flags = Series.bool([true, false, true]);
-```
+A single column of typed data.
 
 ## Properties
 
 | Property | Type     | Description        |
 | -------- | -------- | ------------------ |
+| `dtype`  | `DType`  | Data type info     |
 | `length` | `number` | Number of elements |
-| `dtype`  | `DType`  | Type descriptor    |
 
-## Element Access
+## Methods
+
+### Access
+
+| Method              | Description        |
+| ------------------- | ------------------ |
+| `at(index)`         | Get value at index |
+| `head(n)`           | First n elements   |
+| `tail(n)`           | Last n elements    |
+| `slice(start, end)` | Slice of elements  |
+
+### Statistics
+
+| Method       | Description        |
+| ------------ | ------------------ |
+| `sum()`      | Sum of values      |
+| `mean()`     | Average            |
+| `min()`      | Minimum value      |
+| `max()`      | Maximum value      |
+| `std()`      | Standard deviation |
+| `describe()` | Summary stats      |
+
+### Transformation
+
+| Method          | Description          |
+| --------------- | -------------------- |
+| `map(fn)`       | Transform each value |
+| `filter(fn)`    | Keep matching values |
+| `sort(asc?)`    | Sort values          |
+| `unique()`      | Unique values        |
+| `valueCounts()` | Count occurrences    |
+
+### Missing Values
+
+| Method          | Description           |
+| --------------- | --------------------- |
+| `isna()`        | Boolean Series of NaN |
+| `fillna(value)` | Replace NaN           |
+| `copy()`        | Deep copy             |
+
+### Conversion
+
+| Method      | Description            |
+| ----------- | ---------------------- |
+| `toArray()` | Convert to plain array |
+
+## Iteration
+
+Series are iterable:
 
 ```typescript
-series.at(0);           // First element
-series.at(-1);          // undefined (no negative indexing)
-```
+for (const value of series) {
+  console.log(value);
+}
 
-## Slicing
-
-```typescript
-series.head(5);         // First 5 elements (zero-copy view)
-series.tail(5);         // Last 5 elements
-series.slice(1, 4);     // Elements 1 to 3
-```
-
-## Statistical Operations
-
-| Method       | Description        | Returns  |
-| ------------ | ------------------ | -------- |
-| `sum()`      | Sum of values      | `number` |
-| `mean()`     | Average            | `number` |
-| `min()`      | Minimum            | `number` |
-| `max()`      | Maximum            | `number` |
-| `std()`      | Standard deviation | `number` |
-| `var()`      | Variance           | `number` |
-| `describe()` | Summary stats      | `object` |
-
-```typescript
-const s = Series.float64([1, 2, 3, 4, 5]);
-
-s.sum();      // 15
-s.mean();     // 3
-s.min();      // 1
-s.max();      // 5
-s.describe(); // { count: 5, mean: 3, std: 1.41, min: 1, max: 5 }
-```
-
-## Transformations
-
-```typescript
-// Filter
-s.filter(v => v > 2);        // [3, 4, 5]
-
-// Map
-s.map(v => v * 2);           // [2, 4, 6, 8, 10]
-
-// Sort
-s.sort();                    // Ascending
-s.sort(false);               // Descending
-
-// Unique
-s.unique();                  // Remove duplicates
-
-// Value counts
-s.valueCounts();             // Map<value, count>
-
-// Convert
-s.toArray();                 // Plain array
+const arr = [...series];
 ```

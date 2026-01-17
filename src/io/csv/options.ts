@@ -2,11 +2,11 @@
  * CSV parsing options.
  */
 export interface CsvOptions {
-  /** Column delimiter byte (default: 44 for comma) */
-  delimiter?: number;
+  /** Column delimiter (default: ",") */
+  delimiter?: string;
 
-  /** Quote character byte (default: 34 for double quote) */
-  quote?: number;
+  /** Quote character (default: '"') */
+  quote?: string;
 
   /** Whether first row is header (default: true) */
   hasHeader?: boolean;
@@ -28,16 +28,43 @@ export interface CsvOptions {
 }
 
 /** Default CSV options */
-export const DEFAULT_CSV_OPTIONS: Required<CsvOptions> = {
-  delimiter: 44, // comma
-  quote: 34, // double quote
+export const DEFAULT_CSV_OPTIONS = {
+  delimiter: ',',
+  quote: '"',
   hasHeader: true,
   inferTypes: true,
   sampleRows: 100,
   maxRows: Number.POSITIVE_INFINITY,
   trackErrors: true,
-  signal: undefined as unknown as AbortSignal,
-};
+  signal: undefined as AbortSignal | undefined,
+} as const;
+
+/** Resolved CSV options with byte codes for internal use */
+export interface ResolvedCsvOptions {
+  delimiter: number;
+  quote: number;
+  hasHeader: boolean;
+  inferTypes: boolean;
+  sampleRows: number;
+  maxRows: number;
+  trackErrors: boolean;
+  signal: AbortSignal | undefined;
+}
+
+/** Convert user-facing options to internal byte-based options */
+export function resolveOptions(options?: CsvOptions): ResolvedCsvOptions {
+  const opts = { ...DEFAULT_CSV_OPTIONS, ...options };
+  return {
+    delimiter: opts.delimiter.charCodeAt(0),
+    quote: opts.quote.charCodeAt(0),
+    hasHeader: opts.hasHeader,
+    inferTypes: opts.inferTypes,
+    sampleRows: opts.sampleRows,
+    maxRows: opts.maxRows,
+    trackErrors: opts.trackErrors,
+    signal: opts.signal,
+  };
+}
 
 /**
  * Byte constants for parsing.

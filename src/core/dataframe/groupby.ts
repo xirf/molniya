@@ -1,6 +1,6 @@
-import type { Series } from '../series';
-import type { DType, DTypeKind, InferSchema, Schema } from '../types';
 import { InvalidOperationError } from '../../errors';
+import type { Series } from '../series';
+import type { DTypeKind, InferSchema, Schema } from '../types';
 
 // Forward declaration for DataFrame to avoid circular import
 interface DataFrameLike<S extends Schema> {
@@ -68,10 +68,10 @@ export class GroupBy<S extends Schema, K extends keyof S> {
 
       // Add group column values (preserved types)
       const firstIdx = indices[0];
-      if (firstIdx === undefined) continue; 
-      this._groupCols.forEach((col) => {
-          row[col as string] = this._df.col(col).at(firstIdx);
-      });
+      if (firstIdx === undefined) continue;
+      for (const col of this._groupCols) {
+        row[col as string] = this._df.col(col).at(firstIdx);
+      }
 
       // Apply aggregations
       for (const [colName, op] of Object.entries(operations)) {
@@ -120,9 +120,9 @@ export class GroupBy<S extends Schema, K extends keyof S> {
 
       const firstIdx = indices[0];
       if (firstIdx === undefined) continue;
-      this._groupCols.forEach((col) => {
+      for (const col of this._groupCols) {
         row[col as string] = this._df.col(col).at(firstIdx);
-      });
+      }
 
       row.count = indices.length;
       results.push(row);
@@ -157,7 +157,11 @@ export class GroupBy<S extends Schema, K extends keyof S> {
       case 'last':
         return values[values.length - 1];
       default:
-        throw new InvalidOperationError(op, 'not a valid aggregation', `valid options: sum, mean, min, max, count, first, last`);
+        throw new InvalidOperationError(
+          op,
+          'not a valid aggregation',
+          'valid options: sum, mean, min, max, count, first, last',
+        );
     }
   }
 }

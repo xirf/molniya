@@ -1,6 +1,6 @@
-import type { DataFrame } from './dataframe';
-import type { DTypeKind, InferSchema, Schema } from '../types';
 import type { Series } from '../series';
+import type { DTypeKind, InferSchema, Schema } from '../types';
+import type { DataFrame } from './dataframe';
 
 /**
  * Internal DataFrame context for operations.

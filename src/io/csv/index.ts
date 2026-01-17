@@ -7,7 +7,7 @@ export { readCsv } from './reader';
 export { readCsvNode } from './reader-node';
 export { scanCsv } from './scanner';
 export { toCsv, writeCsv } from './writer';
-export { CsvChunkParser } from './parser';
+export { CsvParser, hasQuotedFields } from './parser';
 export type { CsvOptions } from './options';
 export type { CsvWriteOptions } from './writer';
 export { DEFAULT_CSV_OPTIONS, BYTES } from './options';

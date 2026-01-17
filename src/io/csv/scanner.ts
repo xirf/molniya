@@ -1,7 +1,7 @@
 import { LazyFrame, type LazyFrameConfig } from '../../core/lazyframe';
 import type { Schema } from '../../core/types';
 import { inferColumnType } from './inference';
-import { type CsvOptions, DEFAULT_CSV_OPTIONS } from './options';
+import { type CsvOptions, resolveOptions } from './options';
 
 /**
  * Scan a CSV file for lazy loading.
@@ -34,7 +34,7 @@ export async function scanCsv<S extends Schema = Schema>(
   path: string,
   options?: CsvOptions & { schema?: S; lazyConfig?: LazyFrameConfig },
 ): Promise<LazyFrame<S>> {
-  const opts = { ...DEFAULT_CSV_OPTIONS, ...options };
+  const opts = resolveOptions(options);
   const providedSchema = options?.schema;
   const lazyConfig = options?.lazyConfig ?? {};
 

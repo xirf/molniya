@@ -16,7 +16,7 @@ export interface ParseResult {
 /**
  * Infers the most appropriate dtype for a column of string values.
  * Samples values to determine if they're numeric, boolean, or string.
- * 
+ *
  * NOTE: Always uses float64 for numeric columns to avoid truncation.
  * int32 can be explicitly specified via schema if needed.
  */
@@ -63,10 +63,11 @@ export function inferColumnType(samples: string[]): DType<DTypeKind> {
   if (allBools) {
     return m.bool();
   }
-  
-  // Use int32 if all numbers are integers, otherwise float64
+
+  // Always use float64 for numeric columns to avoid data loss
+  // Users can explicitly specify int32 via schema if needed
   if (allNumeric) {
-    return allIntegers ? m.int32() : m.float64();
+    return m.float64();
   }
 
   return m.string();

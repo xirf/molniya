@@ -19,7 +19,7 @@ import {
 /**
  * Reads a CSV file into a DataFrame using Node.js fs module.
  * Compatible with both Node.js and Bun runtimes.
- * 
+ *
  * Returns a CsvReadResult with the DataFrame and any parse errors.
  */
 export async function readCsvNode<S extends Schema = Schema>(
@@ -34,7 +34,7 @@ export async function readCsvNode<S extends Schema = Schema>(
   const content = fs.readFileSync(path, 'utf-8');
   const lines = content.split('\n').filter((line) => line.trim());
 
-  const delimiter = String.fromCharCode(opts.delimiter);
+  const delimiter = opts.delimiter;
 
   // Parse header
   let headers: string[];
@@ -67,7 +67,7 @@ export async function readCsvNode<S extends Schema = Schema>(
 
   // Pre-allocate storage
   const storage: Map<string, number[] | string[] | (boolean | null)[]> = new Map();
-  
+
   // Error tracking
   const parseErrors = new Map<string, ParseFailures>();
 
@@ -76,7 +76,7 @@ export async function readCsvNode<S extends Schema = Schema>(
     if (!dtype) continue;
 
     storage.set(header, new Array(rowCount));
-    
+
     if (trackErrors) {
       parseErrors.set(header, createParseFailures(rowCount));
     }

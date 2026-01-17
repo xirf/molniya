@@ -1,52 +1,59 @@
 <p align="center">
-<img src="https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Ice/Color/ice_color.svg" width="64" height="64" />
+  <img src="docs/public/logo.png" width="64" height="64" />
 </p>
 <h1 align="center">Mornye</h1>
-<p align="center"><b>Ergonomic data analysis.</b></p>
-
+<p align="center"><b>Ergonomic data analysis for TypeScript.</b></p>
 
 <br />
 
-## 📦 Installation
+## Install
 
 ```bash
 bun add mornye
 ```
 
-## 🏁 Quick Start
+## Quick Start
 
 ```typescript
 import { readCsv, DataFrame } from 'mornye';
 
-// 1. Load data from CSV
-const { df } = await readCsv('./bitcoin_history.csv');
+// Load from CSV
+const { df } = await readCsv('./data.csv');
 
-// 2. Or create manually
+// Or create manually
 const df2 = DataFrame.fromColumns({
-  age: [25, 30, 22],
   name: ['Alice', 'Bob', 'Carol'],
+  age: [25, 30, 22],
   score: [95.5, 87.2, 91.8]
 });
 
-// 3. Inspect the data
+// Inspect
 df2.print();
 
-// 4. Perform analysis
-const highVolume = df
-  .filter(row => row.Volume > 1000)
-  .select(['Timestamp', 'Close', 'Volume']);
-
-console.log(`Found ${highVolume.height} rows with high volume.`);
+// Analyze
+const highScores = df2
+  .filter(row => row.score > 90)
+  .select(['name', 'score']);
 ```
 
-## 🛠 Development
+## Features
 
-To contribute or run the benchmarks locally:
+- 🧊 **Type-safe** — Full TypeScript support with inferred column types
+- 🎯 **Familiar API** — If you know pandas or Polars, you'll feel at home
+- 📦 **Zero dependencies** — Lightweight and portable
+
+## Docs
+
+📖 **[Read the documentation](https://xirf.github.io/mornye)**
+
+## Development
 
 ```bash
-# Install dependencies
 bun install
-
-# Run tests
 bun test
+bun run docs:dev  # Start docs server
 ```
+
+## License
+
+MIT

@@ -1,135 +1,94 @@
-# DataFrame API
+# DataFrame
 
-A `DataFrame` is a typed 2D columnar data structure.
+The main data structure for tabular data.
 
-## Creation
+## Creating
+
+### `DataFrame.fromColumns(data)`
+
+Create from column objects:
 
 ```typescript
-import { DataFrame, m } from 'mornye';
-
-const schema = {
-  name: m.string(),
-  age: m.int32(),
-  score: m.float64(),
-} as const;
-
-const df = DataFrame.from(schema, [
-  { name: 'Alice', age: 25, score: 95.5 },
-  { name: 'Bob', age: 30, score: 87.2 },
-]);
-
-// Empty DataFrame
-const empty = DataFrame.empty(schema);
+const df = DataFrame.fromColumns({
+  name: ['Alice', 'Bob'],
+  age: [25, 30]
+});
 ```
+
+### `DataFrame.empty(schema)`
+
+Create an empty DataFrame with a schema.
 
 ## Properties
 
-| Property | Type           | Description  |
-| -------- | -------------- | ------------ |
-| `shape`  | `[rows, cols]` | Dimensions   |
-| `schema` | `Schema`       | Column types |
+| Property | Type               | Description       |
+| -------- | ------------------ | ----------------- |
+| `shape`  | `[number, number]` | `[rows, columns]` |
+| `height` | `number`           | Row count         |
+| `width`  | `number`           | Column count      |
 
-## Column Access
+## Methods
 
-```typescript
-df.col('age');      // Series<'int32'>
-df.columns();       // ['name', 'age', 'score']
-```
+### Selection
 
-## Row Operations
+| Method         | Description                 |
+| -------------- | --------------------------- |
+| `col(name)`    | Get a Series by column name |
+| `columns()`    | Get column names            |
+| `select(cols)` | Select specific columns     |
+| `drop(cols)`   | Remove columns              |
 
-```typescript
-df.head(5);                    // First 5 rows
-df.tail(5);                    // Last 5 rows
-df.select('name', 'age');      // Pick columns
-```
+### Filtering
 
-## Filtering
+| Method                | Description                     |
+| --------------------- | ------------------------------- |
+| `filter(fn)`          | Keep rows where fn returns true |
+| `where(col, op, val)` | Filter by column condition      |
+| `head(n)`             | First n rows                    |
+| `tail(n)`             | Last n rows                     |
 
-```typescript
-// Predicate filter
-df.filter(row => row.age > 25);
+### Sorting
 
-// SQL-like where
-df.where('age', '>', 25);
-df.where('name', '=', 'Bob');
-df.where('score', '>=', 90);
-df.where('name', 'in', ['Alice', 'Bob']);
-df.where('name', 'contains', 'li');
-```
+| Method            | Description    |
+| ----------------- | -------------- |
+| `sort(col, asc?)` | Sort by column |
 
-### Operators
+### Grouping
 
-| Operator   | Description      |
-| ---------- | ---------------- |
-| `=`        | Equal            |
-| `!=`       | Not equal        |
-| `>`        | Greater than     |
-| `>=`       | Greater or equal |
-| `<`        | Less than        |
-| `<=`       | Less or equal    |
-| `in`       | Value in array   |
-| `contains` | String contains  |
+| Method          | Description        |
+| --------------- | ------------------ |
+| `groupby(cols)` | Group by column(s) |
 
-## Sorting
+### Transformation
 
-```typescript
-df.sort('age');           // Ascending
-df.sort('score', false);  // Descending
-```
+| Method                 | Description        |
+| ---------------------- | ------------------ |
+| `rename(mapping)`      | Rename columns     |
+| `assign(name, values)` | Add new column     |
+| `apply(fn)`            | Transform each row |
+| `copy()`               | Deep copy          |
 
-## GroupBy & Aggregation
+### Missing Values
 
-```typescript
-// Group by column
-df.groupby('category')
-  .agg({ price: 'mean', quantity: 'sum' });
+| Method          | Description                        |
+| --------------- | ---------------------------------- |
+| `dropna()`      | Remove rows with NaN               |
+| `fillna(value)` | Replace NaN values                 |
+| `isna()`        | Boolean DataFrame of NaN positions |
 
-// Shortcuts
-df.groupby('category').sum('price', 'quantity');
-df.groupby('category').mean('price');
-df.groupby('category').count();
-```
+### Combining
 
-### Aggregation Functions
+| Method               | Description            |
+| -------------------- | ---------------------- |
+| `concat(dfs)`        | Vertical concatenation |
+| `merge(other, opts)` | SQL-like join          |
+| `unique()`           | Remove duplicate rows  |
 
-| Function | Description   |
-| -------- | ------------- |
-| `sum`    | Sum of values |
-| `mean`   | Average       |
-| `min`    | Minimum       |
-| `max`    | Maximum       |
-| `count`  | Row count     |
-| `first`  | First value   |
-| `last`   | Last value    |
+### Display
 
-## Apply & Transform
-
-```typescript
-// Apply function to each row
-df.apply(row => `${row.name}: ${row.age}`);
-// ['Alice: 25', 'Bob: 30']
-```
-
-## Info & Stats
-
-```typescript
-df.describe();  // Stats for numeric columns
-df.info();      // { rows, columns, dtypes }
-df.toArray();   // Array of row objects
-```
-
-## Iteration
-
-```typescript
-for (const row of df.rows()) {
-  console.log(row.name, row.age);
-}
-```
-
-## Display
-
-```typescript
-df.print();       // ASCII table to console
-df.toString();    // ASCII table as string
-```
+| Method       | Description        |
+| ------------ | ------------------ |
+| `print()`    | Print ASCII table  |
+| `toString()` | Get as string      |
+| `describe()` | Summary statistics |
+| `info()`     | Column info        |

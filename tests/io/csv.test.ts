@@ -39,11 +39,12 @@ Carol,22,91.8,true
       expect([...names]).toEqual(['Alice', 'Bob', 'Carol']);
     });
 
-    test('infers int32 type for integers', async () => {
+    test('infers float64 type for integers', async () => {
       const { df } = await readCsv(testCsvPath);
       const ages = df.col('age');
 
-      expect(ages.dtype.kind).toBe('int32');
+      // All numeric columns default to float64 for consistency
+      expect(ages.dtype.kind).toBe('float64');
       expect([...ages]).toEqual([25, 30, 22]);
     });
 

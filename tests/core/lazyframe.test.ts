@@ -165,10 +165,11 @@ describe('LazyFrame', () => {
       const lazy = await scanCsv(LAZY_CSV_PATH);
       const info = lazy.info();
 
-      expect(info.dtypes.id).toBe('int32');
+      // All numeric columns default to float64
+      expect(info.dtypes.id).toBe('float64');
       expect(info.dtypes.name).toBe('string');
       expect(info.dtypes.price).toBe('float64');
-      expect(info.dtypes.quantity).toBe('int32');
+      expect(info.dtypes.quantity).toBe('float64');
       expect(info.dtypes.active).toBe('bool');
     });
   });

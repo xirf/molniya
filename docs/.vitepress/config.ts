@@ -2,52 +2,52 @@ import { defineConfig } from 'vitepress';
 
 export default defineConfig({
   title: 'Mornye',
-  description: 'High-performance data manipulation for Bun.js',
-
-  head: [['meta', { name: 'theme-color', content: '#5c6bc0' }]],
+  description: 'Ergonomic data analysis for TypeScript',
+  head: [['link', { rel: 'icon', href: '/logo.png' }]],
 
   themeConfig: {
-    logo: '/logo.svg',
+    logo: '/logo.png',
 
     nav: [
-      { text: 'Guide', link: '/getting-started' },
-      { text: 'API', link: '/api/series' },
-      { text: 'GitHub', link: 'https://github.com/yourname/mornye' },
+      { text: 'Guide', link: '/guide/getting-started' },
+      { text: 'API', link: '/api/dataframe' },
+      { text: 'GitHub', link: 'https://github.com/xirf/mornye' },
     ],
 
     sidebar: {
-      '/': [
+      '/guide/': [
         {
           text: 'Introduction',
           items: [
-            { text: 'Getting Started', link: '/getting-started' },
-            { text: 'Why Mornye?', link: '/why-mornye' },
+            { text: 'Getting Started', link: '/guide/getting-started' },
+            { text: 'Core Concepts', link: '/guide/concepts' },
           ],
         },
         {
-          text: 'Core Concepts',
+          text: 'Working with Data',
           items: [
-            { text: 'Data Cleaning', link: '/concepts/cleaning' },
-            { text: 'String Manipulation', link: '/concepts/strings' },
+            { text: 'Loading Data', link: '/guide/loading-data' },
+            { text: 'Filtering & Sorting', link: '/guide/filtering' },
+            { text: 'Grouping & Aggregation', link: '/guide/grouping' },
           ],
         },
+      ],
+      '/api/': [
         {
           text: 'API Reference',
           items: [
-            { text: 'Series', link: '/api/series' },
             { text: 'DataFrame', link: '/api/dataframe' },
-            { text: 'LazyFrame', link: '/api/lazyframe' },
-            { text: 'CSV I/O', link: '/api/csv' },
+            { text: 'Series', link: '/api/series' },
+            { text: 'I/O', link: '/api/io' },
           ],
         },
       ],
     },
 
-    socialLinks: [{ icon: 'github', link: 'https://github.com/yourname/mornye' }],
+    socialLinks: [{ icon: 'github', link: 'https://github.com/xirf/mornye' }],
 
     footer: {
       message: 'Released under the MIT License.',
-      copyright: 'Copyright © 2024',
     },
   },
 });
