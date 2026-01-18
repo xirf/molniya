@@ -16,5 +16,16 @@ const result = df
   .sort('value_score', false) // Descending sort
   .select('product', 'price', 'value_score');
 
+const grouped = df.groupby("category")
+const aggregated = grouped.agg({
+  price: "mean",
+  rating: "mean"
+})
+
 // 3. See the results
+df.print();
 result.print();
+grouped.print();
+aggregated.print();
+
+
