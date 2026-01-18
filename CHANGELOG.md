@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+
+## [UNRELEASED]
+
+### Added
+- Documentation now uses `shiki-twoslash` for type-safe code examples with interactive tooltips.
+- Added `DataFrame.fromColumns` factory method for type-safe instantiation.
+
+### Changed
+- **Breaking**: `GroupBy.agg`, `sum`, and `mean` now return strongly typed `IDataFrame` results instead of `Record<string, unknown>[]`.
+- Refactored internal `GroupBy` implementation to use `DataFrame` factory.
+- Updated documentation and code comments to use objective, high-performance terminology.
+- Enhanced styling of Twoslash tooltips to match the "Molniya" premium aesthetic.
+
 ## 0.0.1 - 2026-01-18
 
 - Initial release of molniya.
