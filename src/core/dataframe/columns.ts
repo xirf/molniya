@@ -447,3 +447,169 @@ export function bfill<S extends Schema>(
 
   return fromColumns(ctx.schema, newColumns, ctx._columnOrder, ctx.shape[0]);
 }
+
+/**
+ * Ordinal encoding for specified columns.
+ */
+export function toOrdinal<S extends Schema, K extends keyof S>(
+  ctx: ColumnContext<S>,
+  fromColumns: (
+    schema: S,
+    columns: Map<keyof S, Series<DTypeKind>>,
+    columnOrder: (keyof S)[],
+    rowCount: number,
+  ) => DataFrame<S>,
+  columns: K[],
+): DataFrame<S> {
+  const newColumns = new Map<keyof S, Series<DTypeKind>>();
+  const newSchema = { ...ctx.schema };
+
+  for (const colName of ctx._columnOrder) {
+    const series = ctx._columns.get(colName)!;
+    if (columns.includes(colName as K)) {
+      const encoded = (series as unknown as Series<DTypeKind>).toOrdinal();
+      newColumns.set(colName, encoded as unknown as Series<DTypeKind>);
+      (newSchema as Record<string, DType<DTypeKind>>)[colName as string] = encoded.dtype;
+    } else {
+      newColumns.set(colName, series);
+    }
+  }
+
+  return fromColumns(newSchema, newColumns, ctx._columnOrder, ctx.shape[0]);
+}
+
+/**
+ * One-hot encoding (getDummies) for categorical columns.
+ * Creates new boolean columns for each unique value in target columns.
+ */
+export function getDummies<S extends Schema, K extends keyof S>(
+  ctx: ColumnContext<S>,
+  fromColumns: (
+    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+    schema: any,
+    columns: Map<string, Series<DTypeKind>>,
+    columnOrder: string[],
+    rowCount: number,
+    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+  ) => DataFrame<any>,
+  columns?: K[],
+  options: { prefix?: boolean; dropOriginal?: boolean } = {},
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+): DataFrame<any> {
+  const { prefix = true, dropOriginal = true } = options;
+  const targetCols =
+    columns ?? (ctx._columnOrder.filter((c) => ctx.schema[c]?.kind === 'string') as K[]);
+
+  const newColumns = new Map<string, Series<DTypeKind>>();
+  const newColumnOrder: string[] = [];
+  const newSchema: Record<string, DType<DTypeKind>> = {};
+
+  // Add original columns that are NOT being dummy-encoded
+  const dropSet = new Set<keyof S>(dropOriginal ? targetCols : []);
+  for (const colName of ctx._columnOrder) {
+    if (!dropSet.has(colName)) {
+      const name = String(colName);
+      newColumnOrder.push(name);
+      const dtype = ctx.schema[colName];
+      if (dtype) {
+        newSchema[name] = dtype;
+        newColumns.set(name, ctx._columns.get(colName)!);
+      }
+    }
+  }
+
+  // Create dummy columns
+  for (const colName of targetCols) {
+    const series = ctx._columns.get(colName)!;
+    const uniqueVals = series.unique();
+    const prefixStr = prefix ? `${String(colName)}_` : '';
+
+    for (const val of uniqueVals) {
+      if (val === null || val === undefined || (typeof val === 'number' && Number.isNaN(val))) {
+        continue;
+      }
+
+      const dummyName = `${prefixStr}${String(val)}`;
+      const dummyData = new Uint8Array(ctx.shape[0]);
+
+      for (let i = 0; i < ctx.shape[0]; i++) {
+        dummyData[i] = series.at(i) === val ? 1 : 0;
+      }
+
+      newColumnOrder.push(dummyName);
+      newSchema[dummyName] = { kind: 'bool', nullable: false };
+      newColumns.set(dummyName, Series.bool(Array.from(dummyData, (v) => v === 1)));
+    }
+  }
+
+  return fromColumns(newSchema as Schema, newColumns, newColumnOrder, ctx.shape[0]);
+}
+
+/**
+ * Binary encoding for categorical columns.
+ * Maps categories to integers, then represents those integers as multiple binary columns.
+ */
+export function toBinary<S extends Schema, K extends keyof S>(
+  ctx: ColumnContext<S>,
+  fromColumns: (
+    schema: Schema,
+    columns: Map<string, Series<DTypeKind>>,
+    columnOrder: string[],
+    rowCount: number,
+    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+  ) => DataFrame<any>,
+  columns: K[],
+  options: { prefix?: boolean; dropOriginal?: boolean } = {},
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+): DataFrame<any> {
+  const { prefix = true, dropOriginal = true } = options;
+  const newColumns = new Map<string, Series<DTypeKind>>();
+  const newColumnOrder: string[] = [];
+  const newSchema: Record<string, DType<DTypeKind>> = {};
+
+  // Add original columns that are NOT being binary-encoded
+  const targetSet = new Set<keyof S>(columns);
+  for (const colName of ctx._columnOrder) {
+    if (!dropOriginal || !targetSet.has(colName)) {
+      const name = String(colName);
+      newColumnOrder.push(name);
+      const dtype = ctx.schema[colName];
+      if (dtype) {
+        newSchema[name] = dtype;
+        newColumns.set(name, ctx._columns.get(colName)!);
+      }
+    }
+  }
+
+  // Create binary columns for each target
+  for (const colName of columns) {
+    const series = ctx._columns.get(colName)!;
+    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+    const ordinal = (series as unknown as Series<any>).toOrdinal();
+    const maxVal = ordinal.max();
+
+    // Number of bits needed
+    const numBits = maxVal < 0 ? 0 : Math.floor(Math.log2(maxVal + 1)) + 1;
+    const prefixStr = prefix ? `${String(colName)}_` : 'bit_';
+
+    for (let bit = 0; bit < numBits; bit++) {
+      const bitName = `${prefixStr}${bit}`;
+      const bitData = new Uint8Array(ctx.shape[0]);
+
+      for (let i = 0; i < ctx.shape[0]; i++) {
+        const val = ordinal.at(i);
+        if (val !== undefined && val !== null && val >= 0) {
+          bitData[i] = (val >> bit) & 1;
+        } else {
+          bitData[i] = 0; // Default for missing
+        }
+      }
+
+      newColumnOrder.push(bitName);
+      newSchema[bitName] = { kind: 'bool', nullable: false };
+      newColumns.set(bitName, Series.bool(Array.from(bitData, (v) => v === 1)));
+    }
+  }
+
+  return fromColumns(newSchema as Schema, newColumns, newColumnOrder, ctx.shape[0]);
+}

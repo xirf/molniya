@@ -645,6 +645,39 @@ export class Series<T extends DTypeKind> implements ISeries<T> {
   }
 
   /**
+   * Ordinal encoding - maps each unique category to an incremental integer.
+   * Useful for categorical data in machine learning.
+   *
+   * @example
+   * ```ts
+   * const s = Series.string(['cat', 'dog', 'cat', 'bird']);
+   * const encoded = s.toOrdinal(); // [0, 1, 0, 2]
+   * ```
+   */
+  toOrdinal(): Series<'int32'> {
+    const mapping = new Map<InferDType<DType<T>>, number>();
+    const results: number[] = new Array(this._len);
+    let counter = 0;
+
+    for (let i = 0; i < this._len; i++) {
+      const val = this.at(i);
+      if (val === undefined || val === null || (typeof val === 'number' && Number.isNaN(val))) {
+        results[i] = -1; // Missing value indicator
+        continue;
+      }
+
+      let code = mapping.get(val);
+      if (code === undefined) {
+        code = counter++;
+        mapping.set(val, code);
+      }
+      results[i] = code;
+    }
+
+    return Series.int32(results);
+  }
+
+  /**
    * String accessor for string Series.
    * Provides string manipulation methods.
    * @throws TypeMismatchError if Series is not string type

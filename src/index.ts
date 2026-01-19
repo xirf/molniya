@@ -23,6 +23,9 @@
  * // For large files (10GB+), use lazy loading
  * const lazy = await scanCsv('./huge_dataset.csv');
  * const first10 = await lazy.head(10);
+ *
+ * // Configure memory limits for server-side safety
+ * configure({ globalLimitBytes: 512 * 1024 * 1024 }); // 512MB
  * ```
  */
 
@@ -36,6 +39,10 @@ export type {
   InferDType,
   StorageType,
 } from './core/types';
+
+// Global configuration
+export { configure, getConfig, resetConfig, getDefaultConfig, getMemoryStats } from './core/config';
+export type { MemoryConfig, MemoryStats, AllocationResult } from './core/config';
 
 // Data structures
 export { Series } from './core/series';
@@ -63,4 +70,5 @@ export {
   FileError,
   ParseError,
   SchemaError,
+  MemoryLimitError,
 } from './errors';

@@ -182,6 +182,7 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
 
     if (sampleType === 'string') return Series.string(values as string[]);
     if (sampleType === 'boolean') return Series.bool(values as boolean[]);
+    if (sampleValue instanceof Uint8Array) return Series.string(values as unknown as string[]);
 
     throw new SchemaError(
       `Cannot infer dtype from value type: ${sampleType}`,
@@ -807,6 +808,72 @@ export class DataFrame<S extends Schema> implements IDataFrame<S> {
    */
   bfill(): DataFrame<S> {
     return cols.bfill(this, DataFrame._fromColumns);
+  }
+
+  /**
+   * Ordinal encoding for categorical columns.
+   * Maps unique values in specified columns to incremental integers.
+   *
+   * @example
+   * ```ts
+   * const df = DataFrame.fromColumns({
+  /**
+   * Ordinal encoding for categorical columns.
+   * Maps unique values in specified columns to incremental integers.
+   * 
+   * @example
+   * ```ts
+   * const df = DataFrame.fromColumns({
+   *   cat: ['A', 'B', 'A'],
+   *   val: [1, 2, 3]
+   * });
+   * const encoded = df.toOrdinal('cat');
+   * ```
+   */
+  toOrdinal<K extends keyof S>(...columns: K[]): DataFrame<S> {
+    return cols.toOrdinal(this, DataFrame._fromColumns, columns);
+  }
+
+  /**
+   * One-hot encoding for categorical columns.
+   * Creates new boolean columns for each unique value in target columns.
+   *
+   * @example
+   * ```ts
+   * const df = DataFrame.fromColumns({
+   *   brand: ['apple', 'samsung', 'apple']
+   * });
+   * const dummies = df.getDummies('brand');
+   * // Result columns: brand_apple, brand_samsung (booleans)
+   * ```
+   */
+  getDummies<K extends keyof S>(
+    columns?: K[],
+    options: { prefix?: boolean; dropOriginal?: boolean } = {},
+    // biome-ignore lint/suspicious/noExplicitAny: Dynamic schema based on unique values
+  ): DataFrame<any> {
+    return cols.getDummies(this, DataFrame._fromColumns, columns, options);
+  }
+
+  /**
+   * Binary encoding for categorical columns.
+   * Useful for high-cardinality categories to reduce column count compared to one-hot.
+   *
+   * @example
+   * ```ts
+   * const df = DataFrame.fromColumns({
+   *   category: ['A', 'B', 'C', 'D']
+   * });
+   * const encoded = df.toBinary('category');
+   * // Result columns: category_0, category_1 (bits)
+   * ```
+   */
+  toBinary<K extends keyof S>(
+    columns: K[],
+    options: { prefix?: boolean; dropOriginal?: boolean } = {},
+    // biome-ignore lint/suspicious/noExplicitAny: Dynamic schema based on unique values
+  ): DataFrame<any> {
+    return cols.toBinary(this, DataFrame._fromColumns, columns, options);
   }
 
   private _mapNumericColumns(

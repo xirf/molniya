@@ -37,4 +37,7 @@ export interface ISeries<T extends DTypeKind> extends SeriesView<T> {
 
   /** Get underlying storage (for internal use) */
   _storage(): StorageType<T>;
+
+  /** Ordinal encoding - maps categories to integers */
+  toOrdinal(): ISeries<'int32'>;
 }

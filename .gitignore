@@ -44,3 +44,7 @@ docs/.vitepress/cache
 
 # Benchmark data (downloaded during CI/local runs)
 benchmarks/data
+benchmarks/artifacts
+benchmarks/artifac
+.vitepress
+tests/fixtures
