@@ -9,7 +9,7 @@ sidebar: false
 
 ```ts twoslash
 // @noErrors
-import { readCsv } from 'molniya';
+import { readCsv } from "molniya";
 // ---cut---
 const { df } = await readCsv("data.csv");
 // df.col("invalid") ➔ Error!
@@ -17,6 +17,19 @@ const { df } = await readCsv("data.csv");
 ```
 
 </EYN>
+
+<section class="benchmarks">
+  <h2>The "Server-Side First" Balance</h2>
+  <p>
+    We prioritize stability and memory efficiency for production servers. 
+    While we can't beat Rust's raw speed yet, we deliver performance that 
+    **outperforms optimized Python tools** while using <b>10x less memory</b> than high-performance engines.
+  </p>
+
+
+<BenchmarkComparison />
+
+</section>
 
 <Showcase>
 
@@ -26,12 +39,12 @@ const { df } = await readCsv("data.csv");
 // @noErrors
 // @noErrors
 // ---cut---
-import { readCsv } from 'molniya';
+import { readCsv } from "molniya";
 
 // SIMD-accelerated reading
-const { df } = await readCsv('bitcoin_7m_rows.csv', {
-  delimiter: ',',
-  hasHeader: true
+const { df } = await readCsv("bitcoin_7m_rows.csv", {
+  delimiter: ",",
+  hasHeader: true,
 });
 
 console.log(df.shape); // [7381118, 8]
@@ -44,17 +57,17 @@ console.log(df.head(5));
 
 ```ts twoslash
 // @noErrors
-import { DataFrame } from 'molniya';
+import { DataFrame } from "molniya";
 const df = DataFrame.fromColumns({
   timestamp: [1],
   price: [50000],
   volume: [1.2],
-  category: ['A', 'B', 'C']
+  category: ["A", "B", "C"],
 });
 // ---cut---
 // Expressive filtering
 const filtered = df
-  .where(col => col("price").gt(50000))
+  .where((col) => col("price").gt(50000))
   .select("timestamp", "price", "volume");
 
 console.log(filtered.shape);
@@ -67,10 +80,10 @@ filtered.print();
 
 ```ts twoslash
 // @noErrors
-import { DataFrame } from 'molniya';
+import { DataFrame } from "molniya";
 const df = DataFrame.fromColumns({
-  product: ['Laptop', 'Mouse', 'Monitor', 'Keyboard'],
-  category: ['Electronics', 'Accessories', 'Electronics', 'Accessories'],
+  product: ["Laptop", "Mouse", "Monitor", "Keyboard"],
+  category: ["Electronics", "Accessories", "Electronics", "Accessories"],
   price: [999.99, 29.99, 199.99, 59.99],
   rating: [4.5, 4.2, 4.8, 3.9],
 });
@@ -78,7 +91,7 @@ const df = DataFrame.fromColumns({
 // SQL-like aggregations
 const summary = df.groupby("category").agg({
   price: "mean",
-  rating: "mean"
+  rating: "mean",
 });
 
 summary.print();
@@ -90,12 +103,12 @@ summary.print();
 
 ```ts twoslash
 // @errors: 2345
-import { DataFrame } from 'molniya';
+import { DataFrame } from "molniya";
 // ---cut---
 // Full IDE support
 const df = DataFrame.fromColumns({
-  product: ['Laptop', 'Mouse', 'Monitor', 'Keyboard'],
-  category: ['Electronics', 'Accessories', 'Electronics', 'Accessories'],
+  product: ["Laptop", "Mouse", "Monitor", "Keyboard"],
+  category: ["Electronics", "Accessories", "Electronics", "Accessories"],
   price: [999.99, 29.99, 199.99, 59.99],
   rating: [4.5, 4.2, 4.8, 3.9],
 });
@@ -111,3 +124,4 @@ df.col("price").std();
 
 </Showcase>
 
+<Footer />

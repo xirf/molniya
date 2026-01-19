@@ -1,12 +1,15 @@
+import { transformerTwoslash } from '@shikijs/vitepress-twoslash';
+import { createFileSystemTypesCache } from '@shikijs/vitepress-twoslash/cache-fs';
 import UnoCSS from 'unocss/vite';
 import { defineConfig } from 'vitepress';
 import llmstxt from 'vitepress-plugin-llms';
-import { transformerTwoslash } from '@shikijs/vitepress-twoslash';
-import { createFileSystemTypesCache } from '@shikijs/vitepress-twoslash/cache-fs';
 
 export default defineConfig({
   title: 'Molniya',
   description: 'Ergonomic data analysis for TypeScript',
+  lastUpdated: true,
+  ignoreDeadLinks: false,
+  lang: 'en-US',
   head: [['link', { rel: 'icon', href: '/logo.png' }]],
   vite: {
     plugins: [
@@ -28,11 +31,11 @@ export default defineConfig({
         twoslashOptions: {
           compilerOptions: {
             paths: {
-              "molniya": ["./src/index.ts"]
-            }
-          }
-        }
-      })
+              molniya: ['./src/index.ts'],
+            },
+          },
+        },
+      }),
     ],
   },
   sitemap: { hostname: 'https://molniya.andka.id' },
@@ -67,6 +70,7 @@ export default defineConfig({
           items: [
             { text: 'Common Recipes', link: '/guide/recipes' },
             { text: 'Performance Guide', link: '/guide/performance' },
+            { text: 'Memory Limits', link: '/guide/memory-limits' },
             { text: 'Migration Guide', link: '/guide/migration' },
             { text: 'Best Practices', link: '/guide/best-practices' },
             { text: 'Troubleshooting', link: '/guide/troubleshooting' },
@@ -85,10 +89,19 @@ export default defineConfig({
       ],
     },
 
-    socialLinks: [{ icon: 'github', link: 'https://github.com/xirf/molniya' }],
+    outline: {
+      level: [2, 3],
+      label: 'On this page',
+    },
 
-    footer: {
-      message: 'Released under the MIT License.',
+    socialLinks: [
+      { icon: 'github', link: 'https://github.com/xirf/molniya' },
+      { icon: 'npm', link: 'https://www.npmjs.com/package/molniya' },
+    ],
+
+    editLink: {
+      text: 'Edit this page on GitHub',
+      pattern: 'https://github.com/xirf/molniya/edit/main/docs/:path',
     },
   },
 });

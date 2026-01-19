@@ -7,14 +7,15 @@
         class="z-10 relative flex w-full pt-6 md:pt-0 mb-16 md:mb-8 px-6 min-h-[80svh] items-center justify-center">
         <div class="flex flex-col text-center">
             <div class="flex flex-col gap-4 max-w-screen-lg items-center">
-                <h1 class="text-6xl xl:text-9xl font-black font-mono xl:mb-10 tracking-tighter">Molniya</h1>
-                <p class="text-4xl xl:text-5xl mb-6 font-bold tracking-tight">Ergonomic data analysis for <span
-                        class="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">TypeScript.</span>
+                <img src="/logo.png" class="size-32 mb-12" />
+                <p class="text-4xl xl:text-6xl max-w-3xl mb-6 font-bold tracking-loose">
+                    Process datasets larger than memory
+                    <span class="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">in
+                        JavaScript.</span>
                 </p>
                 <p class="text-lg text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-                    A pandas-like data analysis library for JavaScript. Type-safe by design, zero dependencies, and
-                    optimized with
-                    SIMD.
+                    <!-- A streaming DataFrame library built for Bun. Type-safe, panic-free, and resource-aware. -->
+                    A streaming DataFrame library built for Bun. Type-safe, panic-free, and resource-aware.
                 </p>
                 <section
                     class="flex flex-col sm:flex-row items-start sm:items-center w-full md:w-auto gap-4 mt-8 mb-12">
