@@ -59,7 +59,12 @@ Create an empty DataFrame with a schema.
 | --------------- | ------------------ |
 | `groupby(cols)` | Group by column(s) |
 
-`GroupBy` aggregations: `agg({ col: op })`, `sum(cols)`, `mean(cols)`, `count()`. Supported ops: `sum`, `mean`, `min`, `max`, `count`, `first`, `last`.
+`GroupBy` aggregations: `agg({ col: op })`, `sum(cols)`, `mean(cols)`, `count()`.
+
+Supported ops: `sum`, `mean`, `min`, `max`, `count`, `first`, `last`.
+
+> [!NOTE]
+> Aggregations return strictly typed `DataFrames`. For example, `mean()` will result in `float64` columns, while `count()` results in `int32`.
 
 ### Transformation
 

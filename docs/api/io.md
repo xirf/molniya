@@ -8,7 +8,10 @@ Methods for reading data into and writing data out of Molniya.
 Reads a CSV file into a DataFrame.
 
 ```typescript
-readCsv(path: string, options?: CsvReadOptions): Promise<{ df: DataFrame, errors: CsvError[] }>
+readCsv(path: string, options?: CsvReadOptions): Promise<{ 
+    df: DataFrame,
+    errors: CsvError[]
+  }>
 ```
 
 **Returns:**
@@ -46,7 +49,17 @@ const { df } = await readCsv('./data.csv', {
 Creates a `LazyFrame` for processing files larger than memory.
 
 ```typescript
-scanCsv(path: string, options?: CsvReadOptions): Promise<LazyFrame>
+scanCsv(path: string, options?: CsvReadOptions & { lazyConfig?: LazyFrameConfig }): Promise<LazyFrame>
+```
+
+**Lazy Configuration**
+```typescript
+interface LazyFrameConfig {
+  maxCacheMemory?: number; // Cache limit in bytes (default: 100MB)
+  chunkSize?: number;      // Rows per chunk (default: 10,000)
+  raw?: boolean;           // Keep strings as bytes (Zero-copy, extremely weird but fast)
+  forceGc?: boolean;       // Force garbage collection after each chunk
+}
 ```
 
 > [!NOTE]

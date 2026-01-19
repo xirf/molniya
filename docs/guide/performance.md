@@ -66,10 +66,29 @@ const result = lazy
   .collect(); // NOW it reads just enough of the file to answer the query
 ```
 
+> [!TIP]
+> For server deployments, set global memory limits with `configure()`. This prevents any single operation from using all available RAM. See [Memory Limits](/guide/memory-limits).
+
 ## 5. Type Selection
 
 - **Strings are expensive**: They take more memory and are slower to compare than numbers. If you have a categorical column like "Status" with values "OPEN", "CLOSED", consider mapping them to integers `0` and `1` if you are memory constraint.
 - **Float64 vs Int32**: Molniya defaults to `float64` for numbers for safety. If you have massive arrays of small integers, forcing `int32` can save memory (though JS engines are erratic about this).
+
+## 6. Byte-Level Optimizations (LazyFrame)
+
+For extreme cases (e.g., 10GB+ CSVs on a machine with 4GB RAM), `LazyFrame` offers "raw" mode and aggressive GC.
+
+```typescript
+const lazy = await scanCsv('gigantic.csv', {
+  lazyConfig: {
+    raw: true,      // Keep data as Uint8Array (no string decoding overhead)
+    forceGc: true,  // Force garbage collection after each chunk
+  }
+});
+```
+
+- **`raw: true`**: Skips the expensive UTF-8 decoding step. Filter operations run directly on bytes. Ideal if you are just filtering/selecting data to export a smaller subset.
+- **`forceGc: true`**: Manually triggers the Garbage Collector after processing every chunk. Slows down execution but ensures memory usage stays absolute minimal.
 
 ## Benchmarking
 

@@ -51,6 +51,14 @@ const { df, errors } = await readCsv("./raw_export.csv", {
 > **Check for Errors!**
 > The `readCsv` function returns an object `{ df, errors }`. Always check `errors` if your data looks weird. It contains parsing warnings (like malformed rows).
 
+> [!TIP]
+> **Running on a Server?**
+> Add `memoryLimitBytes` to prevent OOM crashes from oversized uploads. See the [Memory Limits](/guide/memory-limits) guide.
+
+> [!NOTE]
+> **Files Larger than RAM?**
+> Use `scanCsv` instead of `readCsv` to stream data lazily. See [Performance Guide](/guide/performance#4-large-datasets-use-scancsv) for details.
+
 ---
 
 ## Loading from JSON
