@@ -19,36 +19,45 @@ afterAll(async () => {
 
 describe('ChunkCache', () => {
   test('evicts least recently used chunk when memory exceeded', () => {
-    const cache = new ChunkCache<{ id: number }>({ maxMemoryBytes: 60, chunkSize: 2 });
+    const cache = new ChunkCache({ maxMemoryBytes: 60, chunkSize: 2 });
 
-    cache.set(0, { startRow: 0, rows: [{ id: 1 }], sizeBytes: 40 });
-    cache.set(1, { startRow: 2, rows: [{ id: 3 }], sizeBytes: 30 });
+    // Chunk size approx: 40 bytes
+    cache.set(0, {
+      startRow: 0,
+      columns: { id: [1, 2] },
+      rowCount: 2,
+      sizeBytes: 40,
+    });
+    // Another 40 bytes -> Total 80 > 60 -> Evict 0
+    cache.set(1, {
+      startRow: 2,
+      columns: { id: [3, 4] },
+      rowCount: 2,
+      sizeBytes: 40,
+    });
 
     expect(cache.size).toBe(1);
     expect(cache.get(0)).toBeUndefined();
-    expect(cache.get(1)?.rows[0]?.id).toBe(3);
-  });
-
-  test('getRows returns undefined for uncached rows and fills cached ones', () => {
-    const cache = new ChunkCache<{ id: number }>({ maxMemoryBytes: 200, chunkSize: 2 });
-    cache.set(0, { startRow: 0, rows: [{ id: 1 }, { id: 2 }], sizeBytes: 50 });
-
-    const rows = cache.getRows(0, 3);
-    expect(rows).toEqual([{ id: 1 }, { id: 2 }, undefined]);
+    expect(cache.get(1)?.columns.id?.[0]).toBe(3);
   });
 
   test('estimateSize uses field count when no rows', () => {
-    const estimate = ChunkCache.estimateSize([], 3);
+    const estimate = ChunkCache.estimateSize({}, 0);
     expect(estimate).toBe(0);
   });
 
   test('provides chunk utilities and clear resets memory', () => {
-    const cache = new ChunkCache<{ id: number }>({ maxMemoryBytes: 1_000, chunkSize: 5 });
+    const cache = new ChunkCache({ maxMemoryBytes: 1_000, chunkSize: 5 });
 
     expect(cache.getChunkIndex(9)).toBe(1);
     expect(cache.getChunkRange(2)).toEqual([10, 15]);
 
-    cache.set(0, { startRow: 0, rows: [{ id: 1 }], sizeBytes: 100 });
+    cache.set(0, {
+      startRow: 0,
+      columns: { id: [1] },
+      rowCount: 1,
+      sizeBytes: 100,
+    });
     expect(cache.size).toBe(1);
     expect(cache.memoryUsed).toBe(100);
 
@@ -68,6 +77,8 @@ describe('RowIndex', () => {
 
     expect(idx.rowCount).toBe(2);
     expect(idx.getRowOffset(0)).toBe(csv.indexOf('1'));
+    // Row 1 starts at '3'. The previous line '1,2\n' ends before '3'.
+    // 'a,b\n' (4) + '1,2\n' (4) = 8
     expect(idx.getRowOffset(1)).toBe(csv.indexOf('3'));
     expect(() => idx.getRowOffset(5)).toThrow();
   });
@@ -83,6 +94,8 @@ describe('RowIndex', () => {
     expect(end).toBe(csv.indexOf('1'));
   });
 });
+
+import { parseLine, parseValue } from '../../src/core/lazyframe/parser';
 
 describe('LazyFrame parse internals', () => {
   test('parses quoted fields and booleans via scanCsv', async () => {
@@ -111,19 +124,11 @@ describe('LazyFrame parse internals', () => {
     expect(info.columns).toBe(2);
   });
 
-  test('internal parse line/value helpers handle quotes and bools', async () => {
-    const lazy = await scanCsv(QUOTED_PATH);
-    const parseLine = (
-      lazy as unknown as { _parseLine: (line: string) => string[] }
-    )._parseLine.bind(lazy);
-    const parseValue = (
-      lazy as unknown as { _parseValue: (v: string, d: unknown) => unknown }
-    )._parseValue.bind(lazy);
+  test('internal parse line/value helpers handle quotes and bools', () => {
+    expect(parseLine('"a,b",c', ',')).toEqual(['a,b', 'c']);
 
-    expect(parseLine('"a,b",c')).toEqual(['a,b', 'c']);
-
-    const boolTrue = parseValue('True', { kind: 'bool' });
-    const boolFalse = parseValue('0', { kind: 'bool' });
+    const boolTrue = parseValue('True', { kind: 'bool', nullable: true });
+    const boolFalse = parseValue('0', { kind: 'bool', nullable: true });
     expect(boolTrue).toBe(true);
     expect(boolFalse).toBe(false);
   });
