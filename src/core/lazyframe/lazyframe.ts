@@ -1,5 +1,7 @@
+import { Buffer } from 'node:buffer';
 import { DataFrame } from '../dataframe';
-import type { Series } from '../series';
+import { Series } from '../series';
+import type { LazyStringColumn } from '../series/lazy-string';
 import type { DTypeKind, InferSchema, Schema } from '../types';
 import { type BinaryChunk, ChunkCache, type Vector } from './chunk-cache';
 import { BinaryGroupBy } from './groupby-binary';
@@ -382,30 +384,46 @@ export class LazyFrame<S extends Schema> implements ILazyFrame<S> {
         this._cache.set(chunkIdx, chunk);
       }
 
-      // Create DataFrame using existing schema (Zero Copy logic applied in loadChunk/toDataFrame construction effectively)
-      // Create DataFrame using existing schema (Zero Copy logic applied in loadChunk/toDataFrame construction effectively)
-      // Note: _toDataFrame expects Record, but we can update it or map chunk.columns (Vector[]) to Record.
-      // But _toDataFrame was designed to take Record.
-      // We should update _toDataFrame to take Vector[].
-      // For now, let's map it to Record of Vectors (or decoded?)
-      // Yield expects fully materialised DataFrame traditionally.
-      // If we yield a wrapper that stays lazy, that's better?
-      // But DataFrame is eager.
-      // So we must decode.
+      // Convert Vectors to Series directly (Zero-Copy)
+      const seriesMap = new Map<string, Series<DTypeKind>>();
 
-      const dfData: Record<string, unknown[]> = {};
       for (let i = 0; i < this._columnOrder.length; i++) {
         const colName = this._columnOrder[i] as string;
         const vector = chunk.columns[i]!;
-        // Decode entire vector to array
-        const arr = new Array(chunk.rowCount);
-        for (let r = 0; r < chunk.rowCount; r++) {
-          arr[r] = this._readVectorValue(vector, r);
+        const dtype = this.schema[colName]!;
+
+        let series: Series<DTypeKind>;
+
+        if (vector.kind === 'string') {
+          // Construct LazyStringColumn
+          const lazyCol: LazyStringColumn = {
+            kind: 'lazy-string',
+            buffer: Buffer.from(vector.data), // ensure Buffer
+            offsets: vector.offsets,
+            lengths: vector.lengths,
+            needsUnescape: vector.needsUnescape,
+            cache: new Array(chunk.rowCount).fill(null),
+          };
+          series = Series.stringLazy(lazyCol);
+        } else if (vector.kind === 'int32') {
+          series = Series.int32(vector.data);
+        } else if (vector.kind === 'bool') {
+          // Optimize: use zero-copy boolFromBytes
+          series = Series.boolFromBytes(vector.data);
+        } else {
+          // float64
+          series = Series.float64(vector.data as Float64Array);
         }
-        dfData[colName] = arr;
+
+        seriesMap.set(colName, series);
       }
 
-      const df = this._toDataFrame(dfData, chunk.rowCount);
+      // Use private constructor via casting or if available
+      // DataFrame constructor is private.
+      // check if I can use _createSeries equivalent? No.
+      // Use "any" cast to bypass private constructor for this internal optimization
+      // @ts-ignore
+      const df = new DataFrame(this.schema, seriesMap, this._columnOrder, chunk.rowCount);
 
       yield df;
 

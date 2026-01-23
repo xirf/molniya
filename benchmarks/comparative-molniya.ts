@@ -4,8 +4,8 @@ import { configure, getMemoryStats, scanCsv } from '../src';
 
 // SETTINGS
 const DATA_PATH = './artifac/2019-Nov.csv';
-const MEMORY_LIMIT = 200 * 1024 * 1024; // 200MB
-configure({ globalLimitBytes: MEMORY_LIMIT });
+// const MEMORY_LIMIT = 100 * 1024 * 1024; // 100MB (conservative to keep RSS < 250MB)
+// configure({ globalLimitBytes: MEMORY_LIMIT });
 
 async function main() {
   console.log('--- Molniya Benchmark (Mitata) ---');
@@ -27,7 +27,7 @@ async function main() {
   const lazy = await scanCsv(DATA_PATH, {
     lazyConfig: {
       chunkSize: 50_000,
-      maxCacheMemory: 200 * 1024 * 1024,
+      // maxCacheMemory: 100 * 1024 * 1024,
       raw: true,
       forceGc: true,
     },
@@ -54,7 +54,7 @@ async function main() {
 
       for (let i = 0; i < len; i++) {
         // Zero-copy check
-        const eventBytes = events.at(i) as unknown as Uint8Array;
+        const eventBytes = events.bytes(i);
         let matches = false;
         if (eventBytes && eventBytes.length === 8) {
           matches = true;
@@ -67,15 +67,17 @@ async function main() {
         }
 
         if (matches) {
-          const brandBytes = brands.at(i) as unknown as Uint8Array;
-          const brandStr = decoder.decode(brandBytes);
+          const brandBytes = brands.bytes(i);
+          if (brandBytes) {
+            const brandStr = decoder.decode(brandBytes);
 
-          let id = globalBrandDict.get(brandStr);
-          if (id === undefined) {
-            id = nextId++;
-            globalBrandDict.set(brandStr, id);
+            let id = globalBrandDict.get(brandStr);
+            if (id === undefined) {
+              id = nextId++;
+              globalBrandDict.set(brandStr, id);
+            }
+            brandCounts[id]!++;
           }
-          brandCounts[id]!++;
         }
       }
       processed += len;

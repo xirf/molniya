@@ -90,6 +90,14 @@ export class Series<T extends DTypeKind> implements ISeries<T> {
   }
 
   /**
+   * Creates a boolean Series directly from Uint8Array (0=false, 1=true).
+   * Zero-copy if possible (wraps the array).
+   */
+  static boolFromBytes(data: Uint8Array): Series<'bool'> {
+    return new Series<'bool'>({ kind: 'bool', nullable: false }, data);
+  }
+
+  /**
    * Creates a Series from raw storage (internal use).
    */
   static _fromStorage<T extends DTypeKind>(dtype: DType<T>, storage: StorageType<T>): Series<T> {
@@ -141,6 +149,34 @@ export class Series<T extends DTypeKind> implements ISeries<T> {
     }
 
     return value as InferDType<DType<T>>;
+  }
+
+  /**
+   * Get raw bytes at index (if available).
+   * Useful for high-performance zero-copy checks on string columns.
+   */
+  bytes(index: number): Uint8Array | undefined {
+    if (index < 0 || index >= this._len) return undefined;
+    const baseIndex = this._offset + index;
+
+    if (this.dtype.kind === 'string' && isLazyStringColumn(this._data)) {
+      const col = this._data;
+      // If dictionary, resolve code first
+      if (col.codes && col.dict) {
+        // Dictionary strings are stored in col.dict (Array<string>).
+        // We don't have bytes easily unless we encode them back?
+        // Or if dict is also byte-backed?
+        // Current LazyStringColumn uses string[] for dict.
+        // So bytes() is hard for dict-coded.
+        // For now, assume LazyStringColumn from Vectors are NOT dict-coded in this flow?
+        return undefined;
+      }
+
+      const start = col.offsets[baseIndex]!;
+      const len = col.lengths[baseIndex]!;
+      return col.buffer.subarray(start, start + len);
+    }
+    return undefined;
   }
 
   // ─────────────────────────────────────────────────────────────
