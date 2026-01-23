@@ -465,7 +465,7 @@ export class LazyFrame<S extends Schema> implements ILazyFrame<S> {
       return { startRow, columns: [], rowCount: 0, sizeBytes: 0 };
     }
 
-    const [startByte, endByte] = this._rowIndex.getRowsRange(startRow, endRow);
+    const [startByte, endByte, skipRows] = this._rowIndex.getLooseRange(startRow, endRow);
     const blob = this._file.slice(startByte, endByte);
 
     const arrayBuffer = await blob.arrayBuffer();
@@ -476,6 +476,7 @@ export class LazyFrame<S extends Schema> implements ILazyFrame<S> {
       this._columnOrder as string[],
       this.schema,
       this._delimiter.charCodeAt(0),
+      skipRows,
     );
 
     const sizeBytes = ChunkCache.estimateSize(columns, count);

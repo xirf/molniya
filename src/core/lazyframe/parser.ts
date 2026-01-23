@@ -133,8 +133,50 @@ export function parseChunkBytes(
   columnOrder: string[],
   schema: Schema,
   delimiterCode: number,
+  skipRows = 0,
 ): Vector[] {
   const colOrderLen = columnOrder.length;
+  let pos = 0;
+  const len = bytes.length;
+
+  // Skip leading rows if requested
+  if (skipRows > 0) {
+    let skipped = 0;
+    while (pos < len && skipped < skipRows) {
+      const idx = bytes.indexOf(10, pos); // Find LF
+      if (idx === -1) {
+        pos = len; // Consumed all
+        break;
+      }
+      pos = idx + 1;
+      skipped++;
+    }
+
+    if (pos >= len) {
+      // If we mapped to end, return empty vectors
+      const emptyCols: Vector[] = new Array(colOrderLen);
+      for (let i = 0; i < colOrderLen; i++) {
+        const col = columnOrder[i]!;
+        const kind = schema[col]!.kind;
+        if (kind === 'string') {
+          emptyCols[i] = {
+            kind: 'string',
+            data: new Uint8Array(0),
+            offsets: new Uint32Array(0),
+            lengths: new Uint32Array(0),
+            needsUnescape: new Uint8Array(0),
+          };
+        } else if (kind === 'int32') {
+          emptyCols[i] = { kind: 'int32', data: new Int32Array(0) };
+        } else if (kind === 'bool') {
+          emptyCols[i] = { kind: 'bool', data: new Uint8Array(0) };
+        } else {
+          emptyCols[i] = { kind: 'float64', data: new Float64Array(0) };
+        }
+      }
+      return emptyCols;
+    }
+  }
 
   // Initialize Vectors
   const columns: Vector[] = new Array(colOrderLen);
@@ -177,8 +219,6 @@ export function parseChunkBytes(
     }
   }
 
-  let pos = 0;
-  const len = bytes.length;
   let rowIndex = 0;
 
   while (pos < len && rowIndex < expectedRows) {
