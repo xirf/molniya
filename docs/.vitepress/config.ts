@@ -56,47 +56,80 @@ export default defineConfig({
     logo: '/logo.png',
 
     nav: [
-      { text: 'Guide', link: '/guide/getting-started' },
-      { text: 'API', link: '/api/dataframe' },
+      { text: 'Guide', link: '/guide/introduction' },
+      { text: 'API', link: '/api/overview' },
+      { text: 'Cookbook', link: '/cookbook/' },
       { text: 'GitHub', link: 'https://github.com/xirf/molniya' },
     ],
 
     sidebar: {
       '/guide/': [
         {
-          text: 'Introduction',
+          text: 'Getting Started',
           items: [
+            { text: 'Introduction', link: '/guide/introduction' },
             { text: 'Getting Started', link: '/guide/getting-started' },
-            { text: 'Core Concepts', link: '/guide/concepts' },
+            { text: 'What is Molniya?', link: '/guide/what-is-molniya' },
           ],
         },
         {
-          text: 'Working with Data',
+          text: 'Core Concepts',
           items: [
-            { text: 'Loading Data', link: '/guide/loading-data' },
-            { text: 'Filtering & Sorting', link: '/guide/filtering' },
-            { text: 'Grouping & Aggregation', link: '/guide/grouping' },
+            { text: 'Data Types', link: '/guide/data-types' },
+            { text: 'Working with CSV', link: '/guide/io-csv' },
+            { text: 'Lazy Evaluation', link: '/guide/lazy-evaluation' },
           ],
         },
         {
-          text: 'Usage Guides',
+          text: 'Migration',
           items: [
-            { text: 'Common Recipes', link: '/guide/recipes' },
-            { text: 'Performance Guide', link: '/guide/performance' },
-            { text: 'Memory Limits', link: '/guide/memory-limits' },
-            { text: 'Migration Guide', link: '/guide/migration' },
-            { text: 'Best Practices', link: '/guide/best-practices' },
-            { text: 'Troubleshooting', link: '/guide/troubleshooting' },
+            { text: 'Overview', link: '/guide/migration/' },
+            { text: 'From Pandas', link: '/guide/migration/from-pandas' },
+            { text: 'From Polars', link: '/guide/migration/from-polars' },
+            { text: 'From Arquero', link: '/guide/migration/from-arquero' },
+            { text: 'From Danfo.js', link: '/guide/migration/from-danfo' },
+          ],
+        },
+      ],
+      '/cookbook/': [
+        {
+          text: '🍳 Cookbook',
+          items: [
+            { text: 'Overview', link: '/cookbook/' },
+            { text: 'DataFrame', link: '/cookbook/dataframe' },
+            { text: 'LazyFrame', link: '/cookbook/lazyframe' },
+            { text: 'Series', link: '/cookbook/series' },
+            { text: 'CSV I/O', link: '/cookbook/csv-io' },
+            { text: 'Data Cleaning', link: '/cookbook/cleaning' },
           ],
         },
       ],
       '/api/': [
         {
           text: 'API Reference',
+          items: [{ text: 'Overview', link: '/api/overview' }],
+        },
+        {
+          text: 'Core Classes',
           items: [
             { text: 'DataFrame', link: '/api/dataframe' },
+            { text: 'LazyFrame', link: '/api/lazyframe' },
             { text: 'Series', link: '/api/series' },
-            { text: 'I/O', link: '/api/io' },
+          ],
+        },
+        {
+          text: 'I/O Functions',
+          items: [
+            { text: 'CSV Reading', link: '/api/csv-reading' },
+            { text: 'CSV Writing', link: '/api/csv-writing' },
+          ],
+        },
+        {
+          text: 'Types',
+          items: [
+            { text: 'DType', link: '/api/dtype' },
+            { text: 'Result', link: '/api/result' },
+            { text: 'Schema', link: '/api/schema' },
           ],
         },
       ],
@@ -115,6 +148,15 @@ export default defineConfig({
     editLink: {
       text: 'Edit this page on GitHub',
       pattern: 'https://github.com/xirf/molniya/edit/main/docs/:path',
+    },
+
+    search: {
+      provider: 'local',
+    },
+
+    footer: {
+      message: 'Released under the MIT License.',
+      copyright: 'Copyright © 2024-present Molniya Contributors',
     },
   },
 });

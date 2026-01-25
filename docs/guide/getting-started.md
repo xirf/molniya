@@ -1,116 +1,215 @@
 # Getting Started
 
-Welcome to Molniya! This guide will get you up and running with ergonomic data analysis in TypeScript.
-
-## What You'll Learn
-
-- How to install Molniya in your project
-- Creating your first DataFrame
-- Running a simple analysis pipeline
-- Understanding the basic output
+Welcome to Molniya! This guide will get you up and running in under 5 minutes.
 
 ## Installation
 
-Molniya is a pure TypeScript library with zero runtime dependencies. It works in Bun, other runtime support is planned.
+Add Molniya to your project:
 
-::: code-group
-
-```bash [bun]
+```bash
 bun add molniya
 ```
 
-```bash [npm]
-npm install molniya
-```
+That's it. Zero dependencies, ready to use.
 
-```bash [pnpm]
-pnpm add molniya
-```
+## Your First DataFrame
 
-```bash [yarn]
-yarn add molniya
-```
-
-:::
-
-> [!TIP]
-> **TypeScript Users**: Molniya is written in TypeScript and bundles its own types. You don't need to install any `@types` packages.
-
----
-
-## Your First Analysis
-
-Let's jump right in. Instead of a "Hello World", we'll do something useful: analyze value-scores for potential products.
-
-Create a file named `analysis.ts`:
+Let's create a DataFrame from some data. Copy and paste this into a file:
 
 ```typescript
-import { DataFrame } from "molniya";
+import { DataFrame, DType } from "molniya";
 
-// 1. Create a DataFrame (columns are fully typed!)
-const df = DataFrame.fromColumns({
-  product: ["Laptop", "Mouse", "Monitor", "Keyboard"],
-  category: ["Electronics", "Accessories", "Electronics", "Accessories"],
-  price: [999.99, 29.99, 199.99, 59.99],
-  rating: [4.5, 4.2, 4.8, 3.9],
-});
+// Define what your data looks like
+const schema = {
+  name: DType.String,
+  age: DType.Int32,
+  salary: DType.Float64,
+};
 
-// 2. Perform your analysis
-// Let's find high-rated items (rating >= 4.0) and calculate a "value score"
+// Create a DataFrame
+const df = DataFrame.fromColumns(
+  {
+    name: ["Alice", "Bob", "Charlie"],
+    age: [25, 30, 35],
+    salary: [50000, 60000, 70000],
+  },
+  schema,
+);
+
+// See what you got
+console.log(df.toString());
+```
+
+Run it with `bun run your-file.ts`. You should see a table printed to your console.
+
+### What just happened?
+
+1. **Schema** - You told Molniya what types your data should be
+2. **fromColumns** - You created a DataFrame from column data
+3. **toString** - You printed it in a readable format
+
+The schema isn't optional noise - it's how Molniya ensures type safety and enables optimizations.
+
+## Loading Real Data
+
+Working with CSV files? Just point Molniya at the file:
+
+```typescript
+import { scanCsv, DType } from "molniya";
+
+const schema = {
+  name: DType.String,
+  age: DType.Int32,
+  city: DType.String,
+};
+
+const result = await scanCsv("users.csv", { schema });
+
+if (result.ok) {
+  const df = result.data;
+  console.log(`Loaded ${df.columnOrder.length} columns`);
+} else {
+  console.error("Oops:", result.error.message);
+}
+```
+
+No need to read the file yourself - Molniya handles it with Bun's optimized file I/O.
+
+### Already have the data?
+
+If you've got CSV data as a string:
+
+```typescript
+import { scanCsvFromString, DType } from "molniya";
+
+const csvData = `name,age,city
+Alice,25,NYC
+Bob,30,LA`;
+
+const schema = {
+  name: DType.String,
+  age: DType.Int32,
+  city: DType.String,
+};
+
+const result = await scanCsvFromString(csvData, { schema });
+```
+
+## Common Operations
+
+Once you have a DataFrame, here's what you can do with it:
+
+### Filter rows
+
+```typescript
+// Everyone over 25
+const adults = df.filter("age", ">", 25);
+
+// Exact match
+const alice = df.filter("name", "==", "Alice");
+```
+
+### Pick columns
+
+```typescript
+// Just names and salaries
+const payroll = df.select(["name", "salary"]);
+```
+
+### Sort
+
+```typescript
+// Highest paid first
+const bySalary = df.sortBy("salary", false); // false = descending
+
+// Youngest first
+const byAge = df.sortBy("age", true); // true = ascending
+```
+
+### Chain it all together
+
+```typescript
 const result = df
-  .filter((row) => row.rating >= 4.0)
-  .assign("value_score", (row) => row.rating / Math.log10(row.price))
-  .sort("value_score", false) // Descending sort
-  .select("product", "price", "value_score");
-
-// 3. See the results
-result.print();
+  .filter("age", ">", 25)
+  .select(["name", "salary"])
+  .sortBy("salary", false);
 ```
 
-### Run it
+## Working with Large Files
 
-```bash
-bun run analysis.ts
-# or
-npx tsx analysis.ts
+For big datasets, use LazyFrame. It builds a query plan and optimizes before execution:
+
+```typescript
+import { LazyFrame, DType } from "molniya";
+
+const schema = {
+  product: DType.String,
+  category: DType.String,
+  revenue: DType.Float64,
+};
+
+const result = await LazyFrame.scanCsv("sales.csv", schema)
+  .filter("category", "==", "Electronics") // Will push down to scan
+  .filter("revenue", ">", 1000)
+  .select(["product", "revenue"]) // Only loads needed columns
+  .collect(); // Execute the optimized plan
 ```
 
-### The Output
+LazyFrame analyzes your query and:
 
-You should see a nicely formatted table in your terminal:
+- **Predicate pushdown** - Filters rows during CSV parsing
+- **Column pruning** - Only reads the columns you need
+- **Query fusion** - Combines operations when possible
 
-```text
-┌─────────┬──────────┬─────────────┐
-│ product │  price   │ value_score │
-├─────────┼──────────┼─────────────┤
-│   Mouse │  29.9900 │      2.8436 │
-│ Monitor │ 199.9900 │      2.0860 │
-│  Laptop │ 999.9900 │      1.5000 │
-└─────────┴──────────┴─────────────┘
+For a 1GB CSV file, this can mean reading only 100MB.
+
+## Error Handling
+
+Molniya doesn't throw exceptions for expected errors. It returns Result types:
+
+```typescript
+const result = await scanCsv("data.csv", { schema });
+
+if (result.ok) {
+  // Happy path - you have data
+  const df = result.data;
+  console.log(df.toString());
+} else {
+  // Something went wrong
+  console.error("Failed:", result.error.message);
+}
 ```
 
-> [!NOTE]
-> Did you notice? The `Mouse` actually has the best value score despite being cheap! This is the power of quick data exploration.
+This forces you to handle errors explicitly. No surprises.
 
----
+## What's Next?
 
-## What Just Happened?
+You now know enough to be productive. Where you go depends on what you need:
 
-Let's break down that valid one-liner:
+**Basic usage** (start here if you're new):
 
-1.  **`DataFrame.fromColumns`**: We created a columnar data structure. Molniya inferred the types automatically (`string`, `float64`, etc.).
-2.  **`filter`**: We narrowed down the dataset to only include items with a rating of 4.0 or higher.
-3.  **`assign`**: We created a **new column** on the fly. The arrow function receives a fully typed `row` object.
-4.  **`sort`**: We ordered the results by our new metric.
-5.  **`select`**: We picked only the columns we cared about for the final report.
+- [Understanding Data Types](./data-types.md) - Available types and when to use them
 
-Crucially, **the original `df` remained unchanged**. Molniya uses an immutable approach, so every operation returns a new DataFrame.
+### Key Features
 
-## Next Steps
+-   **[Lazy Evaluation](./lazy-evaluation)**: Build query plans and execute them efficiently.
+-   **Operations**: Rich set of data manipulation operations.
+-   **Filtering**: Powerful filtering capabilities.
+-   **Sorting**: Multi-column sorting.
+-   **Memory Efficiency**: Optimized memory usage with dictionary encoding.
+-   **String Operations**: Vectorized string operations.
 
-Now that you've got the basics, where should you go next?
+Check out the [Examples](../cookbook/index) to see more.
 
-- **[Core Concepts](/guide/concepts)**: Understand how Molniya thinks about data (DataFrames vs Series).
-- **[Loading Data](/guide/loading-data)**: Learn how to ingest CSVs, JSON, and more.
-- **[Filtering & Sorting](/guide/filtering)**: Dive deeper into data manipulation.
+**API Reference** (when you need exact details):
 
+- [DataFrame API](../api/dataframe.md)
+- [LazyFrame API](../api/lazyframe.md)
+- [Series API](../api/series.md)
+
+## Need Help?
+
+Stuck? Have questions?
+
+- [GitHub Issues](https://github.com/xirf/molniya/issues) - Bug reports and feature requests
+- [Discussions](https://github.com/xirf/molniya/discussions) - Ask questions, share ideas

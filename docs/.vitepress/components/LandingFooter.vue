@@ -1,10 +1,8 @@
 <template>
-    <footer class="bg-black border-t border-cat-surface0 py-12 px-6">
+    <footer class="py-12 px-6">
         <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
             <div class="flex items-center gap-2">
-                <div class="i-fa6-solid-bolt text-cat-overlay0 text-sm"></div>
                 <span class="font-bold text-cat-text tracking-tight">Molniya</span>
-                <span class="text-cat-overlay0 text-sm ml-2">© 2026</span>
             </div>
 
             <div class="flex gap-8 text-sm text-cat-subtext">
@@ -12,10 +10,6 @@
                 <a href="/api/dataframe" class="hover:text-cat-blue transition-colors">API</a>
                 <a href="https://github.com/xirf/molniya" class="hover:text-cat-blue transition-colors">GitHub</a>
                 <a href="https://www.npmjs.com/package/molniya" class="hover:text-cat-blue transition-colors">NPM</a>
-            </div>
-
-            <div class="text-xs text-cat-overlay0 font-mono">
-                Ad astra per aspera.
             </div>
         </div>
     </footer>

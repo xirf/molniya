@@ -24,11 +24,9 @@
   --vp-custom-block-tip-code-bg: #cdf7dc;
   --vp-custom-block-tip-border: #dcfce7;
   --vp-custom-block-tip-text: #15803d;
-  --vp-c-brand-nav-active: color-mix(
-    in srgb,
-    var(--vp-c-brand-light) 15%,
-    transparent 100%
-  );
+  --vp-c-brand-nav-active: color-mix(in srgb,
+      var(--vp-c-brand-light) 15%,
+      transparent 100%);
   --vp-nav-logo-height: 28px;
 
   --twoslash-border-color: theme("colors.slate.200");
@@ -62,11 +60,9 @@
   --vp-custom-block-tip-bg: #064e3b;
   --vp-custom-block-tip-border: #052e16;
   --vp-custom-block-tip-text: #f0fdf4;
-  --vp-c-brand-nav-active: color-mix(
-    in srgb,
-    var(--vp-c-brand-dark) 30%,
-    transparent 100%
-  );
+  --vp-c-brand-nav-active: color-mix(in srgb,
+      var(--vp-c-brand-dark) 30%,
+      transparent 100%);
 
   --twoslash-border-color: theme("colors.slate.800");
   --vp-c-bg-elv: theme("colors.slate.800");
@@ -94,42 +90,30 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(
-      ellipse 80% 50% at 50% -20%,
+    radial-gradient(ellipse 80% 50% at 50% -20%,
       rgba(99, 102, 241, 0.3),
-      transparent
-    ),
-    radial-gradient(
-      ellipse 60% 40% at 80% 50%,
+      transparent),
+    radial-gradient(ellipse 60% 40% at 80% 50%,
       rgba(139, 92, 246, 0.2),
-      transparent
-    ),
-    radial-gradient(
-      ellipse 50% 30% at 20% 80%,
+      transparent),
+    radial-gradient(ellipse 50% 30% at 20% 80%,
       rgba(99, 102, 241, 0.15),
-      transparent
-    );
+      transparent);
   z-index: -1;
   pointer-events: none;
 }
 
 .dark .VPHero::before {
   background:
-    radial-gradient(
-      ellipse 80% 50% at 50% -20%,
+    radial-gradient(ellipse 80% 50% at 50% -20%,
       rgba(99, 102, 241, 0.4),
-      transparent
-    ),
-    radial-gradient(
-      ellipse 60% 40% at 80% 50%,
+      transparent),
+    radial-gradient(ellipse 60% 40% at 80% 50%,
       rgba(139, 92, 246, 0.3),
-      transparent
-    ),
-    radial-gradient(
-      ellipse 50% 30% at 20% 80%,
+      transparent),
+    radial-gradient(ellipse 50% 30% at 20% 80%,
       rgba(99, 102, 241, 0.2),
-      transparent
-    );
+      transparent);
 }
 
 /* dark/light radial transition */
@@ -156,13 +140,13 @@
     @apply hidden !;
   }
 
-  & > .check {
+  &>.check {
     @apply m-auto !bg-transparent !shadow-none size-7 !;
 
-    & > .icon {
+    &>.icon {
       @apply !size-7;
 
-      & > span {
+      &>span {
         @apply scale-175 top-1.75 left-1.75;
       }
     }
@@ -174,30 +158,30 @@
     z-index: 40 !important;
   }
 
-  & > .VPNavBar {
+  &>.VPNavBar {
     @apply bg-transparent ! backdrop-blur-xs;
 
     /* Doc layout */
-    & > .wrapper > .container > .content > .content-body {
+    &>.wrapper>.container>.content>.content-body {
       @apply bg-transparent gap-0;
     }
 
-    & > .divider {
+    &>.divider {
       @apply hidden;
     }
   }
 }
 
-#VPSidebarNav > .group {
+#VPSidebarNav>.group {
   @apply border-t-0 min-h-11 pt-2.25;
 
-  & > .VPSidebarItem {
+  &>.VPSidebarItem {
     @apply pb-1;
 
-    & > .item {
+    &>.item {
       @apply opacity-85;
 
-      & > .text {
+      &>.text {
         @apply flex items-center text-base font-medium py-1.5;
 
         &::before {
@@ -208,29 +192,28 @@
         }
       }
 
-      & > .caret {
+      &>.caret {
         @apply scale-90 translate-y-0.5;
       }
     }
 
-    & > .items {
-      & > .VPSidebarItem {
+    &>.items {
+      &>.VPSidebarItem {
         @apply pl-4 border-l dark:border-l-gray-600 rounded-none transition-all duration-100 ease-out;
 
         /* Separation between nested table of content */
         &:not(.collapsible),
-        &.collapsible > .items > .VPSidebarItem {
+        &.collapsible>.items>.VPSidebarItem {
+
           &:hover,
           &:focus,
           &.is-active.has-active {
             @apply rounded-r-lg border-transparent;
-            background-color: color-mix(
-              in srgb,
-              var(--vp-c-brand-1) 30%,
-              transparent 100%
-            );
+            background-color: color-mix(in srgb,
+                var(--vp-c-brand-1) 30%,
+                transparent 100%);
 
-            & > .item > .indicator {
+            &>.item>.indicator {
               background-color: var(--vp-c-brand-1);
               height: 100%;
               top: 0;
@@ -240,98 +223,92 @@
 
         &.collapsible {
           &:not(.is-active) {
-            & > .item:has(.link):hover,
-            & > .item:has(.link):focus {
-              & > .caret {
+
+            &>.item:has(.link):hover,
+            &>.item:has(.link):focus {
+              &>.caret {
                 @apply -translate-x-2;
               }
             }
           }
 
-          & > .item {
+          &>.item {
             @apply rounded-lg transition-all duration-100 ease-out;
 
             &:hover,
             &:focus {
-              background-color: color-mix(
-                in srgb,
-                var(--vp-c-brand-1) 30%,
-                transparent 100%
-              );
+              background-color: color-mix(in srgb,
+                  var(--vp-c-brand-1) 30%,
+                  transparent 100%);
 
-              & > h3 {
+              &>h3 {
                 color: var(--vp-c-brand) !important;
               }
 
-              & > .indicator {
+              &>.indicator {
                 background-color: var(--vp-c-brand);
               }
             }
 
-            & > .indicator {
+            &>.indicator {
               @apply translate-x-4;
             }
 
-            & > h3 {
+            &>h3 {
               @apply font-normal;
             }
 
             &:has(.link):hover,
             &:has(.link):focus {
-              background-color: color-mix(
-                in srgb,
-                var(--vp-c-brand-1) 30%,
-                transparent 100%
-              );
+              background-color: color-mix(in srgb,
+                  var(--vp-c-brand-1) 30%,
+                  transparent 100%);
 
-              & > .indicator {
+              &>.indicator {
                 background-color: var(--vp-c-brand);
               }
 
-              & > .link > h3 {
+              &>.link>h3 {
                 color: var(--vp-c-brand) !important;
               }
             }
           }
 
-          &.is-active > .item {
+          &.is-active>.item {
             @apply pr-2;
-            background-color: color-mix(
-              in srgb,
-              var(--vp-c-brand-1) 30%,
-              transparent 100%
-            );
-            border-color: color-mix(
-              in srgb,
-              var(--vp-c-brand-1) 30%,
-              transparent 100%
-            ) !important;
+            background-color: color-mix(in srgb,
+                var(--vp-c-brand-1) 30%,
+                transparent 100%);
+            border-color: color-mix(in srgb,
+                var(--vp-c-brand-1) 30%,
+                transparent 100%) !important;
 
-            & > .indicator {
+            &>.indicator {
               @apply translate-x-4;
               background-color: var(--vp-c-brand);
             }
 
-            & > div > .caret-icon {
+            &>div>.caret-icon {
               color: var(--vp-c-brand);
             }
           }
 
-          & > .items {
+          &>.items {
             @apply grid border-0 pl-0;
 
-            & > .VPSidebarItem {
+            &>.VPSidebarItem {
               @apply border-l pl-4 dark:border-l-gray-600;
             }
 
-            & > .caret {
+            &>.caret {
+
               &:hover,
               &:focus {
                 background-color: transparent;
               }
             }
 
-            & > .VPSidebarItem {
+            &>.VPSidebarItem {
               @apply min-h-8;
             }
           }
@@ -344,44 +321,45 @@
 .VPLocalNav {
   @apply !bg-transparent !border-0;
 
-  & > .container {
+  &>.container {
     @apply relative flex bg-transparent mx-auto px-4 sm:px-6 md:px-0 lg:px-0 py-0 mt-2;
     max-width: 688px;
 
-    & > .menu {
+    &>.menu {
       @apply p-0;
     }
 
-    & > .menu,
-    & > .VPLocalNavOutlineDropdown > button {
+    &>.menu,
+    &>.VPLocalNavOutlineDropdown>button {
       @apply !bg-white/80 dark: !bg-slate-800/80 px-2 py-0.75 rounded-xl border border-slate-700/10 dark:border-slate-300/10 backdrop-blur-md;
     }
 
-    & > .VPLocalNavOutlineDropdown {
+    &>.VPLocalNavOutlineDropdown {
       @apply p-0 ml-auto;
 
-      & > .items {
+      &>.items {
         @apply top-10 right-4 md:right-0 max-w-[calc(100%-32px)] sm:max-w-sm !bg-white/75 dark: !bg-slate-800/75 p-1 rounded-2xl border border-slate-700/10 dark:border-slate-300/10 backdrop-blur-md shadow-2xl shadow-black/5;
         left: unset;
         transition-duration: 0.5s;
         transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 
-        & > .header {
+        &>.header {
           @apply h-9 mb-2 bg-transparent;
         }
 
-        & > .outline {
+        &>.outline {
           @apply p-0 outline-0 bg-transparent;
 
-          & > .nested {
+          &>.nested {
             @apply px-0;
 
-            & > li {
-              & > a {
+            &>li {
+              &>a {
                 @apply px-4;
               }
 
-              & > a {
+              &>a {
+
                 &:hover,
                 &:focus {
                   @apply rounded-xl;
@@ -390,17 +368,18 @@
                 }
               }
 
-              & > ul {
+              &>ul {
                 @apply pl-4 pr-0;
 
-                & > li {
+                &>li {
                   @apply border-l;
 
-                  & > a {
+                  &>a {
                     @apply px-4;
                   }
 
-                  & > a {
+                  &>a {
+
                     &:hover,
                     &:focus {
                       @apply rounded-lg;
@@ -422,8 +401,8 @@
   transform: translateX(0) !important;
 }
 
-.appearance + .social-links::before,
-.menu + .appearance::before {
+.appearance+.social-links::before,
+.menu+.appearance::before {
   display: none !important;
 }
 
@@ -452,16 +431,16 @@ div[class*="language-"] {
 }
 
 .VPDocAside {
-  & > .VPDocAsideOutline > .content {
+  &>.VPDocAsideOutline>.content {
     @apply pl-0 border-l-0;
 
-    & > .outline-marker {
+    &>.outline-marker {
       @apply z-10 w-0.75;
       transition-timing-function: var(--ease-out-expo);
       transition-duration: 0.3s;
     }
 
-    & > .outline-title {
+    &>.outline-title {
       @apply flex items-center font-medium text-gray-700 dark:text-gray-100;
 
       &::before {
@@ -486,25 +465,20 @@ div[class*="language-"] {
       @apply absolute top-0 right-0 h-full rounded-md;
       content: "";
       width: calc(100% + 20px);
-      background-color: color-mix(
-        in srgb,
-        var(--vp-c-brand-1) 30%,
-        transparent 100%
-      );
+      background-color: color-mix(in srgb,
+          var(--vp-c-brand-1) 30%,
+          transparent 100%);
       z-index: -1;
     }
 
-    & > .VPDocOutlineItem {
+    &>.VPDocOutlineItem {
       @apply border-l-2 border-gray-100 dark:border-gray-700 pl-4;
     }
   }
 }
 
 .aside-container {
-  padding-top: calc(
-    var(--vp-nav-height) + var(--vp-layout-top-height, 0px) +
-      var(--vp-doc-top-height, 0px) + 24px
-  ) !important;
+  padding-top: calc(var(--vp-nav-height) + var(--vp-layout-top-height, 0px) + var(--vp-doc-top-height, 0px) + 24px) !important;
 }
 
 ::-webkit-scrollbar {
@@ -532,22 +506,18 @@ div[class*="language-"] {
 }
 
 .glass-card {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.7) 0%,
-    rgba(241, 245, 249, 0.7) 100%
-  );
+  background: linear-gradient(180deg,
+      rgba(255, 255, 255, 0.7) 0%,
+      rgba(241, 245, 249, 0.7) 100%);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
 }
 
 .dark .glass-card {
-  background: linear-gradient(
-    180deg,
-    rgba(30, 41, 59, 0.4) 0%,
-    rgba(15, 23, 42, 0.4) 100%
-  );
+  background: linear-gradient(180deg,
+      rgba(30, 41, 59, 0.4) 0%,
+      rgba(15, 23, 42, 0.4) 100%);
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
@@ -637,7 +607,7 @@ div[class*="language-"] {
 
 .custom-block {
   &.tip {
-    & > code {
+    &>code {
       background-color: var(--vp-custom-block-tip-code-bg);
     }
   }

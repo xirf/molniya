@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { GlassWaterIcon, SkullIcon } from 'lucide-vue-next';
-
 </script>
 
 <template>

@@ -6,37 +6,37 @@ const activeTab = ref<SampleKey>('csv');
 const copied = ref(false);
 
 const tabs = [
-    { id: 'csv', label: 'CSV Loading' },
-    { id: 'filtering', label: 'Filtering' },
-    { id: 'groupby', label: 'GroupBy' },
-    { id: 'types', label: 'Type-Safety' },
+  { id: 'csv', label: 'CSV Loading' },
+  { id: 'filtering', label: 'Filtering' },
+  { id: 'groupby', label: 'GroupBy' },
+  { id: 'types', label: 'Type-Safety' },
 ];
 
 const codeSamples = {
-    csv: {
-        output: '✓ Loaded 7,381,118 rows in 1.28s\n[7381118, 8] DataFrame',
-    },
-    filtering: {
-        output:
-            '✓ Filtered to 1,240,512 rows\n┌───────┬───────────┬──────────┐\n│ index │ price     │ volume   │\n├───────┼───────────┼──────────┤\n│ 0     │ 50421.12  │ 1.24     │\n└───────┴───────────┴──────────┘',
-    },
-    groupby: {
-        output:
-            '┌──────────┬───────────┬──────────┐\n│ category │ price_avg │ qty_sum  │\n├──────────┼───────────┼──────────┤\n│ retail   │ 15.42     │ 1420     │\n└──────────┴───────────┴──────────┘',
-    },
-    types: {
-        output: 'TS2345: Argument of type \'"non_existent"\' is not assignable...',
-    },
+  csv: {
+    output:
+      '   timestamp  |      price |     volume\n---------------------------------------\n 167253120000 |   50421.12 |   1.245000\n 167253120060 |   50422.50 |   0.052000\n... (7381116 more rows)',
+  },
+  filtering: {
+    output: '   item |      price\n--------------------\n    GPU |    1200.00',
+  },
+  groupby: {
+    output:
+      '   dept | avg_salary\n--------------------\n  Sales |   62500.00\n    Eng |   92500.00\n     HR |   55000.00',
+  },
+  types: {
+    output: "Error: Column 'non_existent' not found",
+  },
 } as const;
 
 type SampleKey = keyof typeof codeSamples;
 
 const copyInstall = () => {
-    navigator.clipboard.writeText('bun add molniya');
-    copied.value = true;
-    setTimeout(() => {
-        copied.value = false;
-    }, 2000);
+  navigator.clipboard.writeText('bun add molniya');
+  copied.value = true;
+  setTimeout(() => {
+    copied.value = false;
+  }, 2000);
 };
 </script>
 
@@ -90,11 +90,10 @@ const copyInstall = () => {
 
                     <!-- Header -->
                     <div class="mb-20">
-                        <p class="text-lg text-slate-500 dark:text-slate-400">Our Principle</p>
                         <h2 class="text-3xl md:text-5xl font-bold dark:text-white mb-6 tracking-tight leading-tight">
-                            <span class="text-cat-yellow italic">Performance</span> without
+                            <span class="text-cat-yellow italic">Process</span> with
                             <br />
-                            <span class="text-violet-400 italic">Surprises</span>
+                            <span class="text-violet-400 italic">confidence</span>
                         </h2>
                         <div class="flex flex-col gap-4">
                             <p class="text-lg text-slate-500 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed">
