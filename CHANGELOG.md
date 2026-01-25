@@ -21,6 +21,7 @@ This release represents a **major rewrite** of Molniya with significant breaking
 ### ✨ New Features
 
 #### Core DataFrame
+
 - **Columnar storage** with efficient TypedArray-backed buffers
 - **Null bitmap** support for proper null value handling
 - **Dictionary encoding** for string columns
@@ -29,6 +30,7 @@ This release represents a **major rewrite** of Molniya with significant breaking
 - **Memory budgeting** and tracking system
 
 #### Operations
+
 - **fromArrays()**: Create DataFrames with automatic type inference (throws on error)
 - **filter()**: Filter rows with optimized predicates (throws on error)
 - **select()**: Project columns (throws on error)
@@ -42,6 +44,7 @@ This release represents a **major rewrite** of Molniya with significant breaking
 - **Type conversion**: astype for column type changes
 
 #### LazyFrame & Optimization
+
 - **Query plan building** with lazy evaluation
 - **Predicate pushdown**: Filter at scan time for massive speedups
 - **Column pruning**: Only read needed columns from CSV
@@ -50,6 +53,7 @@ This release represents a **major rewrite** of Molniya with significant breaking
 - **Streaming CSV**: Memory-efficient large file processing
 
 #### Type System
+
 - **unwrap()** helper for converting Result to throwing behavior
 - **InferSchemaType** for schema type inference
 - **Better type safety** with Record<string, unknown> instead of any
