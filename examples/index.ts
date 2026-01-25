@@ -1,24 +1,11 @@
-import { DataFrame } from '../src';
+import { fromArrays, groupby } from 'molniya';
 
-// Manual DataFrame initialization - no schema needed!
-const df = DataFrame.fromColumns({
-  age: [25, 30, 22, 28],
-  name: ['Alice', 'Bob', 'Carol', 'Dave'],
-  score: [95.5, 87.2, 91.8, 88.0],
-  active: [true, false, true, true],
+const df = fromArrays({
+  dept: ['Sales', 'Sales', 'Eng', 'Eng', 'HR'],
+  salary: [60000, 65000, 90000, 95000, 55000],
 });
 
-console.log('DataFrame created from columns:');
-df.print();
+// Group by department and calculate mean salary
+const result = groupby(df, ['dept'], [{ col: 'salary', func: 'mean', outName: 'avg_salary' }]);
 
-console.log('\nColumn types:');
-for (const colName of df.columns()) {
-  const col = df.col(colName);
-  console.log(`  ${String(colName)}: ${col.dtype.kind}`);
-}
-
-console.log('\nFiltered (age > 25):');
-df.filter((row) => row.age > 25).print();
-
-console.log('\nSorted by score (descending):');
-df.sort('score', false).print();
+console.log(result.toString());
