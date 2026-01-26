@@ -1,8 +1,10 @@
 import type { DataFrame } from '../dataframe/dataframe';
 import type { AggSpec } from '../dataframe/groupby';
+import type { JoinType } from '../dataframe/joins/types';
 import type { DType } from '../types/dtypes';
 import type { FilterOperator } from '../types/operators';
 import type { Result } from '../types/result';
+import type { SortDirection } from '../utils/sort';
 import { type PlanNode, QueryPlan } from './plan';
 import type { InferSchemaType, Select } from './types';
 
@@ -65,6 +67,52 @@ export class LazyFrame<T = unknown> {
    */
   groupby(groupKeys: string[], aggregations: AggSpec[]): LazyFrame<T> {
     const newPlan = QueryPlan.groupby(this.plan, groupKeys, aggregations);
+    return new LazyFrame<T>(newPlan);
+  }
+
+  /**
+   * Drop duplicate rows (distinct)
+   */
+  unique(subset?: string[]): LazyFrame<T> {
+    const newPlan = QueryPlan.distinct(this.plan, subset);
+    return new LazyFrame<T>(newPlan);
+  }
+
+  /**
+   * Alias for unique()
+   */
+  distinct(subset?: string[]): LazyFrame<T> {
+    return this.unique(subset);
+  }
+
+  /**
+   * Sort rows by one or more columns
+   */
+  sort(
+    columns: string[] | string,
+    directions?: SortDirection[] | SortDirection,
+    options?: { runBytes?: number; tempDir?: string },
+  ): LazyFrame<T> {
+    const cols = Array.isArray(columns) ? columns : [columns];
+    const dirs = Array.isArray(directions) ? directions : directions ? [directions] : undefined;
+    const newPlan = QueryPlan.sort(this.plan, cols, dirs, options);
+    return new LazyFrame<T>(newPlan);
+  }
+
+  /**
+   * Merge (join) with another LazyFrame
+   */
+  merge(
+    right: LazyFrame<T>,
+    options: {
+      on?: string | string[];
+      leftOn?: string | string[];
+      rightOn?: string | string[];
+      how?: JoinType;
+      suffixes?: [string, string];
+    },
+  ): LazyFrame<T> {
+    const newPlan = QueryPlan.join(this.plan, right.getPlan(), options);
     return new LazyFrame<T>(newPlan);
   }
 

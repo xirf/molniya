@@ -4,6 +4,7 @@
  */
 
 import type { PlanNode } from './plan';
+import { QueryPlan } from './plan';
 
 /**
  * Analyzes a query plan to determine which columns are required
@@ -57,6 +58,35 @@ function collectRequiredColumns(plan: PlanNode, required: Set<string>): void {
       // Recursively check the input
       collectRequiredColumns(plan.input, required);
       break;
+
+    case 'distinct': {
+      if (plan.subset && plan.subset.length > 0) {
+        for (const col of plan.subset) required.add(col);
+      } else {
+        for (const col of QueryPlan.getColumnOrder(plan.input)) {
+          required.add(col);
+        }
+      }
+      collectRequiredColumns(plan.input, required);
+      break;
+    }
+
+    case 'sort':
+      for (const col of plan.columns) {
+        required.add(col);
+      }
+      collectRequiredColumns(plan.input, required);
+      break;
+
+    case 'join': {
+      const leftKeys = plan.on ?? plan.leftOn ?? [];
+      const rightKeys = plan.on ?? plan.rightOn ?? [];
+      for (const key of leftKeys) required.add(key);
+      for (const key of rightKeys) required.add(key);
+      collectRequiredColumns(plan.left, required);
+      collectRequiredColumns(plan.right, required);
+      break;
+    }
   }
 }
 
@@ -87,6 +117,10 @@ export function shouldPruneColumns(plan: PlanNode, totalColumns: number): boolea
 function hasSelectOperation(plan: PlanNode): boolean {
   if (plan.type === 'select') {
     return true;
+  }
+
+  if (plan.type === 'join') {
+    return hasSelectOperation(plan.left) || hasSelectOperation(plan.right);
   }
 
   // Check input plans recursively (all plans except ScanPlan have input)
@@ -185,5 +219,44 @@ function analyzeStage(
       }
       analyzeStage(plan.input, scanColumns, afterFilterColumns, outputColumns);
       break;
+
+    case 'distinct': {
+      const columns =
+        plan.subset && plan.subset.length > 0 ? plan.subset : QueryPlan.getColumnOrder(plan.input);
+      for (const col of columns) {
+        scanColumns.add(col);
+        afterFilterColumns.add(col);
+        outputColumns.add(col);
+      }
+      analyzeStage(plan.input, scanColumns, afterFilterColumns, outputColumns);
+      break;
+    }
+
+    case 'sort':
+      for (const col of plan.columns) {
+        scanColumns.add(col);
+        afterFilterColumns.add(col);
+        outputColumns.add(col);
+      }
+      analyzeStage(plan.input, scanColumns, afterFilterColumns, outputColumns);
+      break;
+
+    case 'join': {
+      const leftKeys = plan.on ?? plan.leftOn ?? [];
+      const rightKeys = plan.on ?? plan.rightOn ?? [];
+      for (const key of leftKeys) {
+        scanColumns.add(key);
+        afterFilterColumns.add(key);
+        outputColumns.add(key);
+      }
+      for (const key of rightKeys) {
+        scanColumns.add(key);
+        afterFilterColumns.add(key);
+        outputColumns.add(key);
+      }
+      analyzeStage(plan.left, scanColumns, afterFilterColumns, outputColumns);
+      analyzeStage(plan.right, scanColumns, afterFilterColumns, outputColumns);
+      break;
+    }
   }
 }

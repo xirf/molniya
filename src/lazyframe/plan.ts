@@ -1,12 +1,21 @@
 import type { Column } from '../core/column';
 import type { AggFunc, AggSpec } from '../dataframe/groupby';
+import type { JoinType } from '../dataframe/joins/types';
 import { DType } from '../types/dtypes';
 import type { FilterOperator } from '../types/operators';
+import type { SortDirection } from '../utils/sort';
 
 /**
  * Query plan node types for lazy evaluation
  */
-export type PlanNode = ScanPlan | FilterPlan | SelectPlan | GroupByPlan;
+export type PlanNode =
+  | ScanPlan
+  | FilterPlan
+  | SelectPlan
+  | GroupByPlan
+  | JoinPlan
+  | DistinctPlan
+  | SortPlan;
 
 /**
  * Base plan node
@@ -57,6 +66,41 @@ export interface GroupByPlan extends BasePlan {
   input: PlanNode;
   groupKeys: string[];
   aggregations: AggSpec[];
+}
+
+/**
+ * Join operation
+ */
+export interface JoinPlan extends BasePlan {
+  type: 'join';
+  left: PlanNode;
+  right: PlanNode;
+  on?: string[];
+  leftOn?: string[];
+  rightOn?: string[];
+  how?: JoinType;
+  suffixes?: [string, string];
+}
+
+/**
+ * Distinct/unique operation
+ */
+export interface DistinctPlan extends BasePlan {
+  type: 'distinct';
+  input: PlanNode;
+  subset?: string[];
+}
+
+/**
+ * Sort operation
+ */
+export interface SortPlan extends BasePlan {
+  type: 'sort';
+  input: PlanNode;
+  columns: string[];
+  directions?: SortDirection[];
+  runBytes?: number;
+  tempDir?: string;
 }
 
 /**
@@ -137,6 +181,114 @@ export class QueryPlan {
   }
 
   /**
+   * Create a join plan node
+   */
+  static join(
+    left: PlanNode,
+    right: PlanNode,
+    options: {
+      on?: string | string[];
+      leftOn?: string | string[];
+      rightOn?: string | string[];
+      how?: JoinType;
+      suffixes?: [string, string];
+    },
+  ): JoinPlan {
+    return {
+      type: 'join',
+      id: QueryPlan.nextId++,
+      left,
+      right,
+      on: options.on ? (Array.isArray(options.on) ? options.on : [options.on]) : undefined,
+      leftOn: options.leftOn
+        ? Array.isArray(options.leftOn)
+          ? options.leftOn
+          : [options.leftOn]
+        : undefined,
+      rightOn: options.rightOn
+        ? Array.isArray(options.rightOn)
+          ? options.rightOn
+          : [options.rightOn]
+        : undefined,
+      how: options.how,
+      suffixes: options.suffixes,
+    };
+  }
+
+  /**
+   * Create a distinct plan node
+   */
+  static distinct(input: PlanNode, subset?: string[]): DistinctPlan {
+    return {
+      type: 'distinct',
+      id: QueryPlan.nextId++,
+      input,
+      subset,
+    };
+  }
+
+  /**
+   * Create a sort plan node
+   */
+  static sort(
+    input: PlanNode,
+    columns: string[],
+    directions?: SortDirection[],
+    options?: { runBytes?: number; tempDir?: string },
+  ): SortPlan {
+    return {
+      type: 'sort',
+      id: QueryPlan.nextId++,
+      input,
+      columns,
+      directions,
+      runBytes: options?.runBytes,
+      tempDir: options?.tempDir,
+    };
+  }
+
+  private static resolveJoinKeys(plan: JoinPlan): { leftKeys: string[]; rightKeys: string[] } {
+    if (plan.on && plan.on.length > 0) {
+      return { leftKeys: plan.on, rightKeys: plan.on };
+    }
+    const leftKeys = plan.leftOn ?? [];
+    const rightKeys = plan.rightOn ?? [];
+    return { leftKeys, rightKeys };
+  }
+
+  private static buildJoinOutputSchema(plan: JoinPlan): Record<string, DType> {
+    const leftSchema = QueryPlan.getOutputSchema(plan.left);
+    const rightSchema = QueryPlan.getOutputSchema(plan.right);
+    const leftOrder = QueryPlan.getColumnOrder(plan.left);
+    const rightOrder = QueryPlan.getColumnOrder(plan.right);
+    const suffixes = plan.suffixes ?? ['_x', '_y'];
+    const { leftKeys, rightKeys } = QueryPlan.resolveJoinKeys(plan);
+    const rightKeySet = new Set(rightKeys);
+    const leftNameSet = new Set(leftOrder);
+    const overlapping = rightOrder.filter(
+      (name) => !rightKeySet.has(name) && leftNameSet.has(name),
+    );
+
+    const output: Record<string, DType> = {};
+    for (const name of leftOrder) {
+      const dtype = leftSchema[name];
+      if (!dtype) continue;
+      const finalName = overlapping.includes(name) ? `${name}${suffixes[0]}` : name;
+      output[finalName] = dtype;
+    }
+
+    for (const name of rightOrder) {
+      if (rightKeySet.has(name)) continue;
+      const dtype = rightSchema[name];
+      if (!dtype) continue;
+      const finalName = overlapping.includes(name) ? `${name}${suffixes[1]}` : name;
+      output[finalName] = dtype;
+    }
+
+    return output;
+  }
+
+  /**
    * Get the output schema for a plan node
    */
   static getOutputSchema(node: PlanNode): Record<string, DType> {
@@ -189,6 +341,15 @@ export class QueryPlan {
 
         return outputSchema;
       }
+
+      case 'distinct':
+        return QueryPlan.getOutputSchema(node.input);
+
+      case 'sort':
+        return QueryPlan.getOutputSchema(node.input);
+
+      case 'join':
+        return QueryPlan.buildJoinOutputSchema(node);
     }
   }
 
@@ -211,6 +372,34 @@ export class QueryPlan {
         cols.push(...node.groupKeys);
         for (const agg of node.aggregations) {
           cols.push(agg.outName);
+        }
+        return cols;
+      }
+
+      case 'distinct':
+        return QueryPlan.getColumnOrder(node.input);
+
+      case 'sort':
+        return QueryPlan.getColumnOrder(node.input);
+
+      case 'join': {
+        const leftOrder = QueryPlan.getColumnOrder(node.left);
+        const rightOrder = QueryPlan.getColumnOrder(node.right);
+        const suffixes = node.suffixes ?? ['_x', '_y'];
+        const { leftKeys, rightKeys } = QueryPlan.resolveJoinKeys(node);
+        const rightKeySet = new Set(rightKeys);
+        const leftNameSet = new Set(leftOrder);
+        const overlapping = rightOrder.filter(
+          (name) => !rightKeySet.has(name) && leftNameSet.has(name),
+        );
+
+        const cols: string[] = [];
+        for (const name of leftOrder) {
+          cols.push(overlapping.includes(name) ? `${name}${suffixes[0]}` : name);
+        }
+        for (const name of rightOrder) {
+          if (rightKeySet.has(name)) continue;
+          cols.push(overlapping.includes(name) ? `${name}${suffixes[1]}` : name);
         }
         return cols;
       }
@@ -249,6 +438,34 @@ export class QueryPlan {
         }
         result += QueryPlan.explain(node.input, indent + 1);
         break;
+
+      case 'distinct': {
+        const subset =
+          node.subset && node.subset.length > 0 ? node.subset.join(', ') : 'all columns';
+        result += `${prefix}Distinct: ${subset}\n`;
+        result += QueryPlan.explain(node.input, indent + 1);
+        break;
+      }
+
+      case 'sort': {
+        const cols = node.columns.join(', ');
+        const dirs =
+          node.directions && node.directions.length > 0 ? node.directions.join(', ') : 'asc';
+        result += `${prefix}Sort: ${cols} (${dirs})\n`;
+        result += QueryPlan.explain(node.input, indent + 1);
+        break;
+      }
+
+      case 'join': {
+        const { leftKeys, rightKeys } = QueryPlan.resolveJoinKeys(node);
+        const how = node.how ?? 'inner';
+        result += `${prefix}Join (${how}): left[${leftKeys.join(', ')}] = right[${rightKeys.join(', ')}]\n`;
+        result += `${prefix}  Left:\n`;
+        result += QueryPlan.explain(node.left, indent + 2);
+        result += `${prefix}  Right:\n`;
+        result += QueryPlan.explain(node.right, indent + 2);
+        break;
+      }
     }
 
     return result;
