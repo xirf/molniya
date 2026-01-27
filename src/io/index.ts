@@ -17,10 +17,6 @@ export type { CsvOptions } from './csv-reader';
 export { scanCsv, scanCsvFromString } from './csv-scanner';
 export type { CsvScanOptions } from './csv-scanner';
 
-// Streaming CSV batches
-export { streamCsvBatches } from './csv-streamer';
-export type { CsvStreamOptions, CsvStreamPredicate } from './csv-streamer';
-
 // Columnar batch primitives
 export {
   ColumnarBatchBuilder,

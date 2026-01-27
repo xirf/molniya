@@ -414,17 +414,6 @@ export async function scanCsv<S extends Record<string, DType>>(
   options: CsvScanOptions & { schema: S },
 ): Promise<Result<DataFrame<InferSchemaType<S>>, Error>> {
   try {
-    // This function likely creates a LazyFrame in reality, but the signature here says DataFrame?
-    // Wait, the original signature returned Promise<Result<DataFrame, Error>>.
-    // Ah, scanCsv usually returns a DataFrame in this codebase?
-    // Let's check LazyFrame.scanCsv.
-    // LazyFrame.scanCsv returns a LazyFrame.
-    // This `scanCsv` export seems to be an eager scan using the scanner?
-    // Or maybe it's just wrong documentation?
-    // The implementation calls scanCsvInternal which returns Promise<Result<DataFrame, Error>>.
-    // So this IS eager loading but using the scanner (chunked) strategy?
-    // Yes, scanCsvInternal returns DataFrame.
-
     // Use Bun's file API for efficient file reading
     const file = Bun.file(path);
     const text = await file.text();

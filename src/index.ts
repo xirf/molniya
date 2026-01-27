@@ -101,8 +101,8 @@ export { QueryPlan, executePlan, optimizePlan } from './lazyframe';
 export { CacheManager, getCacheManager, resetCacheManager } from './lazyframe/cache';
 
 // IO operations
-export { readCsv, readCsvFromString, scanCsv, scanCsvFromString, streamCsvBatches } from './io';
-export type { CsvOptions, CsvScanOptions, CsvStreamOptions, CsvStreamPredicate } from './io';
+export { readCsv, readCsvFromString, scanCsv, scanCsvFromString } from './io';
+export type { CsvOptions, CsvScanOptions } from './io';
 export {
   ColumnarBatchBuilder,
   DEFAULT_BATCH_BYTES,

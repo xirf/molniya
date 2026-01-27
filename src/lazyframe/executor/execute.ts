@@ -18,7 +18,6 @@ import type {
 } from '../plan';
 import { applyCacheRetention } from './cache';
 import { executeScan, executeScanWithPruning } from './scan';
-import { executeStreamingPlan } from './streaming';
 
 /**
  * Find the scan node in a plan tree
@@ -70,11 +69,6 @@ export async function executePlan(
         return pruningResult;
       }
     }
-  }
-
-  const streamingResult = await executeStreamingPlan(optimizedPlan);
-  if (streamingResult) {
-    return streamingResult;
   }
 
   // Step 3: Execute the optimized plan using standard execution path

@@ -1,9 +1,6 @@
-import * as fs from 'node:fs';
 import type { DataFrame } from '../../dataframe/dataframe';
-import { readBinaryBlocks } from '../../io/binary-format';
 import { readCsv } from '../../io/csv-reader';
-import { streamCsvBatches } from '../../io/csv-streamer';
-import { createMemoryBudget } from '../../memory/budget';
+import { scanCsv } from '../../io/csv-scanner';
 import type { Result } from '../../types/result';
 import { analyzeRequiredColumns, shouldPruneColumns } from '../column-analyzer';
 import { scanCsvWithPruning } from '../csv-pruning';
@@ -13,15 +10,7 @@ import {
   extractPushdownPredicates,
   scanCsvWithPredicates,
 } from '../predicate-pushdown';
-import { blocksToBatchIterator, collectBatchesToDataFrame } from '../streaming';
-import {
-  buildSchemaSignature,
-  cleanupStaleCacheFiles,
-  createCacheKey,
-  getCachePath,
-  normalizeNullValues,
-  normalizePredicates,
-} from './cache';
+import { cleanupStaleCacheFiles } from './cache';
 import { executePlanOnData, executePlanOnDataSkippingPushedFilters } from './ops';
 
 /**
@@ -29,35 +18,17 @@ import { executePlanOnData, executePlanOnDataSkippingPushedFilters } from './ops
  */
 export async function executeScan(plan: ScanPlan): Promise<Result<DataFrame, Error>> {
   cleanupStaleCacheFiles(plan.path);
-  const cachePath = getCachePath(plan.path);
 
-  if (cachePath && fs.existsSync(cachePath)) {
-    const cached = await readBinaryBlocks(cachePath);
-    if (cached.ok) {
-      const iterator = blocksToBatchIterator(cached.data.blocks, cached.data.schema);
-      const collectResult = await collectBatchesToDataFrame(iterator);
-      if (collectResult.ok) {
-        return collectResult;
-      }
-    }
-  }
-
-  const streamResult = await streamCsvBatches(plan.path, {
+  const scanResult = await scanCsv(plan.path, {
     schema: plan.schema,
     delimiter: plan.delimiter ?? ',',
     hasHeader: plan.hasHeader ?? true,
     nullValues: plan.nullValues,
-    dropInvalidRows: true,
-    cachePath: cachePath ?? undefined,
-    deleteCacheOnAbort: true,
-    memoryBudget: createMemoryBudget(),
+    chunkSize: plan.chunkSize,
   });
 
-  if (streamResult.ok) {
-    const collectResult = await collectBatchesToDataFrame(streamResult.data);
-    if (collectResult.ok) {
-      return collectResult;
-    }
+  if (scanResult.ok) {
+    return scanResult;
   }
 
   // Fallback to eager loading
@@ -111,48 +82,6 @@ export async function executeScanWithPruning(
       return null; // Not worth pruning
     }
 
-    const pruneCacheKey = createCacheKey({
-      mode: 'prune',
-      requiredColumns: Array.from(requiredColumns).sort(),
-      schema: buildSchemaSignature(scanPlan.schema, requiredColumns),
-      delimiter: scanPlan.delimiter ?? ',',
-      hasHeader: scanPlan.hasHeader ?? true,
-      nullValues: normalizeNullValues(scanPlan.nullValues),
-    });
-
-    const cachePath = getCachePath(scanPlan.path, pruneCacheKey);
-    if (cachePath && fs.existsSync(cachePath)) {
-      const cached = await readBinaryBlocks(cachePath);
-      if (cached.ok) {
-        const iterator = blocksToBatchIterator(cached.data.blocks, cached.data.schema);
-        const collectResult = await collectBatchesToDataFrame(iterator);
-        if (collectResult.ok) {
-          return await executePlanOnData(fullPlan, collectResult.data);
-        }
-      }
-    }
-
-    // Use pruned scan
-    const streamResult = await streamCsvBatches(scanPlan.path, {
-      schema: scanPlan.schema,
-      delimiter: scanPlan.delimiter ?? ',',
-      hasHeader: scanPlan.hasHeader ?? true,
-      nullValues: scanPlan.nullValues,
-      dropInvalidRows: true,
-      requiredColumns,
-      cachePath: cachePath ?? undefined,
-      deleteCacheOnAbort: true,
-      deleteCacheOnComplete: true,
-      memoryBudget: createMemoryBudget(),
-    });
-
-    if (streamResult.ok) {
-      const collectResult = await collectBatchesToDataFrame(streamResult.data);
-      if (collectResult.ok) {
-        return await executePlanOnData(fullPlan, collectResult.data);
-      }
-    }
-
     const result = await scanCsvWithPruning(scanPlan.path, {
       requiredColumns,
       schema: new Map(Object.entries(scanPlan.schema)),
@@ -182,64 +111,11 @@ export async function executeScanWithPredicates(
     // Also get required columns for combined optimization
     const requiredColumns = analyzeRequiredColumns(fullPlan);
 
-    const predicateCacheKey = createCacheKey({
-      mode: 'predicates',
-      predicates: normalizePredicates(predicates),
-      requiredColumns: requiredColumns.size > 0 ? Array.from(requiredColumns).sort() : undefined,
-      schema: buildSchemaSignature(
-        scanPlan.schema,
-        requiredColumns.size > 0 ? requiredColumns : undefined,
-      ),
-      delimiter: scanPlan.delimiter ?? ',',
-      hasHeader: scanPlan.hasHeader ?? true,
-      nullValues: normalizeNullValues(scanPlan.nullValues),
-    });
-
-    const cachePath = getCachePath(scanPlan.path, predicateCacheKey);
-    if (cachePath && fs.existsSync(cachePath)) {
-      const cached = await readBinaryBlocks(cachePath);
-      if (cached.ok) {
-        const iterator = blocksToBatchIterator(cached.data.blocks, cached.data.schema);
-        const collectResult = await collectBatchesToDataFrame(iterator);
-        if (collectResult.ok) {
-          return await executePlanOnDataSkippingPushedFilters(
-            fullPlan,
-            collectResult.data,
-            predicates,
-          );
-        }
-      }
-    }
-
     const result = await scanCsvWithPredicates(scanPlan.path, {
       predicates,
       schema: new Map(Object.entries(scanPlan.schema)),
       requiredColumns: requiredColumns.size > 0 ? requiredColumns : undefined,
     });
-    const streamResult = await streamCsvBatches(scanPlan.path, {
-      schema: scanPlan.schema,
-      delimiter: scanPlan.delimiter ?? ',',
-      hasHeader: scanPlan.hasHeader ?? true,
-      nullValues: scanPlan.nullValues,
-      dropInvalidRows: true,
-      predicates,
-      requiredColumns: requiredColumns.size > 0 ? requiredColumns : undefined,
-      cachePath: cachePath ?? undefined,
-      deleteCacheOnAbort: true,
-      deleteCacheOnComplete: true,
-      memoryBudget: createMemoryBudget(),
-    });
-
-    if (streamResult.ok) {
-      const collectResult = await collectBatchesToDataFrame(streamResult.data);
-      if (collectResult.ok) {
-        return await executePlanOnDataSkippingPushedFilters(
-          fullPlan,
-          collectResult.data,
-          predicates,
-        );
-      }
-    }
 
     if (!result.ok) {
       return null; // Fall back to normal scan
