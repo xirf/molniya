@@ -128,7 +128,7 @@ export function dereferDictionary<T = unknown>(
 
 	const output = new Array<T | undefined>(indices.length);
 	for (let i = 0; i < indices.length; i++) {
-		output[i] = dictionary[indices[i]];
+		output[i] = dictionary[indices[i] || 0];
 	}
 	return output;
 }
@@ -157,22 +157,22 @@ export function convertColumn(
 
 	// INT96 (timestamp)
 	if (type === PARQUET_TYPE.INT96) {
-		return Array.from(data).map((v) => int96ToDate(v));
+		return Array.from(data).map((v) => int96ToDate(v as bigint));
 	}
 
 	// DATE
 	if (ctype === CONVERTED_TYPE.DATE) {
-		return Array.from(data).map((v) => daysToDate(v));
+		return Array.from(data).map((v) => daysToDate(v as number));
 	}
 
 	// TIMESTAMP_MILLIS
 	if (ctype === CONVERTED_TYPE.TIMESTAMP_MILLIS) {
-		return Array.from(data).map((v) => millisToDate(v));
+		return Array.from(data).map((v) => millisToDate(v as number | bigint));
 	}
 
 	// TIMESTAMP_MICROS
 	if (ctype === CONVERTED_TYPE.TIMESTAMP_MICROS) {
-		return Array.from(data).map((v) => microsToDate(v));
+		return Array.from(data).map((v) => microsToDate(v as bigint));
 	}
 
 	// UTF8 / BYTE_ARRAY - keep as bytes for interning if requested
@@ -183,7 +183,7 @@ export function convertColumn(
 		if (keepBytes) {
 			return data; // Return raw Uint8Array for direct byte interning
 		}
-		return data.map((v) => bytesToString(v));
+		return data.map((v) => bytesToString(v as Uint8Array));
 	}
 
 	return data;

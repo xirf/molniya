@@ -3,19 +3,20 @@
  */
 
 // Aggregation state
+// biome-ignore assist/source/organizeImports: Grouped export
 export {
-	type AggState,
+	createAggState,
 	AggType,
 	AvgState,
 	CountAllState,
 	CountState,
-	createAggState,
 	FirstState,
 	LastState,
 	MaxState,
 	MinState,
 	SumState,
 } from "./agg-state.ts";
+
 // Aggregate operator
 export {
 	AggregateOperator,
@@ -56,6 +57,7 @@ export {
 	type JoinConfig,
 	JoinType,
 	leftJoin,
+	crossProduct,
 } from "./join.ts";
 // Limit
 export { LimitOperator, limit } from "./limit.ts";

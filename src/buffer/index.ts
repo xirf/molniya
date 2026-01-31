@@ -21,3 +21,8 @@ export {
 	Dictionary,
 	NULL_INDEX,
 } from "./dictionary.ts";
+
+export {
+	SelectionBufferPool,
+	selectionPool,
+} from "./selection-pool.ts";

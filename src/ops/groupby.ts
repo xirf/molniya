@@ -22,6 +22,7 @@ import {
 } from "../types/schema.ts";
 import { AggType, createAggState } from "./agg-state.ts";
 import type { AggSpec } from "./aggregate.ts";
+import { KeyHashTable } from "./key-hasher.ts";
 import {
 	type Operator,
 	type OperatorResult,
@@ -30,10 +31,6 @@ import {
 	opResult,
 } from "./operator.ts";
 import { type BatchAggregator, createVectorAggregator } from "./vector-agg.ts";
-
-/** Group key (serialized as string for Map lookup) */
-type GroupKey = string;
-type GroupID = number;
 
 /**
  * GroupBy operator with hash-based grouping.
@@ -46,8 +43,8 @@ export class GroupByOperator implements Operator {
 	private readonly keyColumns: readonly number[];
 	private readonly aggSpecs: readonly VectorizedGroupAgg[];
 
-	// Group Map: Key -> GroupID (number)
-	private readonly groups: Map<GroupKey, GroupID> = new Map();
+	// Hash table for group key lookup (replaces string-based Map)
+	private readonly groups: KeyHashTable = new KeyHashTable();
 	// Reverse Map: GroupID -> Key Values
 	private readonly groupKeys: Array<(number | bigint | null)[]> = [];
 
@@ -107,7 +104,6 @@ export class GroupByOperator implements Operator {
 			outputSpec[name] = inputSchema.columns[idxResult.value]!.dtype;
 		}
 
-		// Compile aggregations
 		const vectorizedAggs: VectorizedGroupAgg[] = [];
 
 		for (const spec of aggSpecs) {
@@ -121,7 +117,6 @@ export class GroupByOperator implements Operator {
 				return err(compiled.error);
 			}
 
-			// Determine input column index if simple column expr
 			let inputColIdx: number = -1;
 			if (
 				compiled.value.innerExpr &&
@@ -144,7 +139,6 @@ export class GroupByOperator implements Operator {
 				valueExpr: compiled.value.valueExpr,
 			});
 
-			// Use standard factory to get output type
 			outputSpec[spec.name] = createAggState(
 				compiled.value.aggType,
 				compiled.value.inputDType,
@@ -178,29 +172,21 @@ export class GroupByOperator implements Operator {
 		// Phase 1: Key Hashing -> Group IDs
 		// Generate an Int32Array of GroupIDs for this chunk
 		const chunkGroupIds = new Int32Array(rowCount);
-
-		// Access raw columns for keys
 		const cols = chunk.getColumns();
 		const selection = chunk.getSelection();
-
-		// Pre-resolve key columns
 		const keyCols = this.keyColumns.map((idx) => cols[idx]!);
 
 		for (let row = 0; row < rowCount; row++) {
-			// Physical index resolution
 			const physIdx = selection ? selection[row]! : row;
 
 			const keyValues: (number | bigint | null)[] = [];
 			for (let k = 0; k < keyCols.length; k++) {
 				const col = keyCols[k]!;
 
-				// Raw get
 				let val = col.get(physIdx) as number | bigint | null;
 
-				// Handle Strings: Map Input Dict ID -> Operator Dict ID
 				if (col.kind === DTypeKind.String && chunk.dictionary) {
 					const id = val as number;
-					// Optimization: Look up bytes, intern directly
 					const bytes = chunk.dictionary.getBytes(id);
 					if (bytes) {
 						val = this.dictionary.intern(bytes);
@@ -211,19 +197,16 @@ export class GroupByOperator implements Operator {
 				keyValues.push(val);
 			}
 
-			const groupKey = serializeKey(keyValues);
-
-			let gid = this.groups.get(groupKey);
-			if (gid === undefined) {
+			let gid = this.groups.get(keyValues);
+			if (gid === -1) {
 				gid = this.nextGroupId++;
-				this.groups.set(groupKey, gid);
-				this.groupKeys.push(keyValues);
+				this.groups.insert(keyValues, gid);
+				this.groupKeys.push(keyValues.slice());
 			}
 
 			chunkGroupIds[row] = gid;
 		}
 
-		// Resize aggregators if new groups added
 		const numGroups = this.nextGroupId;
 		for (const agg of this.aggregators) {
 			agg.resize(numGroups);
@@ -235,12 +218,9 @@ export class GroupByOperator implements Operator {
 			const agg = this.aggregators[i]!;
 
 			if (spec.isCountAll) {
-				// Pass null for data, it just needs groupIds and count
 				agg.accumulateBatch(null, chunkGroupIds, rowCount, selection, null);
 			} else if (spec.inputColIdx !== -1) {
-				// FAST PATH: Direct Column Access
 				const inputCol = cols[spec.inputColIdx]!;
-				// Note: accumulateBatch handles selection/nulls internally
 				agg.accumulateBatch(
 					inputCol.data,
 					chunkGroupIds,
@@ -269,17 +249,14 @@ export class GroupByOperator implements Operator {
 			return ok(opDone());
 		}
 
-		// Create output columns
 		const columns: ColumnBuffer[] = [];
 
-		// Key columns first
 		for (let k = 0; k < this.keyColumns.length; k++) {
 			const dtype = this.inputSchema.columns[this.keyColumns[k]!]!.dtype;
 			const col = new ColumnBuffer(dtype.kind, groupCount, dtype.nullable);
 			columns.push(col);
 		}
 
-		// Aggregation columns -> get from BatchAggregators
 		for (const agg of this.aggregators) {
 			columns.push(agg.finish());
 		}
@@ -321,11 +298,6 @@ interface VectorizedGroupAgg {
 	valueExpr: CompiledValue | null;
 	inputDType: DType | undefined;
 	isCountAll: boolean;
-}
-
-/** Serialize key values to string for Map lookup */
-function serializeKey(values: (number | bigint | null)[]): string {
-	return values.map((v) => (v === null ? "\x00" : String(v))).join("\x01");
 }
 
 /** Compile an aggregation expression for groupby */

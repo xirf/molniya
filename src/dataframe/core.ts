@@ -5,7 +5,12 @@
 
 import type { Chunk } from "../buffer/chunk.ts";
 import type { Dictionary } from "../buffer/dictionary.ts";
-import { type Operator, Pipeline, type PipelineResult } from "../ops/index.ts";
+import {
+	type ComputedColumn,
+	type Operator,
+	Pipeline,
+	type PipelineResult,
+} from "../ops/index.ts";
 import { unwrap } from "../types/error.ts";
 import { getColumnNames, type Schema } from "../types/schema.ts";
 
@@ -167,7 +172,9 @@ export class DataFrame<T = Record<string, unknown>> {
 	}
 
 	/** Add multiple computed columns */
-	withColumns(_columns: unknown[]): DataFrame<Record<string, unknown>> {
+	withColumns(
+		_columns: ComputedColumn[] | Record<string, unknown>,
+	): DataFrame<Record<string, unknown>> {
 		throw new Error("Method not implemented. Ensure mixins are loaded.");
 	}
 
@@ -186,6 +193,55 @@ export class DataFrame<T = Record<string, unknown>> {
 
 	/** Drop rows with null values */
 	dropNull(_columns?: keyof T | (keyof T)[]): DataFrame<T> {
+		throw new Error("Method not implemented. Ensure mixins are loaded.");
+	}
+
+	// Set Operations
+	crossJoin<U>(
+		_other: DataFrame<U>,
+		_suffix?: string,
+	): Promise<DataFrame<T & U>> {
+		throw new Error("Method not implemented. Ensure mixins are loaded.");
+	}
+	antiJoin<U>(
+		_other: DataFrame<U>,
+		_on: keyof T | (keyof T)[],
+	): Promise<DataFrame<T>> {
+		throw new Error("Method not implemented. Ensure mixins are loaded.");
+	}
+	semiJoin<U>(
+		_other: DataFrame<U>,
+		_on: keyof T | (keyof T)[],
+	): Promise<DataFrame<T>> {
+		throw new Error("Method not implemented. Ensure mixins are loaded.");
+	}
+
+	// Transformation
+	explode<K extends keyof T>(_column: K): DataFrame<T> {
+		throw new Error("Method not implemented. Ensure mixins are loaded.");
+	}
+
+	// Aggregation Shortcuts
+	min(_column: keyof T): Promise<number | string | null> {
+		throw new Error("Method not implemented. Ensure mixins are loaded.");
+	}
+	max(_column: keyof T): Promise<number | string | null> {
+		throw new Error("Method not implemented. Ensure mixins are loaded.");
+	}
+	mean(_column: keyof T): Promise<number | null> {
+		throw new Error("Method not implemented. Ensure mixins are loaded.");
+	}
+
+	// Inspection
+	printSchema(): void {
+		throw new Error("Method not implemented. Ensure mixins are loaded.");
+	}
+	explain(): string {
+		throw new Error("Method not implemented. Ensure mixins are loaded.");
+	}
+
+	// Utils
+	isEmpty(): Promise<boolean> {
 		throw new Error("Method not implemented. Ensure mixins are loaded.");
 	}
 

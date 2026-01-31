@@ -6,6 +6,7 @@
  */
 
 import type { Chunk } from "../buffer/chunk.ts";
+import { selectionPool } from "../buffer/selection-pool.ts";
 import type { Expr } from "../expr/ast.ts";
 import {
 	applyPredicate,
@@ -29,7 +30,8 @@ export class FilterOperator extends SimpleOperator {
 	readonly outputSchema: Schema;
 
 	private readonly predicate: CompiledPredicate;
-	private readonly selectionBuffer: Uint32Array;
+	private selectionBuffer: Uint32Array;
+	private readonly maxChunkSize: number;
 
 	private constructor(
 		schema: Schema,
@@ -39,7 +41,9 @@ export class FilterOperator extends SimpleOperator {
 		super();
 		this.outputSchema = schema;
 		this.predicate = predicate;
-		this.selectionBuffer = new Uint32Array(maxChunkSize);
+		this.maxChunkSize = maxChunkSize;
+		// Acquire buffer from pool instead of allocating
+		this.selectionBuffer = selectionPool.acquire(maxChunkSize);
 	}
 
 	/**
@@ -94,9 +98,14 @@ export class FilterOperator extends SimpleOperator {
 		}
 
 		// Apply the new selection to the chunk
-		// Create a copy of selection buffer since chunk may store reference
-		const selection = this.selectionBuffer.slice(0, selectedCount);
+		// Instead of slicing (which allocates), we release the old buffer
+		// and acquire a new one of the exact size needed
+		const selection = this.selectionBuffer.subarray(0, selectedCount);
 		chunk.applySelection(selection, selectedCount);
+
+		// Release the buffer back to pool and acquire fresh one for next chunk
+		selectionPool.release(this.selectionBuffer);
+		this.selectionBuffer = selectionPool.acquire(this.maxChunkSize);
 
 		return ok(opResult(chunk));
 	}

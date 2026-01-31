@@ -15,6 +15,7 @@ import { addDedupMethods } from "./dedup.ts";
 import { addExecutionMethods } from "./execution.ts";
 // Method modules
 import { addFilteringMethods } from "./filtering.ts";
+import { addInspectionMethods } from "./inspection.ts";
 import { addJoinMethods } from "./joins.ts";
 import { addLimitingMethods } from "./limiting.ts";
 import { addProjectionMethods } from "./projection.ts";
@@ -39,6 +40,7 @@ addSortingMethods(DataFrame.prototype);
 addJoinMethods(DataFrame.prototype);
 addConcatMethods(DataFrame.prototype);
 addExecutionMethods(DataFrame.prototype);
+addInspectionMethods(DataFrame.prototype);
 
 /* HELPER FUNCTIONS
 /*-----------------------------------------------------
@@ -126,7 +128,7 @@ import { readParquet as ioReadParquet } from "../io/index.ts";
 export async function readParquet<T = Record<string, unknown>>(
 	path: string,
 ): Promise<DataFrame<T>> {
-	return ioReadParquet(path);
+	return ioReadParquet(path) as Promise<DataFrame<T>>;
 }
 
 /* EXPRESSION BUILDERS

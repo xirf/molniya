@@ -6,6 +6,7 @@
  */
 
 import type { Chunk } from "../buffer/chunk.ts";
+import { selectionPool } from "../buffer/selection-pool.ts";
 import { ok, type Result } from "../types/error.ts";
 import type { Schema } from "../types/schema.ts";
 import {
@@ -56,11 +57,15 @@ export class LimitOperator implements Operator {
 
 			// Partial skip - create selection for remaining rows
 			const remaining = rowCount - toSkip;
-			const selection = new Uint32Array(remaining);
+			const selection = selectionPool.acquire(remaining);
 			for (let i = 0; i < remaining; i++) {
 				selection[i] = toSkip + i;
 			}
 			chunk.applySelection(selection, remaining);
+			// Note: selection buffer will be released back to pool
+			// when the chunk is recycled or when selection is cleared
+			// For now, we rely on the chunk to hold the reference
+			// and the pool to manage reuse
 		}
 
 		// Check how many rows we can still pass
@@ -75,7 +80,7 @@ export class LimitOperator implements Operator {
 		}
 
 		// Need to limit this chunk
-		const selection = new Uint32Array(canPass);
+		const selection = selectionPool.acquire(canPass);
 		for (let i = 0; i < canPass; i++) {
 			selection[i] = i;
 		}

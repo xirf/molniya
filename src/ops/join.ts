@@ -17,6 +17,8 @@ export enum JoinType {
 	Inner = "inner",
 	Left = "left",
 	Right = "right",
+	Semi = "semi",
+	Anti = "anti",
 }
 
 /** Join configuration */
@@ -74,7 +76,9 @@ export function hashJoin(
 	const hashTable = buildHashTable(rightChunks, rightKeyIdx);
 
 	// Track matched right rows for right/outer joins
-	const rightMatched = new Set<string>();
+	// Only needed for Right join
+	const rightMatched =
+		joinType === JoinType.Right ? new Set<string>() : undefined;
 
 	// Process left side and produce output
 	const outputChunks: Chunk[] = [];
@@ -103,7 +107,7 @@ export function hashJoin(
 	}
 
 	// For right join, add unmatched right rows
-	if (joinType === JoinType.Right) {
+	if (joinType === JoinType.Right && rightMatched) {
 		const unmatchedResult = addUnmatchedRight(
 			rightChunks,
 			rightKeyIdx,
@@ -124,6 +128,113 @@ export function hashJoin(
 }
 
 /**
+ * Perform a cross join (cartesian product).
+ */
+export function crossProduct(
+	leftChunks: Chunk[],
+	leftSchema: Schema,
+	rightChunks: Chunk[],
+	rightSchema: Schema,
+	suffix?: string,
+): Result<{ chunks: Chunk[]; schema: Schema }> {
+	const outputSchemaResult = buildJoinSchema(
+		leftSchema,
+		rightSchema,
+		"", // No keys
+		"",
+		suffix || "_right",
+		JoinType.Inner, // Schema struct similar to Inner but no keys skipped
+	);
+	if (outputSchemaResult.error !== ErrorCode.None) {
+		return err(outputSchemaResult.error);
+	}
+	const outputSchema = outputSchemaResult.value;
+
+	const outputChunks: Chunk[] = [];
+	// const leftDict = (leftChunks.length > 0 ? leftChunks[0]!.dictionary : null) ?? createDictionary();
+
+	for (const leftChunk of leftChunks) {
+		for (const rightChunk of rightChunks) {
+			// Create a chunk for every pair of left/right chunks
+			// This is N*M
+			// For every row in left, repeat for every row in right
+			const result = processCrossChunk(
+				leftChunk,
+				rightChunk,
+				outputSchema,
+				leftSchema,
+				rightSchema,
+			);
+			if (result.rowCount > 0) {
+				outputChunks.push(result);
+			}
+		}
+	}
+
+	return ok({ chunks: outputChunks, schema: outputSchema });
+}
+
+function processCrossChunk(
+	leftChunk: Chunk,
+	rightChunk: Chunk,
+	outputSchema: Schema,
+	leftSchema: Schema,
+	rightSchema: Schema,
+): Chunk {
+	const rowCount = leftChunk.rowCount * rightChunk.rowCount;
+	const columns: ColumnBuffer[] = [];
+	for (const col of outputSchema.columns) {
+		columns.push(
+			new ColumnBuffer(col.dtype.kind, rowCount, col.dtype.nullable),
+		);
+	}
+
+	// Naive implementation: iterate left, then iterate right
+	// Optimize: implement repeat() for column buffers for left values
+	// and tile() for right values.
+
+	// For now, simple loop
+	for (let l = 0; l < leftChunk.rowCount; l++) {
+		for (let r = 0; r < rightChunk.rowCount; r++) {
+			// Append left cols
+			let outIdx = 0;
+			for (let c = 0; c < leftSchema.columnCount; c++) {
+				const col = columns[outIdx++]!;
+				if (leftChunk.isNull(c, l)) {
+					col.appendNull();
+				} else {
+					col.append(leftChunk.getValue(c, l)!);
+				}
+			}
+			// Append right cols
+			for (let c = 0; c < rightSchema.columnCount; c++) {
+				const col = columns[outIdx++]!;
+				if (rightChunk.isNull(c, r)) {
+					col.appendNull();
+				} else {
+					let val = rightChunk.getValue(c, r);
+					// Handle string interning if needed (omitted for brevity, ideally share dict or intern)
+					// Assuming simplified handling or shared dict logic
+					// If we strictly follow, we need dictionary handling.
+					// Reusing logic from appendLeftRow would be better but it's specific.
+					// Let's just append.
+					if (
+						col.kind === DTypeKind.String &&
+						rightChunk.dictionary &&
+						leftChunk.dictionary
+					) {
+						const str = rightChunk.dictionary.getString(val as number);
+						if (str !== undefined) val = leftChunk.dictionary.internString(str);
+					}
+					col.append(val!);
+				}
+			}
+		}
+	}
+	return new Chunk(outputSchema, columns, leftChunk.dictionary);
+}
+
+/**
  * Build output schema for join.
  * For left joins, right columns become nullable.
  * For right joins, left columns become nullable.
@@ -136,6 +247,11 @@ function buildJoinSchema(
 	suffix: string,
 	joinType: JoinType,
 ): Result<Schema> {
+	// Semi/Anti joins only return left columns
+	if (joinType === JoinType.Semi || joinType === JoinType.Anti) {
+		return ok(leftSchema);
+	}
+
 	const schemaSpec: Record<string, DType> = {};
 	const usedNames = new Set<string>();
 
@@ -150,8 +266,8 @@ function buildJoinSchema(
 	// Add right columns (except the key if it has the same name)
 	// Nullable for left joins
 	for (const col of rightSchema.columns) {
-		// Skip the join key if same name
-		if (col.name === rightKey && leftKey === rightKey) {
+		// Skip the join key if same name (except cross product where keys aren't used for skipping)
+		if (leftKey && rightKey && col.name === rightKey && leftKey === rightKey) {
 			continue;
 		}
 
@@ -222,7 +338,7 @@ function processLeftChunk(
 	leftSchema: Schema,
 	rightSchema: Schema,
 	joinType: JoinType,
-	rightMatched: Set<string>,
+	rightMatched: Set<string> | undefined,
 	leftKey: string,
 ): Chunk {
 	// Pre-allocate (may need to grow for multi-matches)
@@ -231,35 +347,23 @@ function processLeftChunk(
 		columns.push(
 			new ColumnBuffer(
 				col.dtype.kind,
-				leftChunk.rowCount * 2,
+				leftChunk.rowCount * (joinType === JoinType.Inner ? 1 : 2), // Heuristic
 				col.dtype.nullable,
 			),
 		);
 	}
 
 	for (let r = 0; r < leftChunk.rowCount; r++) {
-		if (leftChunk.isNull(leftKeyIdx, r)) {
-			if (joinType === JoinType.Left) {
-				// Add left row with nulls for right
-				appendLeftRow(
-					columns,
-					leftChunk,
-					r,
-					leftSchema,
-					rightSchema,
-					null,
-					null,
-					rightKeyIdx,
-					leftKey,
-				);
-			}
-			continue;
-		}
+		const isNullKey = leftChunk.isNull(leftKeyIdx, r);
+		let matches: { chunkIdx: number; rowIdx: number }[] | undefined;
 
-		const keyValue = getKeyAsString(leftChunk, leftKeyIdx, r);
-		const matches = hashTable.get(keyValue);
+		if (!isNullKey) {
+			const keyValue = getKeyAsString(leftChunk, leftKeyIdx, r);
+			matches = hashTable.get(keyValue);
+		}
 
 		if (!matches || matches.length === 0) {
+			// No Match
 			if (joinType === JoinType.Left) {
 				appendLeftRow(
 					columns,
@@ -271,12 +375,50 @@ function processLeftChunk(
 					null,
 					rightKeyIdx,
 					leftKey,
+					joinType,
+				);
+			} else if (joinType === JoinType.Anti) {
+				// Anti join: include if NO match
+				appendLeftRow(
+					columns,
+					leftChunk,
+					r,
+					leftSchema,
+					rightSchema,
+					null,
+					null,
+					rightKeyIdx,
+					leftKey,
+					joinType,
 				);
 			}
 			continue;
 		}
 
-		// Add a row for each match
+		// Match Found
+		if (joinType === JoinType.Anti) {
+			// Anti join: skip if match found
+			continue;
+		}
+
+		if (joinType === JoinType.Semi) {
+			// Semi join: include ONCE if match found, don't include right cols
+			appendLeftRow(
+				columns,
+				leftChunk,
+				r,
+				leftSchema,
+				rightSchema,
+				null,
+				null,
+				rightKeyIdx,
+				leftKey,
+				joinType,
+			);
+			continue;
+		}
+
+		// Add a row for each match (Inner, Left, Right)
 		for (const match of matches) {
 			const rightChunk = rightChunks[match.chunkIdx]!;
 			appendLeftRow(
@@ -289,10 +431,19 @@ function processLeftChunk(
 				match,
 				rightKeyIdx,
 				leftKey,
+				joinType,
 			);
-			rightMatched.add(`${match.chunkIdx}:${match.rowIdx}`);
+			if (rightMatched) rightMatched.add(`${match.chunkIdx}:${match.rowIdx}`);
 		}
 	}
+
+	// Trim buffers to actual length
+	// for(const col of columns) {
+	// We need direct access to set length or rely on constructor sizing?
+	// ColumnBuffer usually handles size but if we overestimated significantly we might want to trim.
+	// For now, assuming standard behavior (length is tracked internally).
+	// Actually ColumnBuffer tracks `length` property separately from capacity.
+	// }
 
 	return new Chunk(outputSchema, columns, leftChunk.dictionary);
 }
@@ -310,6 +461,7 @@ function appendLeftRow(
 	rightMatch: { chunkIdx: number; rowIdx: number } | null,
 	rightKeyIdx: number,
 	leftKey: string,
+	joinType: JoinType,
 ): void {
 	let outIdx = 0;
 
@@ -322,6 +474,11 @@ function appendLeftRow(
 			const value = leftChunk.getValue(c, leftRow);
 			col.append(value!);
 		}
+	}
+
+	// Semi/Anti joins stop here (only left columns)
+	if (joinType === JoinType.Semi || joinType === JoinType.Anti) {
+		return;
 	}
 
 	// Add right columns (except duplicate key)
