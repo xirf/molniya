@@ -1,0 +1,24 @@
+{
+	"name": "Molniya-docs",
+	"version": "0.1.0",
+	"module": "src/index.ts",
+	"devDependencies": {
+		"@biomejs/biome": "2.3.13",
+		"@iconify-json/solar": "^1.2.5",
+		"@shikijs/vitepress-twoslash": "^2.5.0",
+		"@types/bun": "latest",
+		"unocss": "^66.6.0",
+		"vitepress": "^1.6.4",
+		"vitepress-plugin-llms": "^1.10.0"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"description": "Documentation for Molniya",
+	"scripts": {
+		"dev": "vitepress dev",
+		"build": "vitepress build",
+		"preview": "vitepress preview"
+	},
+	"type": "module"
+}

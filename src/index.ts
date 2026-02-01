@@ -1,5 +1,5 @@
 /**
- * Mornye - High-performance, stream-only, binary-level data manipulation for Bun
+ * Molniya - High-performance, stream-only, binary-level data manipulation for Bun
  *
  * Main entry point for the library.
  */

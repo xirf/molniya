@@ -1,6 +1,6 @@
-# Mornye
+# Molniya
 
-**Mornye** is a high-performance, arrow-like dataframe library for TypeScript/Javascript (running on Bun). It focuses on columnar memory layout, zero-copy operations, and a fluent API inspired by Polars/Spark.
+**Molniya** is a high-performance, arrow-like dataframe library for TypeScript/Javascript (running on Bun). It focuses on columnar memory layout, zero-copy operations, and a fluent API inspired by Polars/Spark.
 
 ## Features
 
@@ -14,13 +14,13 @@
 ## Installation
 
 ```bash
-bun add mornye
+bun add Molniya
 ```
 
 ## Quick Start
 
 ```typescript
-import { readCsv, col, sum, avg, desc, DType } from "mornye";
+import { readCsv, col, sum, avg, desc, DType } from "Molniya";
 
 // 1. Load Data
 const df = await readCsv("sales.csv", {

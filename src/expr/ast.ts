@@ -1,5 +1,5 @@
 /**
- * Expression AST for the Mornye query language.
+ * Expression AST for the Molniya query language.
  *
  * Expressions are plain data objects (no class instances).
  * They are compiled to binary predicates at pipeline build time.

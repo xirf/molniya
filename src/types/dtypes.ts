@@ -1,5 +1,5 @@
 /**
- * Data types for Mornye DataFrame columns.
+ * Data types for Molniya DataFrame columns.
  *
  * Each DType maps to a specific binary representation:
  * - Fixed-size types use TypedArrays directly
