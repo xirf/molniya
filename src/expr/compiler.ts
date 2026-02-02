@@ -18,17 +18,28 @@ import type { Schema } from "../types/schema.ts";
 import {
 	type ArithmeticExpr,
 	type BetweenExpr,
+	type CaseConversionExpr,
 	type CastExpr,
 	type CoalesceExpr,
 	type ColumnExpr,
 	type ComparisonExpr,
+	type DateExtractExpr,
 	type Expr,
 	ExprType,
+	type IsInExpr,
 	type LiteralExpr,
 	type LogicalExpr,
 	type NotExpr,
 	type NullCheckExpr,
+	type PowExpr,
+	type ReplaceExpr,
+	type RoundExpr,
+	type StringLengthExpr,
 	type StringOpExpr,
+	type SubstringExpr,
+	type TrimExpr,
+	type UnaryMathExpr,
+	type WhenExpr,
 } from "./ast.ts";
 import type { CompiledPredicate, CompiledValue } from "./compile-types.ts";
 
@@ -133,6 +144,9 @@ function compilePredicateInternal(
 
 		case ExprType.Literal:
 			return compileLiteralAsPredicate(expr);
+
+		case ExprType.IsIn:
+			return compileIsIn(expr, ctx);
 
 		default:
 			throw new Error(`Cannot compile ${expr.type} as predicate`);
@@ -364,6 +378,37 @@ function compileValueInternal(expr: Expr, ctx: CompileContext): CompiledValue {
 			return compileCast(expr, ctx);
 		case ExprType.Coalesce:
 			return compileCoalesce(expr, ctx);
+		case ExprType.Round:
+			return compileRound(expr, ctx);
+		case ExprType.Floor:
+		case ExprType.Ceil:
+		case ExprType.Abs:
+		case ExprType.Sqrt:
+			return compileUnaryMath(expr, ctx);
+		case ExprType.Pow:
+			return compilePow(expr, ctx);
+		case ExprType.StringLength:
+			return compileStringLength(expr, ctx);
+		case ExprType.Substring:
+			return compileSubstring(expr, ctx);
+		case ExprType.Upper:
+		case ExprType.Lower:
+			return compileCaseConversion(expr, ctx);
+		case ExprType.Trim:
+			return compileTrim(expr, ctx);
+		case ExprType.Replace:
+			return compileReplace(expr, ctx);
+		case ExprType.Year:
+		case ExprType.Month:
+		case ExprType.Day:
+		case ExprType.DayOfWeek:
+		case ExprType.Quarter:
+		case ExprType.Hour:
+		case ExprType.Minute:
+		case ExprType.Second:
+			return compileDateExtract(expr, ctx);
+		case ExprType.When:
+			return compileWhen(expr, ctx);
 		default:
 			throw new Error(`Cannot compile ${expr.type} as value`);
 	}
@@ -561,5 +606,242 @@ function compileCoalesce(
 			if (v !== null) return v;
 		}
 		return null;
+	};
+}
+
+/** Compile round expression. */
+function compileRound(expr: RoundExpr, ctx: CompileContext): CompiledValue {
+	const inner = compileValueInternal(expr.expr, ctx);
+	const decimals = expr.decimals;
+	const factor = Math.pow(10, decimals);
+
+	return (chunk, row) => {
+		const v = inner(chunk, row);
+		if (v === null) return null;
+		const num = typeof v === "bigint" ? Number(v) : (v as number);
+		return Math.round(num * factor) / factor;
+	};
+}
+
+/** Compile unary math expression (floor, ceil, abs, sqrt). */
+function compileUnaryMath(
+	expr: UnaryMathExpr,
+	ctx: CompileContext,
+): CompiledValue {
+	const inner = compileValueInternal(expr.expr, ctx);
+
+	switch (expr.type) {
+		case ExprType.Floor:
+			return (chunk, row) => {
+				const v = inner(chunk, row);
+				if (v === null) return null;
+				const num = typeof v === "bigint" ? Number(v) : (v as number);
+				return Math.floor(num);
+			};
+		case ExprType.Ceil:
+			return (chunk, row) => {
+				const v = inner(chunk, row);
+				if (v === null) return null;
+				const num = typeof v === "bigint" ? Number(v) : (v as number);
+				return Math.ceil(num);
+			};
+		case ExprType.Abs:
+			return (chunk, row) => {
+				const v = inner(chunk, row);
+				if (v === null) return null;
+				const num = typeof v === "bigint" ? Number(v) : (v as number);
+				return Math.abs(num);
+			};
+		case ExprType.Sqrt:
+			return (chunk, row) => {
+				const v = inner(chunk, row);
+				if (v === null) return null;
+				const num = typeof v === "bigint" ? Number(v) : (v as number);
+				return Math.sqrt(num);
+			};
+	}
+}
+
+/** Compile power expression. */
+function compilePow(expr: PowExpr, ctx: CompileContext): CompiledValue {
+	const inner = compileValueInternal(expr.expr, ctx);
+	const exponent = expr.exponent;
+
+	return (chunk, row) => {
+		const v = inner(chunk, row);
+		if (v === null) return null;
+		const num = typeof v === "bigint" ? Number(v) : (v as number);
+		return Math.pow(num, exponent);
+	};
+}
+
+/** Compile string length expression. */
+function compileStringLength(
+	expr: StringLengthExpr,
+	ctx: CompileContext,
+): CompiledValue {
+	const inner = compileValueInternal(expr.expr, ctx);
+
+	return (chunk, row) => {
+		const v = inner(chunk, row);
+		if (v === null) return null;
+		if (typeof v === "string") return v.length;
+		return null;
+	};
+}
+
+/** Compile substring expression. */
+function compileSubstring(
+	expr: SubstringExpr,
+	ctx: CompileContext,
+): CompiledValue {
+	const inner = compileValueInternal(expr.expr, ctx);
+	const start = expr.start;
+	const length = expr.length;
+
+	return (chunk, row) => {
+		const v = inner(chunk, row);
+		if (v === null) return null;
+		if (typeof v === "string") {
+			return length !== undefined ? v.substring(start, start + length) : v.substring(start);
+		}
+		return null;
+	};
+}
+
+/** Compile case conversion expression (upper/lower). */
+function compileCaseConversion(
+	expr: CaseConversionExpr,
+	ctx: CompileContext,
+): CompiledValue {
+	const inner = compileValueInternal(expr.expr, ctx);
+
+	if (expr.type === ExprType.Upper) {
+		return (chunk, row) => {
+			const v = inner(chunk, row);
+			if (v === null) return null;
+			if (typeof v === "string") return v.toUpperCase();
+			return null;
+		};
+	} else {
+		return (chunk, row) => {
+			const v = inner(chunk, row);
+			if (v === null) return null;
+			if (typeof v === "string") return v.toLowerCase();
+			return null;
+		};
+	}
+}
+
+/** Compile trim expression. */
+function compileTrim(expr: TrimExpr, ctx: CompileContext): CompiledValue {
+	const inner = compileValueInternal(expr.expr, ctx);
+
+	return (chunk, row) => {
+		const v = inner(chunk, row);
+		if (v === null) return null;
+		if (typeof v === "string") return v.trim();
+		return null;
+	};
+}
+
+/** Compile replace expression. */
+function compileReplace(expr: ReplaceExpr, ctx: CompileContext): CompiledValue {
+	const inner = compileValueInternal(expr.expr, ctx);
+	const pattern = expr.pattern;
+	const replacement = expr.replacement;
+	const all = expr.all;
+
+	return (chunk, row) => {
+		const v = inner(chunk, row);
+		if (v === null) return null;
+		if (typeof v === "string") {
+			if (all) {
+				return v.split(pattern).join(replacement);
+			} else {
+				return v.replace(pattern, replacement);
+			}
+		}
+		return null;
+	};
+}
+
+/** Compile date extraction expression. */
+function compileDateExtract(
+	expr: DateExtractExpr,
+	ctx: CompileContext,
+): CompiledValue {
+	const inner = compileValueInternal(expr.expr, ctx);
+
+	return (chunk, row) => {
+		const v = inner(chunk, row);
+		if (v === null) return null;
+
+		// Convert to Date object
+		// Timestamp is stored as bigint (ms since epoch)
+		// Date is stored as int32 (days since epoch)
+		let date: Date;
+		if (typeof v === "bigint") {
+			date = new Date(Number(v));
+		} else if (typeof v === "number") {
+			// Assume it's days since epoch for Date type, or ms for others
+			// Check if it's a small number (days) or large number (ms)
+			if (v < 100000) {
+				// Days since epoch
+				date = new Date(v * 86400000);
+			} else {
+				date = new Date(v);
+			}
+		} else {
+			return null;
+		}
+
+		switch (expr.type) {
+			case ExprType.Year:
+				return date.getUTCFullYear();
+			case ExprType.Month:
+				return date.getUTCMonth() + 1; // 1-indexed
+			case ExprType.Day:
+				return date.getUTCDate();
+			case ExprType.DayOfWeek:
+				return date.getUTCDay();
+			case ExprType.Quarter:
+				return Math.floor(date.getUTCMonth() / 3) + 1;
+			case ExprType.Hour:
+				return date.getUTCHours();
+			case ExprType.Minute:
+				return date.getUTCMinutes();
+			case ExprType.Second:
+				return date.getUTCSeconds();
+		}
+	};
+}
+
+/** Compile when/otherwise expression. */
+function compileWhen(expr: WhenExpr, ctx: CompileContext): CompiledValue {
+	const compiledClauses = expr.clauses.map((clause) => ({
+		condition: compilePredicateInternal(clause.condition, ctx),
+		then: compileValueInternal(clause.then, ctx),
+	}));
+	const otherwise = compileValueInternal(expr.otherwise, ctx);
+
+	return (chunk, row) => {
+		for (const clause of compiledClauses) {
+			if (clause.condition(chunk, row)) {
+				return clause.then(chunk, row);
+			}
+		}
+		return otherwise(chunk, row);
+	};
+}
+
+/** Compile isIn expression as predicate. */
+function compileIsIn(expr: IsInExpr, ctx: CompileContext): CompiledPredicate {
+	const inner = compileValueInternal(expr.expr, ctx);
+	const valueSet = new Set(expr.values);
+
+	return (chunk, row) => {
+		const v = inner(chunk, row);
+		return valueSet.has(v as number | bigint | string | boolean | null);
 	};
 }

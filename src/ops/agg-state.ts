@@ -214,6 +214,108 @@ export class LastState implements AggState {
 	}
 }
 
+/** Standard deviation aggregation (sample, using Welford's online algorithm) */
+export class StdState implements AggState {
+	private count: number = 0;
+	private mean: number = 0;
+	private m2: number = 0;
+	readonly outputDType = DTypeFactory.float64;
+
+	reset(): void {
+		this.count = 0;
+		this.mean = 0;
+		this.m2 = 0;
+	}
+
+	accumulate(value: number | bigint | null): void {
+		if (value === null) return;
+		const num = typeof value === "bigint" ? Number(value) : value;
+		this.count++;
+		const delta = num - this.mean;
+		this.mean += delta / this.count;
+		const delta2 = num - this.mean;
+		this.m2 += delta * delta2;
+	}
+
+	result(): number | null {
+		if (this.count < 2) return null;
+		return Math.sqrt(this.m2 / (this.count - 1)); // Sample std dev
+	}
+}
+
+/** Variance aggregation (sample, using Welford's online algorithm) */
+export class VarState implements AggState {
+	private count: number = 0;
+	private mean: number = 0;
+	private m2: number = 0;
+	readonly outputDType = DTypeFactory.float64;
+
+	reset(): void {
+		this.count = 0;
+		this.mean = 0;
+		this.m2 = 0;
+	}
+
+	accumulate(value: number | bigint | null): void {
+		if (value === null) return;
+		const num = typeof value === "bigint" ? Number(value) : value;
+		this.count++;
+		const delta = num - this.mean;
+		this.mean += delta / this.count;
+		const delta2 = num - this.mean;
+		this.m2 += delta * delta2;
+	}
+
+	result(): number | null {
+		if (this.count < 2) return null;
+		return this.m2 / (this.count - 1); // Sample variance
+	}
+}
+
+/** Median aggregation (collects all values) */
+export class MedianState implements AggState {
+	private values: number[] = [];
+	readonly outputDType = DTypeFactory.float64;
+
+	reset(): void {
+		this.values = [];
+	}
+
+	accumulate(value: number | bigint | null): void {
+		if (value === null) return;
+		this.values.push(typeof value === "bigint" ? Number(value) : value);
+	}
+
+	result(): number | null {
+		if (this.values.length === 0) return null;
+		this.values.sort((a, b) => a - b);
+		const mid = Math.floor(this.values.length / 2);
+		if (this.values.length % 2 === 0) {
+			return (this.values[mid - 1]! + this.values[mid]!) / 2;
+		}
+		return this.values[mid]!;
+	}
+}
+
+/** Count distinct aggregation */
+export class CountDistinctState implements AggState {
+	private seen: Set<number | bigint | string> = new Set();
+	readonly outputDType = DTypeFactory.int64;
+
+	reset(): void {
+		this.seen.clear();
+	}
+
+	accumulate(value: number | bigint | null): void {
+		if (value === null) return;
+		this.seen.add(value as number | bigint | string);
+	}
+
+	result(): bigint {
+		return BigInt(this.seen.size);
+	}
+}
+
 /** Factory function to create aggregation state from expression type */
 export function createAggState(aggType: AggType, inputDType?: DType): AggState {
 	switch (aggType) {
@@ -233,6 +335,14 @@ export function createAggState(aggType: AggType, inputDType?: DType): AggState {
 			return new FirstState(inputDType ?? DTypeFactory.float64);
 		case AggType.Last:
 			return new LastState(inputDType ?? DTypeFactory.float64);
+		case AggType.Std:
+			return new StdState();
+		case AggType.Var:
+			return new VarState();
+		case AggType.Median:
+			return new MedianState();
+		case AggType.CountDistinct:
+			return new CountDistinctState();
 	}
 }
 
@@ -246,4 +356,8 @@ export enum AggType {
 	Max = 5,
 	First = 6,
 	Last = 7,
+	Std = 8,
+	Var = 9,
+	Median = 10,
+	CountDistinct = 11,
 }

@@ -21,8 +21,11 @@ export {
 // Re-export DataFrame
 export {
 	DataFrame,
+	fromArrays,
+	fromColumns,
 	fromCsvString,
 	fromRecords,
+	range,
 	readCsv,
 	readParquet,
 } from "./dataframe/index.ts";
@@ -33,6 +36,8 @@ export {
 	applyPredicate,
 	applyValue,
 	avg,
+	between,
+	coalesce,
 	// Compiler
 	type CompiledPredicate,
 	type CompiledValue,
@@ -40,6 +45,7 @@ export {
 	compilePredicate,
 	compileValue,
 	count,
+	countDistinct,
 	div,
 	type Expr,
 	ExprType,
@@ -52,15 +58,20 @@ export {
 	last,
 	lit,
 	max,
+	median,
 	min,
 	mod,
 	mul,
 	neg,
 	not,
 	or,
+	std,
 	sub,
 	sum,
 	validateExpr,
+	variance,
+	when,
+	WhenBuilder,
 } from "./expr/index.ts";
 // Re-export I/O
 export {

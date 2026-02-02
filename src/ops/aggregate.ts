@@ -219,6 +219,22 @@ function compileAggExpr(
 				innerExpr = expr.expr;
 			}
 			break;
+		case ExprType.Std:
+			aggType = AggType.Std;
+			innerExpr = expr.expr;
+			break;
+		case ExprType.Var:
+			aggType = AggType.Var;
+			innerExpr = expr.expr;
+			break;
+		case ExprType.Median:
+			aggType = AggType.Median;
+			innerExpr = expr.expr;
+			break;
+		case ExprType.CountDistinct:
+			aggType = AggType.CountDistinct;
+			innerExpr = expr.expr;
+			break;
 		default:
 			return err(ErrorCode.InvalidAggregation);
 	}

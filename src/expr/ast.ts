@@ -59,6 +59,44 @@ export enum ExprType {
 
 	// Null handling
 	Coalesce = "coalesce",
+
+	// Math functions
+	Round = "round",
+	Floor = "floor",
+	Ceil = "ceil",
+	Abs = "abs",
+	Sqrt = "sqrt",
+	Pow = "pow",
+
+	// String operations
+	StringLength = "str_length",
+	Substring = "substring",
+	Upper = "upper",
+	Lower = "lower",
+	Trim = "trim",
+	Replace = "replace",
+
+	// Date/time extraction
+	Year = "year",
+	Month = "month",
+	Day = "day",
+	DayOfWeek = "day_of_week",
+	Quarter = "quarter",
+	Hour = "hour",
+	Minute = "minute",
+	Second = "second",
+
+	// Conditional
+	When = "when",
+
+	// New aggregations
+	Std = "std",
+	Var = "var",
+	Median = "median",
+	CountDistinct = "count_distinct",
+
+	// Utility
+	IsIn = "is_in",
 }
 
 /** Column reference */
@@ -146,7 +184,16 @@ export interface AggExpr {
 		| ExprType.Min
 		| ExprType.Max
 		| ExprType.First
-		| ExprType.Last;
+		| ExprType.Last
+		| ExprType.Std
+		| ExprType.Var
+		| ExprType.Median;
+	readonly expr: Expr;
+}
+
+/** Count distinct aggregation */
+export interface CountDistinctExpr {
+	readonly type: ExprType.CountDistinct;
 	readonly expr: Expr;
 }
 
@@ -176,6 +223,95 @@ export interface CoalesceExpr {
 	readonly exprs: readonly Expr[];
 }
 
+/** Round expression */
+export interface RoundExpr {
+	readonly type: ExprType.Round;
+	readonly expr: Expr;
+	readonly decimals: number;
+}
+
+/** Unary math expression (floor, ceil, abs, sqrt) */
+export interface UnaryMathExpr {
+	readonly type: ExprType.Floor | ExprType.Ceil | ExprType.Abs | ExprType.Sqrt;
+	readonly expr: Expr;
+}
+
+/** Power expression */
+export interface PowExpr {
+	readonly type: ExprType.Pow;
+	readonly expr: Expr;
+	readonly exponent: number;
+}
+
+/** String length expression */
+export interface StringLengthExpr {
+	readonly type: ExprType.StringLength;
+	readonly expr: Expr;
+}
+
+/** Substring expression */
+export interface SubstringExpr {
+	readonly type: ExprType.Substring;
+	readonly expr: Expr;
+	readonly start: number;
+	readonly length?: number;
+}
+
+/** Case conversion expression (upper/lower) */
+export interface CaseConversionExpr {
+	readonly type: ExprType.Upper | ExprType.Lower;
+	readonly expr: Expr;
+}
+
+/** Trim expression */
+export interface TrimExpr {
+	readonly type: ExprType.Trim;
+	readonly expr: Expr;
+}
+
+/** Replace expression */
+export interface ReplaceExpr {
+	readonly type: ExprType.Replace;
+	readonly expr: Expr;
+	readonly pattern: string;
+	readonly replacement: string;
+	readonly all: boolean;
+}
+
+/** Date extraction expression */
+export interface DateExtractExpr {
+	readonly type:
+		| ExprType.Year
+		| ExprType.Month
+		| ExprType.Day
+		| ExprType.DayOfWeek
+		| ExprType.Quarter
+		| ExprType.Hour
+		| ExprType.Minute
+		| ExprType.Second;
+	readonly expr: Expr;
+}
+
+/** When clause for conditional expression */
+export interface WhenClause {
+	readonly condition: Expr;
+	readonly then: Expr;
+}
+
+/** When expression (conditional) */
+export interface WhenExpr {
+	readonly type: ExprType.When;
+	readonly clauses: readonly WhenClause[];
+	readonly otherwise: Expr;
+}
+
+/** IsIn expression */
+export interface IsInExpr {
+	readonly type: ExprType.IsIn;
+	readonly expr: Expr;
+	readonly values: readonly (number | bigint | string | boolean | null)[];
+}
+
 /** Union of all expression types */
 export type Expr =
 	| ColumnExpr
@@ -190,9 +326,21 @@ export type Expr =
 	| StringOpExpr
 	| AggExpr
 	| CountExpr
+	| CountDistinctExpr
 	| AliasExpr
 	| CastExpr
-	| CoalesceExpr;
+	| CoalesceExpr
+	| RoundExpr
+	| UnaryMathExpr
+	| PowExpr
+	| StringLengthExpr
+	| SubstringExpr
+	| CaseConversionExpr
+	| TrimExpr
+	| ReplaceExpr
+	| DateExtractExpr
+	| WhenExpr
+	| IsInExpr;
 
 /** Check if expression is a column reference */
 export function isColumnExpr(expr: Expr): expr is ColumnExpr {
@@ -228,7 +376,9 @@ export function isArithmeticExpr(expr: Expr): expr is ArithmeticExpr {
 }
 
 /** Check if expression is an aggregation */
-export function isAggExpr(expr: Expr): expr is AggExpr | CountExpr {
+export function isAggExpr(
+	expr: Expr,
+): expr is AggExpr | CountExpr | CountDistinctExpr {
 	return (
 		expr.type === ExprType.Sum ||
 		expr.type === ExprType.Avg ||
@@ -236,7 +386,11 @@ export function isAggExpr(expr: Expr): expr is AggExpr | CountExpr {
 		expr.type === ExprType.Max ||
 		expr.type === ExprType.First ||
 		expr.type === ExprType.Last ||
-		expr.type === ExprType.Count
+		expr.type === ExprType.Count ||
+		expr.type === ExprType.Std ||
+		expr.type === ExprType.Var ||
+		expr.type === ExprType.Median ||
+		expr.type === ExprType.CountDistinct
 	);
 }
 
@@ -301,5 +455,52 @@ export function formatExpr(expr: Expr): string {
 			return `${formatExpr(expr.expr)}.cast(${expr.targetDType})`;
 		case ExprType.Coalesce:
 			return `coalesce(${expr.exprs.map(formatExpr).join(", ")})`;
+		case ExprType.Round:
+			return `${formatExpr(expr.expr)}.round(${expr.decimals})`;
+		case ExprType.Floor:
+			return `${formatExpr(expr.expr)}.floor()`;
+		case ExprType.Ceil:
+			return `${formatExpr(expr.expr)}.ceil()`;
+		case ExprType.Abs:
+			return `${formatExpr(expr.expr)}.abs()`;
+		case ExprType.Sqrt:
+			return `${formatExpr(expr.expr)}.sqrt()`;
+		case ExprType.Pow:
+			return `${formatExpr(expr.expr)}.pow(${expr.exponent})`;
+		case ExprType.StringLength:
+			return `${formatExpr(expr.expr)}.length()`;
+		case ExprType.Substring:
+			return expr.length !== undefined
+				? `${formatExpr(expr.expr)}.substring(${expr.start}, ${expr.length})`
+				: `${formatExpr(expr.expr)}.substring(${expr.start})`;
+		case ExprType.Upper:
+			return `${formatExpr(expr.expr)}.upper()`;
+		case ExprType.Lower:
+			return `${formatExpr(expr.expr)}.lower()`;
+		case ExprType.Trim:
+			return `${formatExpr(expr.expr)}.trim()`;
+		case ExprType.Replace:
+			return `${formatExpr(expr.expr)}.replace("${expr.pattern}", "${expr.replacement}")`;
+		case ExprType.Year:
+		case ExprType.Month:
+		case ExprType.Day:
+		case ExprType.DayOfWeek:
+		case ExprType.Quarter:
+		case ExprType.Hour:
+		case ExprType.Minute:
+		case ExprType.Second:
+			return `${formatExpr(expr.expr)}.${expr.type}()`;
+		case ExprType.When:
+			return `when(${expr.clauses.map((c) => `${formatExpr(c.condition)} => ${formatExpr(c.then)}`).join(", ")}).otherwise(${formatExpr(expr.otherwise)})`;
+		case ExprType.Std:
+			return `std(${formatExpr(expr.expr)})`;
+		case ExprType.Var:
+			return `var(${formatExpr(expr.expr)})`;
+		case ExprType.Median:
+			return `median(${formatExpr(expr.expr)})`;
+		case ExprType.CountDistinct:
+			return `countDistinct(${formatExpr(expr.expr)})`;
+		case ExprType.IsIn:
+			return `${formatExpr(expr.expr)}.isIn([${expr.values.map((v) => (typeof v === "string" ? `"${v}"` : v)).join(", ")}])`;
 	}
 }

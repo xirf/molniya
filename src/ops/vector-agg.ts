@@ -374,11 +374,466 @@ export class VectorMax extends BaseVectorAggregator {
 	}
 }
 
+/** Vector Avg (tracks sum and count) */
+export class VectorAvg extends BaseVectorAggregator {
+	protected declare values: Float64Array; // sums
+	protected counts: Float64Array;
+	readonly outputDType = DTypeFactory.float64;
+
+	constructor() {
+		super();
+		this.values = new Float64Array(1024);
+		this.counts = new Float64Array(1024);
+		this.hasValue = new Uint8Array(1024);
+	}
+
+	protected grow(newSize: number) {
+		const newValues = new Float64Array(newSize);
+		newValues.set(this.values);
+		this.values = newValues;
+
+		const newCounts = new Float64Array(newSize);
+		newCounts.set(this.counts);
+		this.counts = newCounts;
+
+		const newHasValue = new Uint8Array(newSize);
+		newHasValue.set(this.hasValue);
+		this.hasValue = newHasValue;
+	}
+
+	protected initialize(_start: number, _end: number) {
+		// Float64Array initializes to 0
+	}
+
+	accumulateBatch(
+		data: TypedArray,
+		groupIds: Int32Array,
+		count: number,
+		selection: Uint32Array | null,
+		column: ColumnBuffer | null,
+	): void {
+		const vals = this.values;
+		const cnts = this.counts;
+		const hasVal = this.hasValue;
+
+		if (selection) {
+			for (let i = 0; i < count; i++) {
+				const row = selection[i]!;
+				if (column?.isNull(row)) continue;
+
+				const gid = groupIds[i]!;
+				vals[gid]! += Number(data[row]);
+				cnts[gid]!++;
+				hasVal[gid] = 1;
+			}
+		} else {
+			for (let i = 0; i < count; i++) {
+				if (column?.isNull(i)) continue;
+
+				const gid = groupIds[i]!;
+				vals[gid]! += Number(data[i]);
+				cnts[gid]!++;
+				hasVal[gid] = 1;
+			}
+		}
+	}
+
+	override finish(): ColumnBuffer {
+		const col = new ColumnBuffer(
+			this.outputDType.kind,
+			this.size,
+			this.outputDType.nullable,
+		);
+		for (let i = 0; i < this.size; i++) {
+			if (this.hasValue[i] && this.counts[i]! > 0) {
+				col.set(i, this.values[i]! / this.counts[i]!);
+			} else {
+				col.setNull(i, true);
+			}
+		}
+		(col as unknown as { _length: number })._length = this.size;
+		return col;
+	}
+}
+
+/** Vector Std (Welford's online algorithm) */
+export class VectorStd extends BaseVectorAggregator {
+	protected declare values: Float64Array; // M2 values
+	protected means: Float64Array;
+	protected counts: Float64Array;
+	readonly outputDType = DTypeFactory.float64;
+
+	constructor() {
+		super();
+		this.values = new Float64Array(1024); // M2
+		this.means = new Float64Array(1024);
+		this.counts = new Float64Array(1024);
+		this.hasValue = new Uint8Array(1024);
+	}
+
+	protected grow(newSize: number) {
+		const newValues = new Float64Array(newSize);
+		newValues.set(this.values);
+		this.values = newValues;
+
+		const newMeans = new Float64Array(newSize);
+		newMeans.set(this.means);
+		this.means = newMeans;
+
+		const newCounts = new Float64Array(newSize);
+		newCounts.set(this.counts);
+		this.counts = newCounts;
+
+		const newHasValue = new Uint8Array(newSize);
+		newHasValue.set(this.hasValue);
+		this.hasValue = newHasValue;
+	}
+
+	protected initialize(_start: number, _end: number) {
+		// Float64Array initializes to 0
+	}
+
+	accumulateBatch(
+		data: TypedArray,
+		groupIds: Int32Array,
+		count: number,
+		selection: Uint32Array | null,
+		column: ColumnBuffer | null,
+	): void {
+		const m2 = this.values;
+		const means = this.means;
+		const counts = this.counts;
+		const hasVal = this.hasValue;
+
+		if (selection) {
+			for (let i = 0; i < count; i++) {
+				const row = selection[i]!;
+				if (column?.isNull(row)) continue;
+
+				const gid = groupIds[i]!;
+				const x = Number(data[row]);
+
+				counts[gid]!++;
+				const delta = x - means[gid]!;
+				means[gid]! += delta / counts[gid]!;
+				const delta2 = x - means[gid]!;
+				m2[gid]! += delta * delta2;
+				hasVal[gid] = 1;
+			}
+		} else {
+			for (let i = 0; i < count; i++) {
+				if (column?.isNull(i)) continue;
+
+				const gid = groupIds[i]!;
+				const x = Number(data[i]);
+
+				counts[gid]!++;
+				const delta = x - means[gid]!;
+				means[gid]! += delta / counts[gid]!;
+				const delta2 = x - means[gid]!;
+				m2[gid]! += delta * delta2;
+				hasVal[gid] = 1;
+			}
+		}
+	}
+
+	override finish(): ColumnBuffer {
+		const col = new ColumnBuffer(
+			this.outputDType.kind,
+			this.size,
+			this.outputDType.nullable,
+		);
+		for (let i = 0; i < this.size; i++) {
+			if (this.hasValue[i] && this.counts[i]! >= 2) {
+				// Sample std dev: sqrt(M2 / (n-1))
+				col.set(i, Math.sqrt(this.values[i]! / (this.counts[i]! - 1)));
+			} else {
+				col.setNull(i, true);
+			}
+		}
+		(col as unknown as { _length: number })._length = this.size;
+		return col;
+	}
+}
+
+/** Vector Var (Welford's online algorithm) */
+export class VectorVar extends VectorStd {
+	override finish(): ColumnBuffer {
+		const col = new ColumnBuffer(
+			this.outputDType.kind,
+			this.size,
+			this.outputDType.nullable,
+		);
+		for (let i = 0; i < this.size; i++) {
+			if (this.hasValue[i] && this.counts[i]! >= 2) {
+				// Sample variance: M2 / (n-1)
+				col.set(i, this.values[i]! / (this.counts[i]! - 1));
+			} else {
+				col.setNull(i, true);
+			}
+		}
+		(col as unknown as { _length: number })._length = this.size;
+		return col;
+	}
+}
+
+/** Vector Median (collects all values per group) */
+export class VectorMedian implements BatchAggregator {
+	private groupValues: Map<number, number[]> = new Map();
+	private size: number = 0;
+	readonly outputDType = DTypeFactory.float64;
+
+	resize(numGroups: number): void {
+		this.size = numGroups;
+	}
+
+	accumulateBatch(
+		data: TypedArray | null,
+		groupIds: Int32Array,
+		count: number,
+		selection: Uint32Array | null,
+		column: ColumnBuffer | null,
+	): void {
+		if (!data) return;
+
+		if (selection) {
+			for (let i = 0; i < count; i++) {
+				const row = selection[i]!;
+				if (column?.isNull(row)) continue;
+
+				const gid = groupIds[i]!;
+				let arr = this.groupValues.get(gid);
+				if (!arr) {
+					arr = [];
+					this.groupValues.set(gid, arr);
+				}
+				arr.push(Number(data[row]));
+			}
+		} else {
+			for (let i = 0; i < count; i++) {
+				if (column?.isNull(i)) continue;
+
+				const gid = groupIds[i]!;
+				let arr = this.groupValues.get(gid);
+				if (!arr) {
+					arr = [];
+					this.groupValues.set(gid, arr);
+				}
+				arr.push(Number(data[i]));
+			}
+		}
+	}
+
+	finish(): ColumnBuffer {
+		const col = new ColumnBuffer(
+			this.outputDType.kind,
+			this.size,
+			this.outputDType.nullable,
+		);
+
+		for (let gid = 0; gid < this.size; gid++) {
+			const values = this.groupValues.get(gid);
+			if (!values || values.length === 0) {
+				col.setNull(gid, true);
+			} else {
+				values.sort((a, b) => a - b);
+				const mid = Math.floor(values.length / 2);
+				if (values.length % 2 === 0) {
+					col.set(gid, (values[mid - 1]! + values[mid]!) / 2);
+				} else {
+					col.set(gid, values[mid]!);
+				}
+			}
+		}
+
+		(col as unknown as { _length: number })._length = this.size;
+		return col;
+	}
+}
+
+/** Vector CountDistinct (tracks unique values per group) */
+export class VectorCountDistinct implements BatchAggregator {
+	private groupSets: Map<number, Set<number | bigint | string>> = new Map();
+	private size: number = 0;
+	readonly outputDType = DTypeFactory.int64;
+
+	resize(numGroups: number): void {
+		this.size = numGroups;
+	}
+
+	accumulateBatch(
+		data: TypedArray | null,
+		groupIds: Int32Array,
+		count: number,
+		selection: Uint32Array | null,
+		column: ColumnBuffer | null,
+	): void {
+		if (!data) return;
+
+		if (selection) {
+			for (let i = 0; i < count; i++) {
+				const row = selection[i]!;
+				if (column?.isNull(row)) continue;
+
+				const gid = groupIds[i]!;
+				let set = this.groupSets.get(gid);
+				if (!set) {
+					set = new Set();
+					this.groupSets.set(gid, set);
+				}
+				set.add(data[row] as number | bigint);
+			}
+		} else {
+			for (let i = 0; i < count; i++) {
+				if (column?.isNull(i)) continue;
+
+				const gid = groupIds[i]!;
+				let set = this.groupSets.get(gid);
+				if (!set) {
+					set = new Set();
+					this.groupSets.set(gid, set);
+				}
+				set.add(data[i] as number | bigint);
+			}
+		}
+	}
+
+	finish(): ColumnBuffer {
+		const col = new ColumnBuffer(this.outputDType.kind, this.size, false);
+
+		for (let gid = 0; gid < this.size; gid++) {
+			const set = this.groupSets.get(gid);
+			col.set(gid, BigInt(set?.size ?? 0));
+		}
+
+		(col as unknown as { _length: number })._length = this.size;
+		return col;
+	}
+}
+
+/** Vector First (stores first non-null value per group) */
+export class VectorFirst extends BaseVectorAggregator {
+	protected declare values: Float64Array;
+	readonly outputDType = DTypeFactory.float64;
+
+	constructor() {
+		super();
+		this.values = new Float64Array(1024);
+		this.hasValue = new Uint8Array(1024);
+	}
+
+	protected grow(newSize: number) {
+		const newValues = new Float64Array(newSize);
+		newValues.set(this.values);
+		this.values = newValues;
+
+		const newHasValue = new Uint8Array(newSize);
+		newHasValue.set(this.hasValue);
+		this.hasValue = newHasValue;
+	}
+
+	protected initialize(_start: number, _end: number) {
+		// No special initialization needed
+	}
+
+	accumulateBatch(
+		data: TypedArray,
+		groupIds: Int32Array,
+		count: number,
+		selection: Uint32Array | null,
+		column: ColumnBuffer | null,
+	): void {
+		const vals = this.values;
+		const hasVal = this.hasValue;
+
+		if (selection) {
+			for (let i = 0; i < count; i++) {
+				const row = selection[i]!;
+				if (column?.isNull(row)) continue;
+
+				const gid = groupIds[i]!;
+				if (!hasVal[gid]) {
+					vals[gid] = Number(data[row]);
+					hasVal[gid] = 1;
+				}
+			}
+		} else {
+			for (let i = 0; i < count; i++) {
+				if (column?.isNull(i)) continue;
+
+				const gid = groupIds[i]!;
+				if (!hasVal[gid]) {
+					vals[gid] = Number(data[i]);
+					hasVal[gid] = 1;
+				}
+			}
+		}
+	}
+}
+
+/** Vector Last (stores last non-null value per group) */
+export class VectorLast extends BaseVectorAggregator {
+	protected declare values: Float64Array;
+	readonly outputDType = DTypeFactory.float64;
+
+	constructor() {
+		super();
+		this.values = new Float64Array(1024);
+		this.hasValue = new Uint8Array(1024);
+	}
+
+	protected grow(newSize: number) {
+		const newValues = new Float64Array(newSize);
+		newValues.set(this.values);
+		this.values = newValues;
+
+		const newHasValue = new Uint8Array(newSize);
+		newHasValue.set(this.hasValue);
+		this.hasValue = newHasValue;
+	}
+
+	protected initialize(_start: number, _end: number) {
+		// No special initialization needed
+	}
+
+	accumulateBatch(
+		data: TypedArray,
+		groupIds: Int32Array,
+		count: number,
+		selection: Uint32Array | null,
+		column: ColumnBuffer | null,
+	): void {
+		const vals = this.values;
+		const hasVal = this.hasValue;
+
+		if (selection) {
+			for (let i = 0; i < count; i++) {
+				const row = selection[i]!;
+				if (column?.isNull(row)) continue;
+
+				const gid = groupIds[i]!;
+				vals[gid] = Number(data[row]);
+				hasVal[gid] = 1;
+			}
+		} else {
+			for (let i = 0; i < count; i++) {
+				if (column?.isNull(i)) continue;
+
+				const gid = groupIds[i]!;
+				vals[gid] = Number(data[i]);
+				hasVal[gid] = 1;
+			}
+		}
+	}
+}
+
 /** Factory */
 export function createVectorAggregator(aggType: AggType): BatchAggregator {
 	switch (aggType) {
 		case AggType.Sum:
 			return new VectorSum();
+		case AggType.Avg:
+			return new VectorAvg();
 		case AggType.Count:
 			return new VectorCount();
 		case AggType.CountAll:
@@ -387,6 +842,18 @@ export function createVectorAggregator(aggType: AggType): BatchAggregator {
 			return new VectorMin();
 		case AggType.Max:
 			return new VectorMax();
+		case AggType.First:
+			return new VectorFirst();
+		case AggType.Last:
+			return new VectorLast();
+		case AggType.Std:
+			return new VectorStd();
+		case AggType.Var:
+			return new VectorVar();
+		case AggType.Median:
+			return new VectorMedian();
+		case AggType.CountDistinct:
+			return new VectorCountDistinct();
 		default:
 			throw new Error(`Vector aggregation not implemented for type ${aggType}`);
 	}

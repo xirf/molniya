@@ -144,6 +144,102 @@ export function inferExprType(
 			return inferExprType(expr.expr, schema);
 		}
 
+		// Math functions - all return float64
+		case ExprType.Round:
+		case ExprType.Floor:
+		case ExprType.Ceil:
+		case ExprType.Abs:
+		case ExprType.Sqrt:
+		case ExprType.Pow: {
+			const innerResult = inferExprType(expr.expr, schema);
+			if (innerResult.error !== ErrorCode.None) return innerResult;
+			return ok({ dtype: DTypeFactory.float64, isAggregate: false });
+		}
+
+		// String length returns int32
+		case ExprType.StringLength: {
+			const innerResult = inferExprType(expr.expr, schema);
+			if (innerResult.error !== ErrorCode.None) return innerResult;
+			return ok({ dtype: DTypeFactory.int32, isAggregate: false });
+		}
+
+		// String operations return string
+		case ExprType.Substring:
+		case ExprType.Upper:
+		case ExprType.Lower:
+		case ExprType.Trim:
+		case ExprType.Replace: {
+			const innerResult = inferExprType(expr.expr, schema);
+			if (innerResult.error !== ErrorCode.None) return innerResult;
+			return ok({ dtype: DTypeFactory.string, isAggregate: false });
+		}
+
+		// Date extraction returns int32
+		case ExprType.Year:
+		case ExprType.Month:
+		case ExprType.Day:
+		case ExprType.DayOfWeek:
+		case ExprType.Quarter:
+		case ExprType.Hour:
+		case ExprType.Minute:
+		case ExprType.Second: {
+			const innerResult = inferExprType(expr.expr, schema);
+			if (innerResult.error !== ErrorCode.None) return innerResult;
+			return ok({ dtype: DTypeFactory.int32, isAggregate: false });
+		}
+
+		// When expression - type of first then clause
+		case ExprType.When: {
+			if (expr.clauses.length === 0) {
+				return err(ErrorCode.InvalidExpression);
+			}
+			const firstThenResult = inferExprType(expr.clauses[0]!.then, schema);
+			if (firstThenResult.error !== ErrorCode.None) return firstThenResult;
+			return ok({ dtype: firstThenResult.value.dtype, isAggregate: false });
+		}
+
+		// IsIn returns boolean
+		case ExprType.IsIn: {
+			const innerResult = inferExprType(expr.expr, schema);
+			if (innerResult.error !== ErrorCode.None) return innerResult;
+			return ok({ dtype: DTypeFactory.boolean, isAggregate: false });
+		}
+
+		// New aggregations
+		case ExprType.Std:
+		case ExprType.Var:
+		case ExprType.Median: {
+			const innerResult = inferExprType(expr.expr, schema);
+			if (innerResult.error !== ErrorCode.None) return innerResult;
+			return ok({ dtype: DTypeFactory.float64, isAggregate: true });
+		}
+
+		case ExprType.CountDistinct: {
+			const innerResult = inferExprType(expr.expr, schema);
+			if (innerResult.error !== ErrorCode.None) return innerResult;
+			return ok({ dtype: DTypeFactory.int64, isAggregate: true });
+		}
+
+		// Coalesce - type of first non-null expression
+		case ExprType.Coalesce: {
+			if (expr.exprs.length === 0) {
+				return err(ErrorCode.InvalidExpression);
+			}
+			const firstResult = inferExprType(expr.exprs[0]!, schema);
+			if (firstResult.error !== ErrorCode.None) return firstResult;
+			return ok({ dtype: firstResult.value.dtype, isAggregate: false });
+		}
+
+		// Cast expression
+		case ExprType.Cast: {
+			const innerResult = inferExprType(expr.expr, schema);
+			if (innerResult.error !== ErrorCode.None) return innerResult;
+			return ok({
+				dtype: { kind: expr.targetDType, nullable: innerResult.value.dtype.nullable },
+				isAggregate: false,
+			});
+		}
+
 		default:
 			return err(ErrorCode.InvalidExpression);
 	}
@@ -258,6 +354,7 @@ export function isPredicateExpr(expr: Expr): boolean {
 		case ExprType.Contains:
 		case ExprType.StartsWith:
 		case ExprType.EndsWith:
+		case ExprType.IsIn:
 			return true;
 		default:
 			return false;

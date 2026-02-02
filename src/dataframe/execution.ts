@@ -76,6 +76,9 @@ export function addExecutionMethods(df: typeof DataFrame.prototype) {
 					} else if (dtype.kind === DTypeKind.String && dictionary?.getString) {
 						const dictIndex = chunk.getValue(c, r) as number;
 						row[colName] = dictionary.getString(dictIndex);
+					} else if (dtype.kind === DTypeKind.Boolean) {
+						// Convert 0/1 to boolean
+						row[colName] = chunk.getValue(c, r) === 1;
 					} else {
 						// Direct value (for parquet or non-dictionary columns)
 						row[colName] = chunk.getValue(c, r);

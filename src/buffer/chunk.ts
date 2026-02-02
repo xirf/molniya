@@ -94,8 +94,8 @@ export class Chunk {
 	 */
 	applySelection(selection: Uint32Array, count: number): void {
 		if (this.selection === null) {
-			// First selection - use directly
-			this.selection = selection;
+			// First selection - copy to avoid aliasing issues with pooled buffers
+			this.selection = selection.slice(0, count);
 			this.selectedCount = count;
 		} else {
 			// Compose selections: map through existing selection
@@ -210,7 +210,18 @@ export class Chunk {
 
 	/**
 	 * Create an iterator over rows (for debugging/display).
-	 * Note: This allocates objects - don't use in hot paths!
+	 *
+	 * ⚠️ PERFORMANCE WARNING: This allocates a new object for EVERY row!
+	 * This completely defeats the zero-copy columnar architecture and will
+	 * cause massive GC pressure on large datasets. Only use for:
+	 * - Debugging (inspecting a few rows)
+	 * - Display/preview (limited row count)
+	 * - Small datasets where performance doesn't matter
+	 *
+	 * For performance-critical iteration, use:
+	 * - rowsReusable() - Reuses the same object (flyweight pattern)
+	 * - Direct columnar access via getColumn()
+	 * - Operators that work on chunks directly
 	 */
 	*rows(): IterableIterator<Record<string, unknown>> {
 		const columnNames = getColumnNames(this.schema);
@@ -226,6 +237,49 @@ export class Chunk {
 					row[name] = null;
 				} else if (col.kind === DTypeKind.String && this.dictionary) {
 					row[name] = this.getStringValue(j, i);
+				} else {
+					row[name] = this.getValue(j, i);
+				}
+			}
+			yield row;
+		}
+	}
+
+	/**
+	 * Memory-efficient row iterator using flyweight pattern.
+	 * Reuses the same row object, mutating it on each iteration.
+	 *
+	 * ⚠️ WARNING: The returned object is MUTATED on each iteration!
+	 * DO NOT store references to it. If you need to keep a row, clone it:
+	 *   const copy = { ...row };
+	 *
+	 * Use this for performance-critical iteration over large datasets
+	 * where you process each row and don't need to keep references.
+	 *
+	 * Example:
+	 *   for (const row of chunk.rowsReusable()) {
+	 *     // Process row immediately
+	 *     const sum = row.a + row.b;
+	 *     // DON'T store: rows.push(row) ❌
+	 *     // DO clone first: rows.push({ ...row }) ✅
+	 *   }
+	 */
+	*rowsReusable(): IterableIterator<Record<string, unknown>> {
+		const columnNames = getColumnNames(this.schema);
+		const row: Record<string, unknown> = {}; // Reused object
+
+		for (let i = 0; i < this.rowCount; i++) {
+			// Mutate the same object
+			for (let j = 0; j < this.columnCount; j++) {
+				const name = columnNames[j];
+				const col = this.columns[j];
+				if (!name || !col) continue;
+
+				if (this.isNull(j, i)) {
+					row[name] = null;
+				} else if (col.kind === DTypeKind.String && this.dictionary) {
+					row[name] = this.getStringValue(j, i);
+				} else {
 					row[name] = this.getValue(j, i);
 				}
 			}

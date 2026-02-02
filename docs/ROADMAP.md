@@ -5,44 +5,44 @@ This document tracks features that are documented but not yet fully implemented 
 ## Core API Gaps
 
 ### DataFrame Creation
-- [ ] `fromColumns()` - Create DataFrame from column-oriented data with TypedArrays
-- [ ] `fromArrays()` - Create DataFrame from arrays of values
-- [ ] `range()` - Create DataFrame with sequence of numbers
+- [x] `fromColumns()` - Create DataFrame from column-oriented data with TypedArrays ✅
+- [x] `fromArrays()` - Create DataFrame from arrays of values ✅
+- [x] `range()` - Create DataFrame with sequence of numbers ✅
 - [ ] `DataFrame.empty()` - Static method needs verification
 
 ### String Operations (ColumnRef methods)
-- [ ] `col().length()` - String length
-- [ ] `col().substring(start, len)` - Extract substring
-- [ ] `col().upper()` / `col().lower()` - Case conversion
-- [ ] `col().trim()` - Remove whitespace
-- [ ] `col().replace()` - Replace substring
-- [ ] `col().contains()` - Check if contains substring (exists as expr, needs ColumnRef method)
-- [ ] `col().startsWith()` / `col().endsWith()` - Prefix/suffix checks
+- [x] `col().length()` - String length ✅
+- [x] `col().substring(start, len)` - Extract substring ✅
+- [x] `col().upper()` / `col().lower()` - Case conversion ✅
+- [x] `col().trim()` - Remove whitespace ✅
+- [x] `col().replace()` - Replace substring ✅
+- [x] `col().contains()` - Check if contains substring ✅
+- [x] `col().startsWith()` / `col().endsWith()` - Prefix/suffix checks ✅
 
 ### Date/Time Operations (ColumnRef methods)
-- [ ] `col().year()` - Extract year
-- [ ] `col().month()` - Extract month
-- [ ] `col().day()` - Extract day
-- [ ] `col().dayOfWeek()` - Extract day of week
-- [ ] `col().quarter()` - Extract quarter
-- [ ] `col().hour()` / `col().minute()` / `col().second()` - Extract time components
+- [x] `col().year()` - Extract year ✅
+- [x] `col().month()` - Extract month ✅
+- [x] `col().day()` - Extract day ✅
+- [x] `col().dayOfWeek()` - Extract day of week ✅
+- [x] `col().quarter()` - Extract quarter ✅
+- [x] `col().hour()` / `col().minute()` / `col().second()` - Extract time components ✅
 - [ ] `col().addDays()` / `col().subDays()` - Date arithmetic
 - [ ] `col().diffDays()` - Difference between dates
 - [ ] `col().truncateDate()` - Truncate to period
 
 ### Math Functions
-- [ ] `col().round(decimals)` - Round to decimal places
-- [ ] `col().floor()` - Floor function
-- [ ] `col().ceil()` - Ceiling function
-- [ ] `col().abs()` - Absolute value
-- [ ] `col().sqrt()` - Square root
-- [ ] `col().pow(exp)` - Power/exponentiation
+- [x] `col().round(decimals)` - Round to decimal places ✅
+- [x] `col().floor()` - Floor function ✅
+- [x] `col().ceil()` - Ceiling function ✅
+- [x] `col().abs()` - Absolute value ✅
+- [x] `col().sqrt()` - Square root ✅
+- [x] `col().pow(exp)` - Power/exponentiation ✅
 
 ### Aggregation Functions
-- [ ] `std()` - Standard deviation
-- [ ] `var()` - Variance
-- [ ] `median()` - Median value
-- [ ] `countDistinct()` - Count unique values
+- [x] `std()` - Standard deviation ✅
+- [x] `var()` - Variance ✅
+- [x] `median()` - Median value ✅
+- [x] `countDistinct()` - Count unique values ✅
 
 ### Sorting Enhancements
 - [ ] `asc().nullsLast()` - Sort nulls last option
@@ -56,17 +56,17 @@ This document tracks features that are documented but not yet fully implemented 
 ### DataFrame Methods
 - [ ] `df.union()` - Union with deduplication
 - [ ] `df.unionAll()` - Union without deduplication
-- [ ] `df.offset()` / `df.slice()` - Pagination support
-- [ ] `df.tail(n)` - Last n rows
+- [x] `df.offset()` / `df.slice()` - Pagination support ✅
+- [x] `df.tail(n)` - Last n rows ✅
 - [ ] `df.shuffle()` - Random shuffle
 - [ ] `df.sample(fraction)` - Random sample
 - [ ] `df.explode()` - Explode array column into rows
 
 ### Utility Functions
-- [ ] `when().otherwise()` - Complete conditional expression
-- [ ] `coalesce()` - First non-null value
-- [ ] `between()` - Range check
-- [ ] `isIn()` - Check if in array
+- [x] `when().otherwise()` - Complete conditional expression ✅
+- [x] `coalesce()` - First non-null value ✅
+- [x] `between()` - Range check ✅
+- [x] `isIn()` - Check if in array ✅
 
 ## I/O Features
 

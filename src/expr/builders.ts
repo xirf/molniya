@@ -11,19 +11,32 @@ import {
 	type AliasExpr,
 	type ArithmeticExpr,
 	type BetweenExpr,
+	type CaseConversionExpr,
 	type CastExpr,
 	type CoalesceExpr,
 	type ColumnExpr,
 	type ComparisonExpr,
+	type CountDistinctExpr,
 	type CountExpr,
+	type DateExtractExpr,
 	type Expr,
 	ExprType,
+	type IsInExpr,
 	type LiteralExpr,
 	type LogicalExpr,
 	type NegExpr,
 	type NotExpr,
 	type NullCheckExpr,
+	type PowExpr,
+	type ReplaceExpr,
+	type RoundExpr,
+	type StringLengthExpr,
 	type StringOpExpr,
+	type SubstringExpr,
+	type TrimExpr,
+	type UnaryMathExpr,
+	type WhenClause,
+	type WhenExpr,
 } from "./ast.ts";
 
 /**
@@ -131,6 +144,94 @@ export class ColumnRef {
 	cast(targetDType: DTypeKind): CastExpr {
 		return { type: ExprType.Cast, expr: this.expr, targetDType };
 	}
+
+	// Math functions
+	round(decimals: number = 0): RoundExpr {
+		return { type: ExprType.Round, expr: this.expr, decimals };
+	}
+
+	floor(): UnaryMathExpr {
+		return { type: ExprType.Floor, expr: this.expr };
+	}
+
+	ceil(): UnaryMathExpr {
+		return { type: ExprType.Ceil, expr: this.expr };
+	}
+
+	abs(): UnaryMathExpr {
+		return { type: ExprType.Abs, expr: this.expr };
+	}
+
+	sqrt(): UnaryMathExpr {
+		return { type: ExprType.Sqrt, expr: this.expr };
+	}
+
+	pow(exponent: number): PowExpr {
+		return { type: ExprType.Pow, expr: this.expr, exponent };
+	}
+
+	// String operations
+	length(): StringLengthExpr {
+		return { type: ExprType.StringLength, expr: this.expr };
+	}
+
+	substring(start: number, length?: number): SubstringExpr {
+		return { type: ExprType.Substring, expr: this.expr, start, length };
+	}
+
+	upper(): CaseConversionExpr {
+		return { type: ExprType.Upper, expr: this.expr };
+	}
+
+	lower(): CaseConversionExpr {
+		return { type: ExprType.Lower, expr: this.expr };
+	}
+
+	trim(): TrimExpr {
+		return { type: ExprType.Trim, expr: this.expr };
+	}
+
+	replace(pattern: string, replacement: string, all: boolean = true): ReplaceExpr {
+		return { type: ExprType.Replace, expr: this.expr, pattern, replacement, all };
+	}
+
+	// Date/time extraction
+	year(): DateExtractExpr {
+		return { type: ExprType.Year, expr: this.expr };
+	}
+
+	month(): DateExtractExpr {
+		return { type: ExprType.Month, expr: this.expr };
+	}
+
+	day(): DateExtractExpr {
+		return { type: ExprType.Day, expr: this.expr };
+	}
+
+	dayOfWeek(): DateExtractExpr {
+		return { type: ExprType.DayOfWeek, expr: this.expr };
+	}
+
+	quarter(): DateExtractExpr {
+		return { type: ExprType.Quarter, expr: this.expr };
+	}
+
+	hour(): DateExtractExpr {
+		return { type: ExprType.Hour, expr: this.expr };
+	}
+
+	minute(): DateExtractExpr {
+		return { type: ExprType.Minute, expr: this.expr };
+	}
+
+	second(): DateExtractExpr {
+		return { type: ExprType.Second, expr: this.expr };
+	}
+
+	// Utility
+	isIn(values: (number | bigint | string | boolean | null)[]): IsInExpr {
+		return { type: ExprType.IsIn, expr: this.expr, values };
+	}
 }
 
 /**
@@ -216,6 +317,28 @@ export function not(expr: Expr | ColumnRef): NotExpr {
 	return {
 		type: ExprType.Not,
 		expr: expr instanceof ColumnRef ? expr.toExpr() : expr,
+	};
+}
+
+/**
+ * Check if value is between low and high (inclusive).
+ */
+export function between(
+	expr: Expr | ColumnRef | string,
+	low: Expr | ColumnRef | number,
+	high: Expr | ColumnRef | number,
+): BetweenExpr {
+	const exprVal =
+		typeof expr === "string"
+			? col(expr).toExpr()
+			: expr instanceof ColumnRef
+				? expr.toExpr()
+				: expr;
+	return {
+		type: ExprType.Between,
+		expr: exprVal,
+		low: toExpr(low),
+		high: toExpr(high),
 	};
 }
 
@@ -388,4 +511,106 @@ export function coalesce(
 		type: ExprType.Coalesce,
 		exprs: exprs.map(toExpr),
 	};
+}
+
+// Conditional expressions
+
+/**
+ * Builder for conditional when/otherwise expressions.
+ */
+export class WhenBuilder {
+	private clauses: WhenClause[] = [];
+
+	constructor(condition: Expr, thenValue: Expr) {
+		this.clauses.push({ condition, then: thenValue });
+	}
+
+	/**
+	 * Add another condition/then clause.
+	 */
+	when(
+		condition: Expr | ColumnRef,
+		thenValue: Expr | ColumnRef | number | string | boolean | null,
+	): WhenBuilder {
+		const cond = condition instanceof ColumnRef ? condition.toExpr() : condition;
+		this.clauses.push({ condition: cond, then: toExpr(thenValue) });
+		return this;
+	}
+
+	/**
+	 * Set the default value when no conditions match.
+	 */
+	otherwise(value: Expr | ColumnRef | number | string | boolean | null): WhenExpr {
+		return {
+			type: ExprType.When,
+			clauses: this.clauses,
+			otherwise: toExpr(value),
+		};
+	}
+}
+
+/**
+ * Start a conditional expression.
+ * Usage: when(condition, thenValue).when(condition2, thenValue2).otherwise(defaultValue)
+ */
+export function when(
+	condition: Expr | ColumnRef,
+	thenValue: Expr | ColumnRef | number | string | boolean | null,
+): WhenBuilder {
+	const cond = condition instanceof ColumnRef ? condition.toExpr() : condition;
+	return new WhenBuilder(cond, toExpr(thenValue));
+}
+
+// Additional aggregation functions
+
+/**
+ * Standard deviation aggregation (sample).
+ */
+export function std(column: string | Expr | ColumnRef): AggExpr {
+	const expr =
+		typeof column === "string"
+			? col(column).toExpr()
+			: column instanceof ColumnRef
+				? column.toExpr()
+				: column;
+	return { type: ExprType.Std, expr };
+}
+
+/**
+ * Variance aggregation (sample).
+ */
+export function variance(column: string | Expr | ColumnRef): AggExpr {
+	const expr =
+		typeof column === "string"
+			? col(column).toExpr()
+			: column instanceof ColumnRef
+				? column.toExpr()
+				: column;
+	return { type: ExprType.Var, expr };
+}
+
+/**
+ * Median aggregation.
+ */
+export function median(column: string | Expr | ColumnRef): AggExpr {
+	const expr =
+		typeof column === "string"
+			? col(column).toExpr()
+			: column instanceof ColumnRef
+				? column.toExpr()
+				: column;
+	return { type: ExprType.Median, expr };
+}
+
+/**
+ * Count distinct values aggregation.
+ */
+export function countDistinct(column: string | Expr | ColumnRef): CountDistinctExpr {
+	const expr =
+		typeof column === "string"
+			? col(column).toExpr()
+			: column instanceof ColumnRef
+				? column.toExpr()
+				: column;
+	return { type: ExprType.CountDistinct, expr };
 }

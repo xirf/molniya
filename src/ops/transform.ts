@@ -10,7 +10,7 @@ import { ColumnBuffer } from "../buffer/column-buffer.ts";
 import type { Expr } from "../expr/ast.ts";
 import { type CompiledValue, compileValue } from "../expr/compiler.ts";
 import { inferExprType } from "../expr/types.ts";
-import type { DType } from "../types/dtypes.ts";
+import { DTypeKind, type DType } from "../types/dtypes.ts";
 import { ErrorCode, err, ok, type Result } from "../types/error.ts";
 import { addColumn, type Schema } from "../types/schema.ts";
 import {
@@ -154,12 +154,17 @@ export class TransformOperator extends SimpleOperator {
 		// Compute new columns
 		for (const computed of this.computedColumns) {
 			const buffer = createColumnForDType(computed.dtype, rowCount);
+			const isString = computed.dtype.kind === DTypeKind.String;
 
 			// Evaluate expression for each row
 			for (let i = 0; i < rowCount; i++) {
 				const value = computed.compute(workingChunk, i);
 				if (value === null) {
 					buffer.appendNull();
+				} else if (isString && typeof value === "string") {
+					// Intern string into dictionary and store dict index
+					const dictIndex = workingChunk.dictionary?.internString(value) ?? 0;
+					buffer.append(dictIndex as never);
 				} else if (typeof value === "bigint") {
 					// For bigint, need to handle based on buffer type
 					buffer.append(value as never);
