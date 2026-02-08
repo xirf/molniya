@@ -149,6 +149,12 @@ export class DataFrame<T = Record<string, unknown>> {
 	limit(_n: number): DataFrame<T> {
 		throw new Error("Method not implemented. Ensure mixins are loaded.");
 	}
+	shuffle(): Promise<DataFrame<T>> {
+		throw new Error("Method not implemented. Ensure mixins are loaded.");
+	}
+	sample(_fraction: number): Promise<DataFrame<T>> {
+		throw new Error("Method not implemented. Ensure mixins are loaded.");
+	}
 
 	/** Count rows */
 	async count(): Promise<number> {
@@ -217,7 +223,7 @@ export class DataFrame<T = Record<string, unknown>> {
 	}
 
 	// Transformation
-	explode<K extends keyof T>(_column: K): DataFrame<T> {
+	explode<K extends keyof T>(_column: K): Promise<DataFrame<T>> {
 		throw new Error("Method not implemented. Ensure mixins are loaded.");
 	}
 

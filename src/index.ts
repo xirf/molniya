@@ -26,6 +26,8 @@ export {
 	fromCsvString,
 	fromRecords,
 	range,
+	type CsvReadOptions,
+	type ParquetReadOptions,
 	readCsv,
 	readParquet,
 } from "./dataframe/index.ts";
@@ -84,6 +86,7 @@ export {
 	readCsvFile,
 	readCsvString,
 } from "./io/index.ts";
+
 // Re-export operators
 export {
 	AggregateOperator,
@@ -144,6 +147,7 @@ export {
 // Re-export types
 export {
 	addColumn,
+	compareSchemas,
 	type ColumnDef,
 	createSchema,
 	DType,
@@ -160,6 +164,7 @@ export {
 	getDTypeSize,
 	getErrorMessage,
 	hasColumn,
+	isSchemaEqual,
 	isBigIntDType,
 	isErr,
 	isIntegerDType,
@@ -171,6 +176,7 @@ export {
 	type Schema,
 	type SchemaSpec,
 	selectColumns,
+	validateSchemaSpec,
 	unwrap,
 	unwrapOr,
 } from "./types/index.ts";

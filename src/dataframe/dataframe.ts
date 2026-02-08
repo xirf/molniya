@@ -6,7 +6,6 @@
 // Core class
 export { DataFrame } from "./core.ts";
 
-import type { Chunk } from "../buffer/chunk.ts";
 import { addAggMethods } from "./aggregation.ts";
 import { addCleaningMethods } from "./cleaning.ts";
 import { addConcatMethods } from "./concatenation.ts";
@@ -50,10 +49,21 @@ addInspectionMethods(DataFrame.prototype);
 import { ColumnBuffer } from "../buffer/column-buffer.ts";
 import { Chunk } from "../buffer/chunk.ts";
 import { createDictionary } from "../buffer/dictionary.ts";
+import type { Expr } from "../expr/ast.ts";
+import type { ColumnRef } from "../expr/builders.ts";
 import { type CsvOptions, type CsvSchemaSpec, CsvSource } from "../io/index.ts";
 import { DType, DTypeKind } from "../types/dtypes.ts";
 import { unwrap } from "../types/error.ts";
 import { createSchema, type SchemaSpec } from "../types/schema.ts";
+
+export type CsvReadOptions = CsvOptions & {
+	filter?: Expr | ColumnRef;
+};
+
+export interface ParquetReadOptions {
+	projection?: string[];
+	filter?: Expr | ColumnRef;
+}
 
 /**
  * Create DataFrame from records (array of objects).
@@ -119,15 +129,16 @@ export function fromRecords<T = Record<string, unknown>>(
 export function fromCsvString<T = Record<string, unknown>>(
 	csvString: string,
 	schema: CsvSchemaSpec,
-	options?: CsvOptions,
+	options?: CsvReadOptions,
 ): DataFrame<T> {
 	const source = unwrap(CsvSource.fromString(csvString, schema, options));
 	const chunks = source.parseSync();
-	return DataFrame.fromChunks<T>(
+	const df = DataFrame.fromChunks<T>(
 		chunks,
 		source.getSchema(),
 		source.getDictionary(),
 	);
+	return options?.filter ? df.filter(options.filter) : df;
 }
 
 /**
@@ -137,17 +148,18 @@ export function fromCsvString<T = Record<string, unknown>>(
 export async function readCsv<T = Record<string, unknown>>(
 	path: string,
 	schema: CsvSchemaSpec,
-	options?: CsvOptions,
+	options?: CsvReadOptions,
 ): Promise<DataFrame<T>> {
 	const source = unwrap(CsvSource.fromFile(path, schema, options));
 
 	// Return lazy DataFrame immediately
 	// source implements AsyncIterable, so it creates a new stream on iteration
-	return DataFrame.fromStream<T>(
+	const df = DataFrame.fromStream<T>(
 		source as unknown as AsyncIterable<Chunk>,
 		source.getSchema(),
 		source.getDictionary(),
 	);
+	return options?.filter ? df.filter(options.filter) : df;
 }
 
 /**
@@ -158,8 +170,13 @@ import { readParquet as ioReadParquet } from "../io/index.ts";
 
 export async function readParquet<T = Record<string, unknown>>(
 	path: string,
+	options?: ParquetReadOptions,
 ): Promise<DataFrame<T>> {
-	return ioReadParquet(path) as Promise<DataFrame<T>>;
+	const df = (await ioReadParquet(path)) as DataFrame<T>;
+	const projected = options?.projection?.length
+		? df.select(...options.projection)
+		: df;
+	return options?.filter ? projected.filter(options.filter) : projected;
 }
 
 /**

@@ -186,9 +186,13 @@ export class ParquetReader {
 		for (let i = 1; i < meta.schema.length; i++) {
 			const elem = meta.schema[i];
 			let dtype: DType = DType.string;
+			const convertedType = elem?.converted_type;
 
 			if (elem?.type !== undefined) {
 				switch (elem.type) {
+					case Type.INT96:
+						dtype = DType.timestamp as DType;
+						break;
 					case Type.INT32:
 						dtype = DType.int32 as DType;
 						break;
@@ -203,6 +207,53 @@ export class ParquetReader {
 						break;
 					case Type.BOOLEAN:
 						dtype = DType.boolean as DType;
+						break;
+					case Type.BYTE_ARRAY:
+					case Type.FIXED_LEN_BYTE_ARRAY:
+						dtype = DType.string as DType;
+						break;
+				}
+			}
+
+			if (convertedType !== undefined) {
+				switch (convertedType) {
+					case ConvertedType.UTF8:
+						dtype = DType.string as DType;
+						break;
+					case ConvertedType.DATE:
+						dtype = DType.date as DType;
+						break;
+					case ConvertedType.TIMESTAMP_MILLIS:
+					case ConvertedType.TIMESTAMP_MICROS:
+						dtype = DType.timestamp as DType;
+						break;
+					case ConvertedType.TIME_MILLIS:
+					case ConvertedType.TIME_MICROS:
+						dtype = DType.timestamp as DType;
+						break;
+					case ConvertedType.UINT_8:
+						dtype = DType.uint8 as DType;
+						break;
+					case ConvertedType.UINT_16:
+						dtype = DType.uint16 as DType;
+						break;
+					case ConvertedType.UINT_32:
+						dtype = DType.uint32 as DType;
+						break;
+					case ConvertedType.UINT_64:
+						dtype = DType.uint64 as DType;
+						break;
+					case ConvertedType.INT_8:
+						dtype = DType.int8 as DType;
+						break;
+					case ConvertedType.INT_16:
+						dtype = DType.int16 as DType;
+						break;
+					case ConvertedType.INT_32:
+						dtype = DType.int32 as DType;
+						break;
+					case ConvertedType.INT_64:
+						dtype = DType.int64 as DType;
 						break;
 				}
 			}

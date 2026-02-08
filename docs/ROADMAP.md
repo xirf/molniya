@@ -26,9 +26,9 @@ This document tracks features that are documented but not yet fully implemented 
 - [x] `col().dayOfWeek()` - Extract day of week ✅
 - [x] `col().quarter()` - Extract quarter ✅
 - [x] `col().hour()` / `col().minute()` / `col().second()` - Extract time components ✅
-- [ ] `col().addDays()` / `col().subDays()` - Date arithmetic
-- [ ] `col().diffDays()` - Difference between dates
-- [ ] `col().truncateDate()` - Truncate to period
+- [x] `col().addDays()` / `col().subDays()` - Date arithmetic ✅
+- [x] `col().diffDays()` - Difference between dates ✅
+- [x] `col().truncateDate()` - Truncate to period ✅
 
 ### Math Functions
 - [x] `col().round(decimals)` - Round to decimal places ✅
@@ -54,13 +54,13 @@ This document tracks features that are documented but not yet fully implemented 
 - [ ] Multi-column join support (array syntax)
 
 ### DataFrame Methods
-- [ ] `df.union()` - Union with deduplication
-- [ ] `df.unionAll()` - Union without deduplication
+- [x] `df.union()` - Union with deduplication ✅
+- [x] `df.unionAll()` - Union without deduplication ✅
 - [x] `df.offset()` / `df.slice()` - Pagination support ✅
 - [x] `df.tail(n)` - Last n rows ✅
-- [ ] `df.shuffle()` - Random shuffle
-- [ ] `df.sample(fraction)` - Random sample
-- [ ] `df.explode()` - Explode array column into rows
+- [x] `df.shuffle()` - Random shuffle ✅
+- [x] `df.sample(fraction)` - Random sample ✅
+- [x] `df.explode()` - Explode array column into rows ✅
 
 ### Utility Functions
 - [x] `when().otherwise()` - Complete conditional expression ✅
@@ -71,25 +71,25 @@ This document tracks features that are documented but not yet fully implemented 
 ## I/O Features
 
 ### CSV
-- [ ] `readCsv()` with `projection` option
-- [ ] `readCsv()` with `filter` predicate pushdown
+- [x] `readCsv()` with `projection` option ✅
+- [x] `readCsv()` with `filter` predicate pushdown ✅
 
 ### Parquet
-- [ ] `readParquet()` with `projection` option
-- [ ] `readParquet()` with `filter` predicate pushdown
-- [ ] Complete Parquet type mapping (INT96 timestamps, complex types)
+- [x] `readParquet()` with `projection` option ✅
+- [x] `readParquet()` with `filter` predicate pushdown ✅
+- [x] Complete Parquet type mapping (INT96 timestamps, complex types) ✅
 
 ## Type System
 
 ### Schema
-- [ ] `createSchema()` export verification
-- [ ] Schema validation utilities
-- [ ] Schema comparison functions
+- [x] `createSchema()` export verification ✅
+- [x] Schema validation utilities ✅
+- [x] Schema comparison functions ✅
 
 ### Type Casting
-- [ ] `toDate()` / `toTimestamp()` - String to date parsing
-- [ ] `formatDate()` - Date to string formatting
-- [ ] `parseJson()` - Parse JSON strings
+- [x] `toDate()` / `toTimestamp()` - String to date parsing ✅
+- [x] `formatDate()` - Date to string formatting ✅
+- [x] `parseJson()` - Parse JSON strings ✅
 
 ## Documentation Notes
 

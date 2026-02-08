@@ -76,6 +76,12 @@ export enum ExprType {
 	Trim = "trim",
 	Replace = "replace",
 
+	// Type casting
+	ToDate = "to_date",
+	ToTimestamp = "to_timestamp",
+	FormatDate = "format_date",
+	ParseJson = "parse_json",
+
 	// Date/time extraction
 	Year = "year",
 	Month = "month",
@@ -85,6 +91,12 @@ export enum ExprType {
 	Hour = "hour",
 	Minute = "minute",
 	Second = "second",
+
+	// Date arithmetic
+	AddDays = "add_days",
+	SubDays = "sub_days",
+	DiffDays = "diff_days",
+	TruncateDate = "truncate_date",
 
 	// Conditional
 	When = "when",
@@ -174,6 +186,26 @@ export interface StringOpExpr {
 	readonly type: ExprType.Contains | ExprType.StartsWith | ExprType.EndsWith;
 	readonly expr: Expr;
 	readonly pattern: string;
+}
+
+/** Date parsing expression */
+export interface DateParseExpr {
+	readonly type: ExprType.ToDate | ExprType.ToTimestamp;
+	readonly expr: Expr;
+	readonly format?: string;
+}
+
+/** Date formatting expression */
+export interface FormatDateExpr {
+	readonly type: ExprType.FormatDate;
+	readonly expr: Expr;
+	readonly format: string;
+}
+
+/** Parse JSON expression */
+export interface ParseJsonExpr {
+	readonly type: ExprType.ParseJson;
+	readonly expr: Expr;
 }
 
 /** Aggregation */
@@ -292,6 +324,27 @@ export interface DateExtractExpr {
 	readonly expr: Expr;
 }
 
+/** Date add/subtract expression */
+export interface DateAddExpr {
+	readonly type: ExprType.AddDays | ExprType.SubDays;
+	readonly expr: Expr;
+	readonly days: number;
+}
+
+/** Date difference expression */
+export interface DiffDaysExpr {
+	readonly type: ExprType.DiffDays;
+	readonly left: Expr;
+	readonly right: Expr;
+}
+
+/** Date truncation expression */
+export interface TruncateDateExpr {
+	readonly type: ExprType.TruncateDate;
+	readonly expr: Expr;
+	readonly period: "day" | "week" | "month" | "quarter" | "year";
+}
+
 /** When clause for conditional expression */
 export interface WhenClause {
 	readonly condition: Expr;
@@ -324,6 +377,9 @@ export type Expr =
 	| ArithmeticExpr
 	| NegExpr
 	| StringOpExpr
+	| DateParseExpr
+	| FormatDateExpr
+	| ParseJsonExpr
 	| AggExpr
 	| CountExpr
 	| CountDistinctExpr
@@ -339,6 +395,9 @@ export type Expr =
 	| TrimExpr
 	| ReplaceExpr
 	| DateExtractExpr
+	| DateAddExpr
+	| DiffDaysExpr
+	| TruncateDateExpr
 	| WhenExpr
 	| IsInExpr;
 
@@ -490,6 +549,22 @@ export function formatExpr(expr: Expr): string {
 		case ExprType.Minute:
 		case ExprType.Second:
 			return `${formatExpr(expr.expr)}.${expr.type}()`;
+		case ExprType.AddDays:
+		case ExprType.SubDays:
+			return `${formatExpr(expr.expr)}.${expr.type}(${expr.days})`;
+		case ExprType.DiffDays:
+			return `diffDays(${formatExpr(expr.left)}, ${formatExpr(expr.right)})`;
+		case ExprType.TruncateDate:
+			return `truncateDate(${formatExpr(expr.expr)}, "${expr.period}")`;
+		case ExprType.ToDate:
+		case ExprType.ToTimestamp:
+			return expr.format
+				? `${expr.type}(${formatExpr(expr.expr)}, "${expr.format}")`
+				: `${expr.type}(${formatExpr(expr.expr)})`;
+		case ExprType.FormatDate:
+			return `formatDate(${formatExpr(expr.expr)}, "${expr.format}")`;
+		case ExprType.ParseJson:
+			return `parseJson(${formatExpr(expr.expr)})`;
 		case ExprType.When:
 			return `when(${expr.clauses.map((c) => `${formatExpr(c.condition)} => ${formatExpr(c.then)}`).join(", ")}).otherwise(${formatExpr(expr.otherwise)})`;
 		case ExprType.Std:

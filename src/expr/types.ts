@@ -188,6 +188,41 @@ export function inferExprType(
 			return ok({ dtype: DTypeFactory.int32, isAggregate: false });
 		}
 
+		case ExprType.AddDays:
+		case ExprType.SubDays:
+		case ExprType.TruncateDate: {
+			const innerResult = inferExprType(expr.expr, schema);
+			if (innerResult.error !== ErrorCode.None) return innerResult;
+			return ok({ dtype: DTypeFactory.date, isAggregate: false });
+		}
+
+		case ExprType.DiffDays: {
+			const leftResult = inferExprType(expr.left, schema);
+			if (leftResult.error !== ErrorCode.None) return leftResult;
+			const rightResult = inferExprType(expr.right, schema);
+			if (rightResult.error !== ErrorCode.None) return rightResult;
+			return ok({ dtype: DTypeFactory.int32, isAggregate: false });
+		}
+
+		case ExprType.ToDate: {
+			const innerResult = inferExprType(expr.expr, schema);
+			if (innerResult.error !== ErrorCode.None) return innerResult;
+			return ok({ dtype: DTypeFactory.date, isAggregate: false });
+		}
+
+		case ExprType.ToTimestamp: {
+			const innerResult = inferExprType(expr.expr, schema);
+			if (innerResult.error !== ErrorCode.None) return innerResult;
+			return ok({ dtype: DTypeFactory.timestamp, isAggregate: false });
+		}
+
+		case ExprType.FormatDate:
+		case ExprType.ParseJson: {
+			const innerResult = inferExprType(expr.expr, schema);
+			if (innerResult.error !== ErrorCode.None) return innerResult;
+			return ok({ dtype: DTypeFactory.string, isAggregate: false });
+		}
+
 		// When expression - type of first then clause
 		case ExprType.When: {
 			if (expr.clauses.length === 0) {

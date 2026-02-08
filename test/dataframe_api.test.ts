@@ -27,6 +27,17 @@ describe("DataFrame API Improvements", () => {
 		it("should support semiJoin", async () => {
 			expect(typeof df.semiJoin).toBe("function");
 		});
+		
+		it("should support union and unionAll", async () => {
+			const df2 = DataFrame.empty(schema, null);
+			expect(typeof df.union).toBe("function");
+			expect(typeof df.unionAll).toBe("function");
+
+			const unioned = await df.union(df2);
+			const unionAll = await df.unionAll(df2);
+			expect(unioned).toBeInstanceOf(DataFrame);
+			expect(unionAll).toBeInstanceOf(DataFrame);
+		});
 	});
 
 	describe("Transformations", () => {

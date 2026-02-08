@@ -63,7 +63,7 @@ declare module "./core.ts" {
 		): DataFrame<Record<string, unknown>>;
 
 		// Explode array columns
-		explode<K extends keyof T>(column: K): DataFrame<T>; // TODO: Refine return type if T[K] is known array
+		explode<K extends keyof T>(column: K): Promise<DataFrame<T>>; // TODO: Refine return type if T[K] is known array
 
 		// Data Cleaning
 		cast(column: keyof T, targetDType: DType): DataFrame<T>;
@@ -102,8 +102,10 @@ declare module "./core.ts" {
 		// Limiting
 		limit(count: number): DataFrame<T>;
 		head(count?: number): DataFrame<T>;
-		tail(count?: number): DataFrame<T>;
+		tail(count?: number): Promise<DataFrame<T>>;
 		slice(start: number, count: number): DataFrame<T>;
+		shuffle(): Promise<DataFrame<T>>;
+		sample(fraction: number): Promise<DataFrame<T>>;
 
 		// Aggregation
 		// Returns a single row with aggregation results - type-safe version with TypedAggSpec
@@ -163,6 +165,7 @@ declare module "./core.ts" {
 		// Concatenation
 		concat(other: DataFrame<T>): Promise<DataFrame<T>>;
 		union(other: DataFrame<T>): Promise<DataFrame<T>>;
+		unionAll(other: DataFrame<T>): Promise<DataFrame<T>>;
 
 		// Execution
 		collect(): Promise<DataFrame<T>>;

@@ -34,6 +34,7 @@ export {
 // Schema
 export {
 	addColumn,
+	compareSchemas,
 	type ColumnDef,
 	createSchema,
 	dropColumns,
@@ -43,8 +44,10 @@ export {
 	getColumnIndex,
 	getColumnNames,
 	hasColumn,
+	isSchemaEqual,
 	renameColumn,
 	type Schema,
 	type SchemaSpec,
 	selectColumns,
+	validateSchemaSpec,
 } from "./schema.ts";

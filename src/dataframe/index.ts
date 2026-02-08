@@ -21,6 +21,8 @@ export {
 	min,
 	mul,
 	range,
+	type CsvReadOptions,
+	type ParquetReadOptions,
 	readCsv,
 	readParquet,
 	std,

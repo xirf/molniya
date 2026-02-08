@@ -18,15 +18,21 @@ import {
 	type ComparisonExpr,
 	type CountDistinctExpr,
 	type CountExpr,
+		type DateAddExpr,
+		type DateParseExpr,
 	type DateExtractExpr,
 	type Expr,
 	ExprType,
+		type DiffDaysExpr,
+		type FormatDateExpr,
 	type IsInExpr,
 	type LiteralExpr,
 	type LogicalExpr,
 	type NegExpr,
 	type NotExpr,
 	type NullCheckExpr,
+		type ParseJsonExpr,
+		type TruncateDateExpr,
 	type PowExpr,
 	type ReplaceExpr,
 	type RoundExpr,
@@ -226,6 +232,24 @@ export class ColumnRef {
 
 	second(): DateExtractExpr {
 		return { type: ExprType.Second, expr: this.expr };
+	}
+
+	// Date arithmetic
+	addDays(days: number): DateAddExpr {
+		return { type: ExprType.AddDays, expr: this.expr, days };
+	}
+
+	subDays(days: number): DateAddExpr {
+		return { type: ExprType.SubDays, expr: this.expr, days };
+	}
+
+	diffDays(other: Expr | ColumnRef): DiffDaysExpr {
+		const rhs = other instanceof ColumnRef ? other.toExpr() : other;
+		return { type: ExprType.DiffDays, left: this.expr, right: rhs };
+	}
+
+	truncateDate(period: "day" | "week" | "month" | "quarter" | "year"): TruncateDateExpr {
+		return { type: ExprType.TruncateDate, expr: this.expr, period };
 	}
 
 	// Utility
@@ -614,3 +638,86 @@ export function countDistinct(column: string | Expr | ColumnRef): CountDistinctE
 				: column;
 	return { type: ExprType.CountDistinct, expr };
 }
+
+/**
+ * Add days to a date expression.
+ */
+export function addDays(
+	expr: Expr | ColumnRef,
+	days: number,
+): DateAddExpr {
+	const e = expr instanceof ColumnRef ? expr.toExpr() : expr;
+	return { type: ExprType.AddDays, expr: e, days };
+}
+
+/**
+ * Subtract days from a date expression.
+ */
+export function subDays(
+	expr: Expr | ColumnRef,
+	days: number,
+): DateAddExpr {
+	const e = expr instanceof ColumnRef ? expr.toExpr() : expr;
+	return { type: ExprType.SubDays, expr: e, days };
+}
+
+/**
+ * Difference in days between two date expressions.
+ */
+export function diffDays(
+	left: Expr | ColumnRef,
+	right: Expr | ColumnRef,
+): DiffDaysExpr {
+	const l = left instanceof ColumnRef ? left.toExpr() : left;
+	const r = right instanceof ColumnRef ? right.toExpr() : right;
+	return { type: ExprType.DiffDays, left: l, right: r };
+}
+
+/**
+ * Truncate date to a period start.
+ */
+export function truncateDate(
+	expr: Expr | ColumnRef,
+	period: "day" | "week" | "month" | "quarter" | "year",
+): TruncateDateExpr {
+	const e = expr instanceof ColumnRef ? expr.toExpr() : expr;
+	return { type: ExprType.TruncateDate, expr: e, period };
+}
+
+		/**
+		 * Parse string to Date (days since epoch).
+		 */
+		export function toDate(expr: Expr | ColumnRef, format?: string): DateParseExpr {
+			const e = expr instanceof ColumnRef ? expr.toExpr() : expr;
+			return { type: ExprType.ToDate, expr: e, format };
+		}
+
+		/**
+		 * Parse string to Timestamp (milliseconds since epoch as bigint).
+		 */
+		export function toTimestamp(
+			expr: Expr | ColumnRef,
+			format?: string,
+		): DateParseExpr {
+			const e = expr instanceof ColumnRef ? expr.toExpr() : expr;
+			return { type: ExprType.ToTimestamp, expr: e, format };
+		}
+
+		/**
+		 * Format Date/Timestamp into string.
+		 */
+		export function formatDate(
+			expr: Expr | ColumnRef,
+			format: string,
+		): FormatDateExpr {
+			const e = expr instanceof ColumnRef ? expr.toExpr() : expr;
+			return { type: ExprType.FormatDate, expr: e, format };
+		}
+
+		/**
+		 * Parse JSON string and return normalized JSON string.
+		 */
+		export function parseJson(expr: Expr | ColumnRef): ParseJsonExpr {
+			const e = expr instanceof ColumnRef ? expr.toExpr() : expr;
+			return { type: ExprType.ParseJson, expr: e };
+		}

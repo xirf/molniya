@@ -78,6 +78,39 @@ export function createSchema(spec: SchemaSpec): Result<Schema> {
 	});
 }
 
+/** Validate a schema spec without constructing a Schema instance. */
+export function validateSchemaSpec(spec: SchemaSpec): Result<void> {
+	const result = createSchema(spec);
+	return result.error === ErrorCode.None
+		? ok(undefined)
+		: err(result.error);
+}
+
+/** Compare two schemas for exact equality (name, order, dtype). */
+export function compareSchemas(a: Schema, b: Schema): Result<void> {
+	if (a.columnCount !== b.columnCount) {
+		return err(ErrorCode.SchemaMismatch);
+	}
+
+	for (let i = 0; i < a.columnCount; i++) {
+		const colA = a.columns[i];
+		const colB = b.columns[i];
+		if (!colA || !colB) return err(ErrorCode.SchemaMismatch);
+		if (colA.name !== colB.name) return err(ErrorCode.SchemaMismatch);
+		if (colA.dtype.kind !== colB.dtype.kind) return err(ErrorCode.SchemaMismatch);
+		if (colA.dtype.nullable !== colB.dtype.nullable) {
+			return err(ErrorCode.SchemaMismatch);
+		}
+	}
+
+	return ok(undefined);
+}
+
+/** Convenience boolean equality check for schemas. */
+export function isSchemaEqual(a: Schema, b: Schema): boolean {
+	return compareSchemas(a, b).error === ErrorCode.None;
+}
+
 /** Validate column name (non-empty, no special chars) */
 function isValidColumnName(name: string): boolean {
 	if (name.length === 0 || name.length > 256) {

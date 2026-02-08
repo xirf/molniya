@@ -24,22 +24,31 @@ import {
 	type ColumnExpr,
 	type ComparisonExpr,
 	type DateExtractExpr,
+	type DateParseExpr,
 	type Expr,
 	ExprType,
+	type FormatDateExpr,
+		type DateAddExpr,
 	type IsInExpr,
+		type DiffDaysExpr,
 	type LiteralExpr,
 	type LogicalExpr,
 	type NotExpr,
 	type NullCheckExpr,
+	type ParseJsonExpr,
 	type PowExpr,
 	type ReplaceExpr,
 	type RoundExpr,
 	type StringLengthExpr,
 	type StringOpExpr,
+		type DateParseExpr,
+		type FormatDateExpr,
+		type ParseJsonExpr,
 	type SubstringExpr,
 	type TrimExpr,
 	type UnaryMathExpr,
 	type WhenExpr,
+		type TruncateDateExpr,
 } from "./ast.ts";
 import type { CompiledPredicate, CompiledValue } from "./compile-types.ts";
 
@@ -407,6 +416,20 @@ function compileValueInternal(expr: Expr, ctx: CompileContext): CompiledValue {
 		case ExprType.Minute:
 		case ExprType.Second:
 			return compileDateExtract(expr, ctx);
+		case ExprType.AddDays:
+		case ExprType.SubDays:
+			return compileDateAdd(expr, ctx);
+		case ExprType.DiffDays:
+			return compileDiffDays(expr, ctx);
+		case ExprType.TruncateDate:
+			return compileTruncateDate(expr, ctx);
+		case ExprType.ToDate:
+		case ExprType.ToTimestamp:
+			return compileDateParse(expr, ctx);
+		case ExprType.FormatDate:
+			return compileFormatDate(expr, ctx);
+		case ExprType.ParseJson:
+			return compileParseJson(expr, ctx);
 		case ExprType.When:
 			return compileWhen(expr, ctx);
 		default:
@@ -814,6 +837,323 @@ function compileDateExtract(
 			case ExprType.Second:
 				return date.getUTCSeconds();
 		}
+	};
+}
+
+/** Compile addDays/subDays expressions. */
+function compileDateAdd(expr: DateAddExpr, ctx: CompileContext): CompiledValue {
+	const value = compileValueInternal(expr.expr, ctx);
+	const delta = expr.type === ExprType.SubDays ? -expr.days : expr.days;
+
+	return (chunk, row) => {
+		const v = value(chunk, row);
+		if (v === null) return null;
+		const date = coerceToDate(v);
+		if (!date) return null;
+		const shifted = date.getTime() + delta * 86400000;
+		return Math.floor(shifted / 86400000);
+	};
+}
+
+/** Compile diffDays expression. */
+function compileDiffDays(expr: DiffDaysExpr, ctx: CompileContext): CompiledValue {
+	const left = compileValueInternal(expr.left, ctx);
+	const right = compileValueInternal(expr.right, ctx);
+
+	return (chunk, row) => {
+		const l = left(chunk, row);
+		const r = right(chunk, row);
+		if (l === null || r === null) return null;
+		const leftDate = coerceToDate(l);
+		const rightDate = coerceToDate(r);
+		if (!leftDate || !rightDate) return null;
+		return Math.floor(
+			(leftDate.getTime() - rightDate.getTime()) / 86400000,
+		);
+	};
+}
+
+/** Compile truncateDate expression. */
+function compileTruncateDate(
+	expr: TruncateDateExpr,
+	ctx: CompileContext,
+): CompiledValue {
+	const value = compileValueInternal(expr.expr, ctx);
+	const period = expr.period;
+
+	return (chunk, row) => {
+		const v = value(chunk, row);
+		if (v === null) return null;
+		const date = coerceToDate(v);
+		if (!date) return null;
+
+		let y = date.getUTCFullYear();
+		let m = date.getUTCMonth();
+		let d = date.getUTCDate();
+
+		switch (period) {
+			case "year":
+				m = 0;
+				d = 1;
+				break;
+			case "quarter":
+				m = Math.floor(m / 3) * 3;
+				d = 1;
+				break;
+			case "month":
+				d = 1;
+				break;
+			case "week": {
+				const dayOfWeek = date.getUTCDay();
+				// ISO week starts on Monday (1). Adjust Sunday (0) to 6.
+				const offset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+				const monday = new Date(
+					Date.UTC(y, m, d - offset, 0, 0, 0, 0),
+				);
+				return Math.floor(monday.getTime() / 86400000);
+			}
+			case "day":
+			default:
+				break;
+		}
+
+		const truncated = Date.UTC(y, m, d, 0, 0, 0, 0);
+		return Math.floor(truncated / 86400000);
+	};
+}
+
+/** Compile toDate/toTimestamp expressions. */
+function compileDateParse(
+	expr: DateParseExpr,
+	ctx: CompileContext,
+): CompiledValue {
+	const value = compileValueInternal(expr.expr, ctx);
+	const parser = expr.format ? buildDateParser(expr.format) : null;
+	const isTimestamp = expr.type === ExprType.ToTimestamp;
+
+	return (chunk, row) => {
+		const v = value(chunk, row);
+		if (v === null) return null;
+		const date = coerceToDate(v, parser);
+		if (!date) return null;
+		if (isTimestamp) return BigInt(date.getTime());
+		return Math.floor(date.getTime() / 86400000);
+	};
+}
+
+/** Compile formatDate expression. */
+function compileFormatDate(
+	expr: FormatDateExpr,
+	ctx: CompileContext,
+): CompiledValue {
+	const value = compileValueInternal(expr.expr, ctx);
+	const formatter = buildDateFormatter(expr.format);
+
+	return (chunk, row) => {
+		const v = value(chunk, row);
+		if (v === null) return null;
+		const date = coerceToDate(v);
+		if (!date) return null;
+		return formatter(date);
+	};
+}
+
+/** Compile parseJson expression. */
+function compileParseJson(
+	expr: ParseJsonExpr,
+	ctx: CompileContext,
+): CompiledValue {
+	const value = compileValueInternal(expr.expr, ctx);
+	return (chunk, row) => {
+		const v = value(chunk, row);
+		if (v === null) return null;
+		if (typeof v !== "string") return null;
+		try {
+			const parsed = JSON.parse(v);
+			if (parsed === null || parsed === undefined) return null;
+			if (typeof parsed === "string") return parsed;
+			if (typeof parsed === "number" || typeof parsed === "boolean") {
+				return String(parsed);
+			}
+			return JSON.stringify(parsed);
+		} catch {
+			return null;
+		}
+	};
+}
+
+type DateParser = (value: string) => Date | null;
+type DateFormatter = (value: Date) => string;
+
+function coerceToDate(value: unknown, parser?: DateParser | null): Date | null {
+	if (value instanceof Date) return value;
+	if (typeof value === "bigint") {
+		const asNumber = Number(value);
+		if (Number.isFinite(asNumber)) return new Date(asNumber);
+		return null;
+	}
+	if (typeof value === "number") {
+		if (Number.isInteger(value) && Math.abs(value) < 10_000_000) {
+			return new Date(value * 86400000);
+		}
+		return new Date(value);
+	}
+	if (typeof value === "string") {
+		if (parser) return parser(value);
+		const parsed = Date.parse(value);
+		if (Number.isNaN(parsed)) return null;
+		return new Date(parsed);
+	}
+	return null;
+}
+
+function buildDateParser(format: string): DateParser {
+	const tokens = ["YYYY", "MMM", "MM", "DD", "HH", "mm", "ss", "SSS"] as const;
+	const tokenRegex: Record<(typeof tokens)[number], string> = {
+		YYYY: "(\\d{4})",
+		MMM: "([A-Za-z]{3})",
+		MM: "(\\d{2})",
+		DD: "(\\d{2})",
+		HH: "(\\d{2})",
+		mm: "(\\d{2})",
+		ss: "(\\d{2})",
+		SSS: "(\\d{3})",
+	};
+
+	const groups: string[] = [];
+	let pattern = "";
+	for (let i = 0; i < format.length; ) {
+		let matched = false;
+		for (const token of tokens) {
+			if (format.startsWith(token, i)) {
+				pattern += tokenRegex[token];
+				groups.push(token);
+				i += token.length;
+				matched = true;
+				break;
+			}
+		}
+		if (!matched) {
+			const ch = format[i] ?? "";
+			pattern += ch.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&");
+			i++;
+		}
+	}
+
+	const regex = new RegExp(`^${pattern}$`);
+	const monthNames = [
+		"JAN",
+		"FEB",
+		"MAR",
+		"APR",
+		"MAY",
+		"JUN",
+		"JUL",
+		"AUG",
+		"SEP",
+		"OCT",
+		"NOV",
+		"DEC",
+	];
+
+	return (value) => {
+		const match = regex.exec(value);
+		if (!match) return null;
+		let year = 1970;
+		let month = 1;
+		let day = 1;
+		let hour = 0;
+		let minute = 0;
+		let second = 0;
+		let millis = 0;
+
+		for (let i = 0; i < groups.length; i++) {
+			const token = groups[i];
+			const raw = match[i + 1];
+			if (!raw || !token) continue;
+			switch (token) {
+				case "YYYY":
+					year = Number(raw);
+					break;
+				case "MMM": {
+					const idx = monthNames.indexOf(raw.toUpperCase());
+					if (idx >= 0) month = idx + 1;
+					break;
+				}
+				case "MM":
+					month = Number(raw);
+					break;
+				case "DD":
+					day = Number(raw);
+					break;
+				case "HH":
+					hour = Number(raw);
+					break;
+				case "mm":
+					minute = Number(raw);
+					break;
+				case "ss":
+					second = Number(raw);
+					break;
+				case "SSS":
+					millis = Number(raw);
+					break;
+			}
+		}
+
+		const time = Date.UTC(year, month - 1, day, hour, minute, second, millis);
+		return new Date(time);
+	};
+}
+
+function buildDateFormatter(format: string): DateFormatter {
+	const monthNames = [
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec",
+	];
+
+	return (date) => {
+		const yyyy = date.getUTCFullYear().toString().padStart(4, "0");
+		const mm = (date.getUTCMonth() + 1).toString().padStart(2, "0");
+		const mmm = monthNames[date.getUTCMonth()] ?? "";
+		const dd = date.getUTCDate().toString().padStart(2, "0");
+		const hh = date.getUTCHours().toString().padStart(2, "0");
+		const min = date.getUTCMinutes().toString().padStart(2, "0");
+		const ss = date.getUTCSeconds().toString().padStart(2, "0");
+		const ms = date.getUTCMilliseconds().toString().padStart(3, "0");
+
+		return format.replace(/YYYY|MMM|MM|DD|HH|mm|ss|SSS/g, (token) => {
+			switch (token) {
+				case "YYYY":
+					return yyyy;
+				case "MMM":
+					return mmm;
+				case "MM":
+					return mm;
+				case "DD":
+					return dd;
+				case "HH":
+					return hh;
+				case "mm":
+					return min;
+				case "ss":
+					return ss;
+				case "SSS":
+					return ms;
+				default:
+					return token;
+			}
+		});
 	};
 }
 
