@@ -28,7 +28,7 @@ readParquet<T = Record<string, unknown>>(
 **Example:**
 
 ```typescript
-import { readParquet, DType } from "Molniya";
+import { readParquet, DType } from "molniya";
 
 const df = await readParquet("data.parquet", {
   id: DType.int64,
@@ -60,7 +60,7 @@ class ParquetReader {
 **Example:**
 
 ```typescript
-import { ParquetReader, DType } from "Molniya";
+import { ParquetReader, DType } from "molniya";
 
 const reader = new ParquetReader("large_file.parquet");
 const metadata = await reader.readMetadata();
@@ -104,7 +104,7 @@ Parquet types are mapped to Molniya types:
 ## Example: Reading Large Files
 
 ```typescript
-import { readParquet, DType } from "Molniya";
+import { readParquet, DType } from "molniya";
 
 const schema = {
   user_id: DType.int64,
@@ -125,7 +125,7 @@ for await (const chunk of df.toChunks()) {
 ## Example: Selective Column Reading
 
 ```typescript
-import { readParquet, DType } from "Molniya";
+import { readParquet, DType } from "molniya";
 
 // Only specify columns you need
 const minimalSchema = {

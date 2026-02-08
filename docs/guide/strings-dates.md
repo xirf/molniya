@@ -20,7 +20,7 @@ This provides significant savings when:
 - You need fast equality comparisons
 
 ```typescript
-import { DType } from "Molniya";
+import { DType } from "molniya";
 
 const schema = {
   // Dictionary-encoded string (4 bytes per value + dictionary)
@@ -50,7 +50,7 @@ const schema = {
 Combine strings using the `add()` method:
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Concatenate columns
 df.withColumn("full_name", col("first").add(" ").add(col("last")))
@@ -63,7 +63,7 @@ df.withColumn("email_formatted", col("email").add("@company.com"))
 ### String Length
 
 ```typescript
-import { length } from "Molniya";
+import { length } from "molniya";
 
 // Get string length
 df.withColumn("name_length", length(col("name")))
@@ -73,7 +73,7 @@ df.withColumn("name_length", length(col("name")))
 ### Substring Extraction
 
 ```typescript
-import { substring } from "Molniya";
+import { substring } from "molniya";
 
 // Extract substring (start, length)
 df.withColumn("area_code", substring(col("phone"), 0, 3))
@@ -84,7 +84,7 @@ df.withColumn("area_code", substring(col("phone"), 0, 3))
 ### String Contains
 
 ```typescript
-import { contains } from "Molniya";
+import { contains } from "molniya";
 
 // Check if string contains substring
 df.filter(contains(col("email"), "@company.com"))
@@ -94,7 +94,7 @@ df.filter(contains(col("email"), "@company.com"))
 ### Case Operations
 
 ```typescript
-import { upper, lower } from "Molniya";
+import { upper, lower } from "molniya";
 
 // Convert case
 df.withColumn("name_upper", upper(col("name")))
@@ -105,7 +105,7 @@ df.withColumn("name_upper", upper(col("name")))
 ### Starts With / Ends With
 
 ```typescript
-import { startsWith, endsWith } from "Molniya";
+import { startsWith, endsWith } from "molniya";
 
 // Check prefixes and suffixes
 df.filter(startsWith(col("phone"), "+1"))
@@ -147,7 +147,7 @@ const schema = {
 ### Creating Date/Timestamp Columns
 
 ```typescript
-import { lit, toDate, toTimestamp } from "Molniya";
+import { lit, toDate, toTimestamp } from "molniya";
 
 // Convert string to date
 df.withColumn("parsed_date", toDate(col("date_str"), "YYYY-MM-DD"))
@@ -162,7 +162,7 @@ df.withColumn("epoch", lit(new Date("1970-01-01")))
 ### Extracting Components
 
 ```typescript
-import { year, month, day, hour, minute, second } from "Molniya";
+import { year, month, day, hour, minute, second } from "molniya";
 
 // Date components
 df.withColumn("year", year(col("order_date")))
@@ -180,7 +180,7 @@ df.withColumn("hour", hour(col("created_at")))
 ### Date Arithmetic
 
 ```typescript
-import { addDays, subDays, diffDays } from "Molniya";
+import { addDays, subDays, diffDays } from "molniya";
 
 // Add/subtract days
 df.withColumn("due_date", addDays(col("order_date"), 30))
@@ -194,7 +194,7 @@ df.withColumn("days_since", diffDays(col("shipped_date"), col("order_date")))
 ### Date Truncation
 
 ```typescript
-import { truncateDate } from "Molniya";
+import { truncateDate } from "molniya";
 
 // Truncate to period start
 df.withColumn("month_start", truncateDate(col("date"), "month"))
@@ -207,7 +207,7 @@ df.withColumn("month_start", truncateDate(col("date"), "month"))
 When reading dates from CSV files, they are initially read as strings:
 
 ```typescript
-import { readCsv, DType, col, toDate } from "Molniya";
+import { readCsv, DType, col, toDate } from "molniya";
 
 // Read date as string, then convert
 const df = await readCsv("orders.csv", {
@@ -226,7 +226,7 @@ const withDate = df.withColumn("order_date", toDate(col("order_date_str"), "YYYY
 ### Age Calculation
 
 ```typescript
-import { col, lit, diffDays, toDate } from "Molniya";
+import { col, lit, diffDays, toDate } from "molniya";
 
 // Calculate age from birth date
 const today = new Date();
@@ -237,7 +237,7 @@ df.withColumn("birth_date", toDate(col("birth_date_str"), "YYYY-MM-DD"))
 ### Date Range Filtering
 
 ```typescript
-import { col, and, gte, lte } from "Molniya";
+import { col, and, gte, lte } from "molniya";
 
 // Filter by date range
 const startDate = new Date("2024-01-01");
@@ -252,7 +252,7 @@ df.filter(and(
 ### Formatting Dates for Display
 
 ```typescript
-import { formatDate } from "Molniya";
+import { formatDate } from "molniya";
 
 // Format dates for output
 df.withColumn("formatted", formatDate(col("date"), "MMM DD, YYYY"))
@@ -262,7 +262,7 @@ df.withColumn("formatted", formatDate(col("date"), "MMM DD, YYYY"))
 ### Time-Based Grouping
 
 ```typescript
-import { col, year, month } from "Molniya";
+import { col, year, month } from "molniya";
 
 // Group by year and month
 df.withColumn("year", year(col("order_date")))

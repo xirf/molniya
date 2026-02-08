@@ -9,7 +9,7 @@ Molniya provides streaming CSV reading with schema validation.
 Read a CSV file into a DataFrame.
 
 ```typescript
-import { readCsv, DType } from "Molniya";
+import { readCsv, DType } from "molniya";
 
 const df = await readCsv("data.csv", {
   id: DType.int32,
@@ -117,7 +117,7 @@ Using `projection` can significantly improve performance by skipping unused colu
 For testing or small datasets, use `fromCsvString()`:
 
 ```typescript
-import { fromCsvString, DType } from "Molniya";
+import { fromCsvString, DType } from "molniya";
 
 const csvData = `
 id,name,score
@@ -195,7 +195,7 @@ const result = await readCsv("huge.csv", schema)
 For more control, use `CsvSource` directly:
 
 ```typescript
-import { CsvSource } from "Molniya";
+import { CsvSource } from "molniya";
 
 const source = CsvSource.fromFile("data.csv", schema);
 

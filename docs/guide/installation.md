@@ -10,7 +10,7 @@ Molniya is distributed as an npm package and requires the Bun runtime.
 ## Install with Bun
 
 ```bash
-bun add Molniya
+bun add molniya
 ```
 
 ## TypeScript Configuration
@@ -35,7 +35,7 @@ Create a test file to verify everything works:
 
 ```typescript
 // test.ts
-import { DataFrame, DType, createSchema, unwrap } from "Molniya";
+import { DataFrame, DType, createSchema, unwrap } from "molniya";
 
 const schema = unwrap(createSchema({
   id: DType.int32,

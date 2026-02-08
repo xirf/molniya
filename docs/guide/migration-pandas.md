@@ -34,7 +34,7 @@ df = pd.read_csv("data.csv", dtype={
 ```
 
 ```typescript [Molniya]
-import { readCsv, DType } from "Molniya";
+import { readCsv, DType } from "molniya";
 
 // Schema is required
 const df = await readCsv("data.csv", {
@@ -61,7 +61,7 @@ df = pd.DataFrame(data)
 ```
 
 ```typescript [Molniya]
-import { fromRecords, DType } from "Molniya";
+import { fromRecords, DType } from "molniya";
 
 const data = [
   { id: 1, name: "Alice", age: 30 },
@@ -123,7 +123,7 @@ df.query("age > 25 and dept == 'Engineering'")
 ```
 
 ```typescript [Molniya]
-import { col, and } from "Molniya";
+import { col, and } from "molniya";
 
 // Single condition
 const result = df.filter(col("age").gt(25));
@@ -160,7 +160,7 @@ df = df.assign(
 ```
 
 ```typescript [Molniya]
-import { col, add } from "Molniya";
+import { col, add } from "molniya";
 
 // Add single column
 const result = df.withColumn("bonus", col("salary").mul(0.1));
@@ -192,7 +192,7 @@ df.groupby("dept").agg({
 ```
 
 ```typescript [Molniya]
-import { sum, avg, count, col } from "Molniya";
+import { sum, avg, count, col } from "molniya";
 
 // GroupBy returns a RelationalGroupedDataset
 const result = df.groupBy("dept", [
@@ -221,7 +221,7 @@ df.sort_values(["dept", "salary"], ascending=[True, False])
 ```
 
 ```typescript [Molniya]
-import { asc, desc } from "Molniya";
+import { asc, desc } from "molniya";
 
 // Single column
 const result = df.sort(asc("age"));
@@ -276,7 +276,7 @@ df["age"].fillna(df["age"].mean())
 ```
 
 ```typescript [Molniya]
-import { dropNulls, fillNull, col, avg } from "Molniya";
+import { dropNulls, fillNull, col, avg } from "molniya";
 
 // Drop nulls
 const result = df.dropNulls();
@@ -394,7 +394,7 @@ Molniya requires explicit schema with TypeScript types:
 
 ```typescript
 // Molniya
-import { DType } from "Molniya";
+import { DType } from "molniya";
 
 const schema = {
   id: DType.int32,

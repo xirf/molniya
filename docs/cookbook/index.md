@@ -64,7 +64,7 @@ Most recipes assume you have:
 import { 
   readCsv, fromRecords, col, lit, and, or, not,
   sum, avg, min, max, count, asc, desc, DType 
-} from "Molniya";
+} from "molniya";
 ```
 
 ## Need More Help?

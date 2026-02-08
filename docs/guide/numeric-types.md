@@ -24,7 +24,7 @@ Molniya provides a comprehensive set of numeric types optimized for different us
 Use signed integers when you need to represent both positive and negative values:
 
 ```typescript
-import { DType } from "Molniya";
+import { DType } from "molniya";
 
 const schema = {
   // Small counters, flags (-128 to 127)
@@ -140,7 +140,7 @@ const schema = {
 Numeric columns support standard arithmetic:
 
 ```typescript
-import { col, add, sub, mul, div } from "Molniya";
+import { col, add, sub, mul, div } from "molniya";
 
 // Basic arithmetic
 df.withColumn("total", col("price").mul(col("quantity")))

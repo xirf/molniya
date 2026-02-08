@@ -20,7 +20,7 @@ Molniya is built around a few core principles
 ## Installation
 
 ```bash
-bun add Molniya
+bun add molniya
 ```
 
 ::: warning Bun Only
@@ -32,7 +32,7 @@ Curently Molniya uses Bun-specific APIs like `Bun.file()` for streaming file I/O
 Here's a complete example that demonstrates the basic workflow:
 
 ```typescript
-import { readCsv, col, sum, avg, desc, DType } from "Molniya";
+import { readCsv, col, sum, avg, desc, DType } from "molniya";
 
 // 1. Define your schema
 const schema = {
@@ -102,7 +102,7 @@ This will give you:
 The `col()` function creates column references that support method chaining:
 
 ```typescript
-import { col, lit, and } from "Molniya";
+import { col, lit, and } from "molniya";
 
 // Comparison operators
 col("age").gt(18)           // >

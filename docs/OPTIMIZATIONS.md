@@ -235,6 +235,27 @@ for (let i = 0; i < chunk.rowCount; i++) {
 - Sequential memory access (cache-friendly)
 - Tight inner loops suitable for JIT optimization
 
+### Sparse Column Computation
+**Location**: `src/ops/transform.ts`
+
+When adding computed columns to a filtered DataFrame, values are calculated only for the valid rows and stored sparsely in the output buffer. This avoids materializing the entire chunk or computing values for filtered-out rows.
+
+```typescript
+// Only compute values for selected rows
+if (selection) {
+  for (let i = 0; i < selectedCount; i++) {
+    const physicalIndex = selection[i];
+    const value = compute(chunk, i);
+    buffer.set(physicalIndex, value);
+  }
+}
+```
+
+**Benefits**:
+- Preserves zero-copy architecture (no materialization)
+- Reduces computation (only valid rows)
+- Maintains physical layout consistency
+
 ---
 
 ## Vectorized Operations
@@ -432,6 +453,25 @@ const slot = hash & (this.hashTableSize - 1);  // Fast when size is power of 2
 - Bitwise AND replaces expensive modulo operation
 - Better buffer reuse (fewer unique sizes)
 - Reduces fragmentation
+
+### Efficient Array Ingestion
+**Location**: `src/dataframe/dataframe.ts`
+
+Ingestion methods like `fromArrays` and `fromColumns` handle `ArrayLike` inputs (including TypedArrays) directly without converting them to standard JavaScript arrays.
+
+```typescript
+// BAD: Double allocation
+const values = Array.from(typedArray);
+return fromColumns({ col: values });
+
+// GOOD: Direct consumption
+return fromColumns({ col: typedArray });
+```
+
+**Benefits**:
+- Eliminates intermediate array allocation
+- Reduces ingestion memory usage by 50%
+- Faster startup time for large datasets
 
 ---
 

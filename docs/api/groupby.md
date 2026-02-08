@@ -22,7 +22,7 @@ groupBy(columns: string[], aggregations: AggregationSpec[]): DataFrame<T>
 **Example:**
 
 ```typescript
-import { col, sum, count } from "Molniya";
+import { col, sum, count } from "molniya";
 
 // Group by single column
 df.groupBy("category")
@@ -71,7 +71,7 @@ agg(aggregations: AggregationSpec[]): DataFrame<T>
 **Example:**
 
 ```typescript
-import { col, sum, avg, count } from "Molniya";
+import { col, sum, avg, count } from "molniya";
 
 df.groupBy("category").agg([
   { name: "total", expr: sum("amount") },
@@ -127,7 +127,7 @@ sum(column: string | ColumnRef): AggregationExpr
 **Example:**
 
 ```typescript
-import { sum, col } from "Molniya";
+import { sum, col } from "molniya";
 
 sum("amount")
 sum(col("price").mul(col("quantity")))
@@ -145,7 +145,7 @@ mean(column: string | ColumnRef): AggregationExpr
 **Example:**
 
 ```typescript
-import { avg } from "Molniya";
+import { avg } from "molniya";
 
 avg("score")
 avg(col("total"))
@@ -162,7 +162,7 @@ min(column: string | ColumnRef): AggregationExpr
 **Example:**
 
 ```typescript
-import { min } from "Molniya";
+import { min } from "molniya";
 
 min("price")
 min(col("date"))
@@ -179,7 +179,7 @@ max(column: string | ColumnRef): AggregationExpr
 **Example:**
 
 ```typescript
-import { max } from "Molniya";
+import { max } from "molniya";
 
 max("price")
 max(col("date"))
@@ -197,7 +197,7 @@ count(column: string | ColumnRef): AggregationExpr  // Count non-null values
 **Example:**
 
 ```typescript
-import { count } from "Molniya";
+import { count } from "molniya";
 
 count()           // Total rows per group
 count("email")    // Rows with non-null email per group
@@ -214,7 +214,7 @@ first(column: string | ColumnRef): AggregationExpr
 **Example:**
 
 ```typescript
-import { first } from "Molniya";
+import { first } from "molniya";
 
 first("name")
 first(col("created_at"))
@@ -235,7 +235,7 @@ last(column: string | ColumnRef): AggregationExpr
 **Example:**
 
 ```typescript
-import { last } from "Molniya";
+import { last } from "molniya";
 
 last("status")
 last(col("updated_at"))
@@ -252,7 +252,7 @@ std(column: string | ColumnRef): AggregationExpr
 **Example:**
 
 ```typescript
-import { std } from "Molniya";
+import { std } from "molniya";
 
 std("value")
 ```
@@ -268,7 +268,7 @@ var(column: string | ColumnRef): AggregationExpr
 **Example:**
 
 ```typescript
-import { var as variance } from "Molniya";
+import { var as variance } from "molniya";
 
 variance("value")
 ```
@@ -284,7 +284,7 @@ median(column: string | ColumnRef): AggregationExpr
 **Example:**
 
 ```typescript
-import { median } from "Molniya";
+import { median } from "molniya";
 
 median("income")
 ```
@@ -294,7 +294,7 @@ median("income")
 Filter aggregations within groups:
 
 ```typescript
-import { sum, count, col } from "Molniya";
+import { sum, count, col } from "molniya";
 
 df.groupBy("region", [
   { 
@@ -317,7 +317,7 @@ df.groupBy("region", [
 Group by computed or multiple columns:
 
 ```typescript
-import { col, year, month, sum } from "Molniya";
+import { col, year, month, sum } from "molniya";
 
 // Group by year and month
 df.withColumn("year", year(col("date")))
@@ -343,7 +343,7 @@ df.withColumn("age_group",
 ### Summary Statistics
 
 ```typescript
-import { sum, avg, min, max, count, std } from "Molniya";
+import { sum, avg, min, max, count, std } from "molniya";
 
 df.groupBy("category", [
   { name: "total", expr: sum("amount") },
@@ -358,7 +358,7 @@ df.groupBy("category", [
 ### Count Distinct
 
 ```typescript
-import { countDistinct } from "Molniya";
+import { countDistinct } from "molniya";
 
 df.groupBy("region", [
   { name: "unique_customers", expr: countDistinct("customer_id") },
@@ -369,7 +369,7 @@ df.groupBy("region", [
 ### First and Last
 
 ```typescript
-import { first, last } from "Molniya";
+import { first, last } from "molniya";
 
 df.sort(asc("date"))
   .groupBy("customer_id", [

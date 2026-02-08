@@ -7,7 +7,7 @@ Select rows based on conditions using the `filter()` method.
 ### Single Condition
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Greater than
 df.filter(col("age").gt(18))
@@ -43,7 +43,7 @@ df.filter(col("email").isNotNull())
 ### AND (All conditions must match)
 
 ```typescript
-import { and, col } from "Molniya";
+import { and, col } from "molniya";
 
 // Method 1: Using and()
 df.filter(and(
@@ -66,7 +66,7 @@ Chaining `filter()` calls is often more readable and can be more efficient as it
 ### OR (Any condition can match)
 
 ```typescript
-import { or, col } from "Molniya";
+import { or, col } from "molniya";
 
 df.filter(or(
   col("status").eq("pending"),
@@ -77,7 +77,7 @@ df.filter(or(
 ### NOT (Negate a condition)
 
 ```typescript
-import { not, col } from "Molniya";
+import { not, col } from "molniya";
 
 // Exclude specific status
 df.filter(not(col("status").eq("deleted")))
@@ -89,7 +89,7 @@ df.filter(col("status").neq("deleted"))
 ### Complex Combinations
 
 ```typescript
-import { and, or, col } from "Molniya";
+import { and, or, col } from "molniya";
 
 // (age >= 18 AND age < 65) OR (type === 'senior' AND age >= 65)
 df.filter(or(
@@ -170,7 +170,7 @@ df.filter(condition)
 ### Filter with Calculated Values
 
 ```typescript
-import { col, lit } from "Molniya";
+import { col, lit } from "molniya";
 
 // Filter where price * quantity > 1000
 df

@@ -25,7 +25,7 @@ npm install danfojs-node  # For Node.js
 ```
 
 ```bash [Molniya]
-bun add Molniya
+bun add molniya
 ```
 
 :::
@@ -47,7 +47,7 @@ const df = new dfd.DataFrame(data);
 ```
 
 ```typescript [Molniya]
-import { fromRecords, DType } from "Molniya";
+import { fromRecords, DType } from "molniya";
 
 const data = [
   { A: 1, B: "a" },
@@ -81,7 +81,7 @@ const df = await dfd.read_csv("data.csv", {
 ```
 
 ```typescript [Molniya]
-import { readCsv, DType } from "Molniya";
+import { readCsv, DType } from "molniya";
 
 // Schema is required
 const df = await readCsv("data.csv", {
@@ -105,7 +105,7 @@ const df = await dfd.read_json("data.json");
 ```typescript [Molniya]
 // Molniya doesn't have direct JSON reader
 // Parse JSON first, then use fromRecords
-import { fromRecords } from "Molniya";
+import { fromRecords } from "molniya";
 
 const jsonData = await Bun.file("data.json").json();
 const df = fromRecords(jsonData, schema);
@@ -161,7 +161,7 @@ const result = df.limit(5);
 
 // Note: No tail() or iloc() - streaming model
 // Filter instead
-import { col } from "Molniya";
+import { col } from "molniya";
 const result = df.filter(col("age").gt(25));
 ```
 
@@ -180,7 +180,7 @@ df.query(df["age"].gt(25).and(df["dept"].eq("Engineering")));
 ```
 
 ```typescript [Molniya]
-import { col, and } from "Molniya";
+import { col, and } from "molniya";
 
 // Filter
 df.filter(col("age").gt(25));
@@ -207,7 +207,7 @@ df["new_col"] = df["col1"].apply(x => x * 2);
 ```
 
 ```typescript [Molniya]
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Add column
 df.withColumn("new_col", col("col1").add(col("col2")));
@@ -238,7 +238,7 @@ grouped.col(["salary"]).mean();
 ```
 
 ```typescript [Molniya]
-import { sum, avg, count } from "Molniya";
+import { sum, avg, count } from "molniya";
 
 // GroupBy
 df.groupBy("dept", [
@@ -261,7 +261,7 @@ df.sort_values({ by: ["dept", "salary"], ascending: [true, false] });
 ```
 
 ```typescript [Molniya]
-import { asc, desc } from "Molniya";
+import { asc, desc } from "molniya";
 
 // Sort
 df.sort(asc("age"));
@@ -332,7 +332,7 @@ df["col"].max();
 ```
 
 ```typescript [Molniya]
-import { col, avg, min, max, sum } from "Molniya";
+import { col, avg, min, max, sum } from "molniya";
 
 // Column operations
 col("a").add(col("b"));
@@ -364,7 +364,7 @@ df["name"].str.contains("pattern");
 ```
 
 ```typescript [Molniya]
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Limited string operations
 col("name").contains("pattern");

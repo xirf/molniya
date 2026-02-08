@@ -58,7 +58,7 @@ Clean messy real-world data: handle nulls, fix types, remove duplicates.
 All examples assume you have Molniya installed:
 
 ```bash
-bun add Molniya
+bun add molniya
 ```
 
 And use this import pattern:
@@ -68,7 +68,7 @@ import {
   readCsv, fromRecords, col, lit, and, or,
   sum, avg, min, max, count, asc, desc,
   DType, unwrap, createSchema
-} from "Molniya";
+} from "molniya";
 ```
 
 ## Sample Data

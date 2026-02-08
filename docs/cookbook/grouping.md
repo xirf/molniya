@@ -7,7 +7,7 @@ Summarize data by categories using `groupBy()` and aggregation functions.
 ### Simple Count
 
 ```typescript
-import { col, count } from "Molniya";
+import { col, count } from "molniya";
 
 // Count rows per category
 const result = df
@@ -21,7 +21,7 @@ await result.show();
 ### Multiple Aggregations
 
 ```typescript
-import { col, sum, avg, min, max, count } from "Molniya";
+import { col, sum, avg, min, max, count } from "molniya";
 
 const result = df
   .groupBy("department", [
@@ -42,7 +42,7 @@ await result.show();
 Calculate the total of a numeric column.
 
 ```typescript
-import { sum, col } from "Molniya";
+import { sum, col } from "molniya";
 
 // Sum of a column
 df.groupBy("category", [
@@ -60,7 +60,7 @@ df.groupBy("category", [
 Calculate the average (mean) of a numeric column.
 
 ```typescript
-import { avg } from "Molniya";
+import { avg } from "molniya";
 
 df.groupBy("category", [
   { name: "average_price", expr: avg("price") }
@@ -76,7 +76,7 @@ df.groupBy("category", [
 Find the minimum or maximum value.
 
 ```typescript
-import { min, max } from "Molniya";
+import { min, max } from "molniya";
 
 df.groupBy("category", [
   { name: "lowest_price", expr: min("price") },
@@ -89,7 +89,7 @@ df.groupBy("category", [
 Count rows or non-null values.
 
 ```typescript
-import { count } from "Molniya";
+import { count } from "molniya";
 
 // Count all rows
 df.groupBy("category", [
@@ -107,7 +107,7 @@ df.groupBy("category", [
 Get the first or last value in each group.
 
 ```typescript
-import { first, last } from "Molniya";
+import { first, last } from "molniya";
 
 df.groupBy("category", [
   { name: "first_order", expr: first("order_date") },

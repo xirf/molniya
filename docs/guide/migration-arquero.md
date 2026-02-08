@@ -23,7 +23,7 @@ npm install arquero
 ```
 
 ```bash [Molniya]
-bun add Molniya
+bun add molniya
 ```
 
 :::
@@ -47,7 +47,7 @@ const dt = aq.table(data);
 ```
 
 ```typescript [Molniya]
-import { fromRecords, DType } from "Molniya";
+import { fromRecords, DType } from "molniya";
 
 const data = [
   { a: 1, b: "x" },
@@ -78,7 +78,7 @@ const dt = aq.fromCSV(csvString);
 ```
 
 ```typescript [Molniya]
-import { readCsv, DType } from "Molniya";
+import { readCsv, DType } from "molniya";
 
 // From file (streaming)
 const df = await readCsv("data.csv", {
@@ -87,7 +87,7 @@ const df = await readCsv("data.csv", {
 });
 
 // From string
-import { fromCsvString } from "Molniya";
+import { fromCsvString } from "molniya";
 const df = fromCsvString(csvString, {
   a: DType.int32,
   b: DType.string
@@ -130,7 +130,7 @@ const result = dt
 ```
 
 ```typescript [Molniya]
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Molniya uses expression objects
 const result = df
@@ -175,7 +175,7 @@ dt.filter(aq.escape(d => externalArray.includes(d.id)));
 ```
 
 ```typescript [Molniya]
-import { col, and, or } from "Molniya";
+import { col, and, or } from "molniya";
 
 // Filter with expressions
 df.filter(col("age").gt(25));
@@ -206,7 +206,7 @@ dt.assign({ a: d => d.a * 2 });
 ```
 
 ```typescript [Molniya]
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Single column
 df.withColumn("total", col("a").add(col("b")));
@@ -240,7 +240,7 @@ dt.groupby(["dept", "role"]).rollup({ ... });
 ```
 
 ```typescript [Molniya]
-import { sum, avg, count } from "Molniya";
+import { sum, avg, count } from "molniya";
 
 // Group and aggregate
 df.groupBy("dept", [
@@ -267,7 +267,7 @@ dtorderby(["dept", "salary"], [aq.asc, aq.desc]);
 ```
 
 ```typescript [Molniya]
-import { asc, desc } from "Molniya";
+import { asc, desc } from "molniya";
 
 // Sort
 df.sort(asc("a"));
@@ -342,7 +342,7 @@ aq.except(dt1, dt2);
 
 ```typescript [Molniya]
 // Concatenate available
-import { concat } from "Molniya";
+import { concat } from "molniya";
 concat([df1, df2]);
 
 // Union, intersect, except not available
@@ -464,7 +464,7 @@ Molniya uses standalone functions that create expression ASTs:
 
 ```typescript
 // Molniya
-import { sum, avg, min, max } from "Molniya";
+import { sum, avg, min, max } from "molniya";
 
 df.groupBy("key", [
   { name: "total", expr: sum("value") },

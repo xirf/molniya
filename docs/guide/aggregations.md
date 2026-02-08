@@ -9,7 +9,7 @@ Aggregations summarize data by collapsing multiple rows into single values. Moln
 Apply a single aggregation to a DataFrame:
 
 ```typescript
-import { col, sum, avg, count } from "Molniya";
+import { col, sum, avg, count } from "molniya";
 
 // Sum of a column
 const total = await df.agg(sum(col("amount")));
@@ -26,7 +26,7 @@ const rowCount = await df.agg(count());
 Compute multiple aggregations at once:
 
 ```typescript
-import { col, sum, avg, min, max, count } from "Molniya";
+import { col, sum, avg, min, max, count } from "molniya";
 
 const stats = await df.agg([
   sum(col("amount")),
@@ -44,7 +44,7 @@ Group data by one or more columns before aggregating:
 ### Single Column GroupBy
 
 ```typescript
-import { col, sum, count } from "Molniya";
+import { col, sum, count } from "molniya";
 
 // Group by category and sum amounts
 const result = df.groupBy("category", [
@@ -87,7 +87,7 @@ const monthly = df
 | `median()` | Median value | `median("income")` |
 
 ```typescript
-import { sum, avg, min, max, count, std, median } from "Molniya";
+import { sum, avg, min, max, count, std, median } from "molniya";
 
 const stats = df.groupBy("department", [
   { name: "total_salary", expr: sum("salary") },
@@ -103,7 +103,7 @@ const stats = df.groupBy("department", [
 ### First/Last Values
 
 ```typescript
-import { first, last } from "Molniya";
+import { first, last } from "molniya";
 
 // Get first and last values in each group
 const result = df.groupBy("category", [
@@ -122,7 +122,7 @@ const result = df.groupBy("category", [
 Aggregate only rows matching a condition:
 
 ```typescript
-import { sum, count, col } from "Molniya";
+import { sum, count, col } from "molniya";
 
 // Sum only high-value orders
 const result = df.groupBy("region", [
@@ -146,7 +146,7 @@ const result = df.groupBy("region", [
 Count distinct values:
 
 ```typescript
-import { countDistinct } from "Molniya";
+import { countDistinct } from "molniya";
 
 // Count unique customers per region
 const result = df.groupBy("region", [
@@ -160,7 +160,7 @@ const result = df.groupBy("region", [
 Use expressions within aggregations:
 
 ```typescript
-import { sum, avg, col } from "Molniya";
+import { sum, avg, col } from "molniya";
 
 // Sum of calculated values
 const result = df.groupBy("category", [

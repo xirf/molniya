@@ -47,7 +47,7 @@ const dt = await aq.loadCSV("data.csv");
 ```
 
 ```typescript [Molniya]
-import { readCsv, DType } from "Molniya";
+import { readCsv, DType } from "molniya";
 const df = await readCsv("data.csv", {
   id: DType.int32,
   name: DType.string

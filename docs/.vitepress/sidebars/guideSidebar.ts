@@ -38,6 +38,7 @@ export const guideSidebar = [
             { text: 'Building Expressions', link: '/guide/expressions' },
             { text: 'Column References', link: '/guide/column-refs' },
             { text: 'Aggregations', link: '/guide/aggregations' },
+            { text: 'Joins & Materialization', link: '/guide/mbf-format' }
         ]
     },
     {

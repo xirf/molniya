@@ -7,7 +7,7 @@ Recipes for manipulating and analyzing string data in Molniya.
 ### Concatenation
 
 ```typescript
-import { col, lit } from "Molniya";
+import { col, lit } from "molniya";
 
 // Combine first and last name
 df.withColumn("full_name", 
@@ -27,7 +27,7 @@ df.withColumn("address",
 ### String Length
 
 ```typescript
-import { col, length } from "Molniya";
+import { col, length } from "molniya";
 
 // Get string length
 df.withColumn("name_length", length(col("name")))
@@ -42,7 +42,7 @@ df.filter(length(col("description")).gt(100))
 ### Case Conversion
 
 ```typescript
-import { col, upper, lower } from "Molniya";
+import { col, upper, lower } from "molniya";
 
 // Convert to uppercase
 df.withColumn("code_upper", upper(col("code")))
@@ -59,7 +59,7 @@ df.filter(lower(col("status")).eq("active"))
 ### Extract Substring
 
 ```typescript
-import { col, substring } from "Molniya";
+import { col, substring } from "molniya";
 
 // Extract first 3 characters (area code)
 df.withColumn("area_code", substring(col("phone"), 0, 3))
@@ -74,7 +74,7 @@ df.withColumn("domain", substring(col("email"), col("email").indexOf("@").add(1)
 ### Left and Right
 
 ```typescript
-import { col, left, right } from "Molniya";
+import { col, left, right } from "molniya";
 
 // First N characters
 df.withColumn("prefix", left(col("code"), 3))
@@ -91,7 +91,7 @@ df.withColumn("extension", right(col("filename"), 4))
 ### Contains
 
 ```typescript
-import { col, contains } from "Molniya";
+import { col, contains } from "molniya";
 
 // Check if string contains substring
 df.filter(contains(col("email"), "@company.com"))
@@ -102,7 +102,7 @@ df.filter(contains(col("email"), "@company.com"))
 ### Starts With / Ends With
 
 ```typescript
-import { col, startsWith, endsWith } from "Molniya";
+import { col, startsWith, endsWith } from "molniya";
 
 // Check prefix
 df.filter(startsWith(col("phone"), "+1"))
@@ -116,7 +116,7 @@ df.filter(endsWith(col("email"), ".com"))
 ### Position
 
 ```typescript
-import { col, indexOf } from "Molniya";
+import { col, indexOf } from "molniya";
 
 // Find position of substring
 df.withColumn("at_position", indexOf(col("email"), "@"))
@@ -128,7 +128,7 @@ df.withColumn("at_position", indexOf(col("email"), "@"))
 ### Simple Patterns
 
 ```typescript
-import { col, like } from "Molniya";
+import { col, like } from "molniya";
 
 // SQL-style LIKE patterns
 df.filter(like(col("name"), "John%"))      // Starts with John
@@ -140,7 +140,7 @@ df.filter(like(col("email"), "%@%.com"))   // Contains @ and ends with .com
 ### Regular Expressions
 
 ```typescript
-import { col, regexpMatch, regexpExtract, regexpReplace } from "Molniya";
+import { col, regexpMatch, regexpExtract, regexpReplace } from "molniya";
 
 // Match pattern
 df.filter(regexpMatch(col("email"), "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"))
@@ -157,7 +157,7 @@ df.withColumn("clean_phone", regexpReplace(col("phone"), "[^0-9]", ""))
 ### Split by Delimiter
 
 ```typescript
-import { col, split } from "Molniya";
+import { col, split } from "molniya";
 
 // Split by comma
 df.withColumn("tags_array", split(col("tags"), ","))
@@ -172,7 +172,7 @@ df.withColumn("parts", split(col("path"), "/"))
 ### Explode Arrays
 
 ```typescript
-import { col, split, explode } from "Molniya";
+import { col, split, explode } from "molniya";
 
 // Split and explode to separate rows
 df.withColumn("tag", explode(split(col("tags"), ",")))
@@ -183,7 +183,7 @@ df.withColumn("tag", explode(split(col("tags"), ",")))
 ### Trim Whitespace
 
 ```typescript
-import { col, trim, ltrim, rtrim } from "Molniya";
+import { col, trim, ltrim, rtrim } from "molniya";
 
 // Remove whitespace from both ends
 df.withColumn("clean_name", trim(col("name")))
@@ -198,7 +198,7 @@ df.withColumn("clean_right", rtrim(col("description")))
 ### Remove Specific Characters
 
 ```typescript
-import { col, trim } from "Molniya";
+import { col, trim } from "molniya";
 
 // Remove specific characters
 df.withColumn("clean_code", trim(col("code"), "-"))
@@ -209,7 +209,7 @@ df.withColumn("clean_code", trim(col("code"), "-"))
 ### Pad Left/Right
 
 ```typescript
-import { col, lpad, rpad } from "Molniya";
+import { col, lpad, rpad } from "molniya";
 
 // Pad left with zeros
 df.withColumn("padded_id", lpad(col("id"), 8, "0"))
@@ -224,7 +224,7 @@ df.withColumn("padded_name", rpad(col("name"), 20, " "))
 ### Replace Substring
 
 ```typescript
-import { col, replace } from "Molniya";
+import { col, replace } from "molniya";
 
 // Replace all occurrences
 df.withColumn("clean_text", replace(col("text"), "old", "new"))
@@ -236,7 +236,7 @@ df.withColumn("no_spaces", replace(col("text"), " ", ""))
 ### Replace First Only
 
 ```typescript
-import { col, replaceFirst } from "Molniya";
+import { col, replaceFirst } from "molniya";
 
 // Replace first occurrence only
 df.withColumn("fixed", replaceFirst(col("path"), "/old/", "/new/"))
@@ -247,7 +247,7 @@ df.withColumn("fixed", replaceFirst(col("path"), "/old/", "/new/"))
 ### Parse URLs
 
 ```typescript
-import { col, regexpExtract } from "Molniya";
+import { col, regexpExtract } from "molniya";
 
 // Extract URL components
 df.withColumn("protocol", regexpExtract(col("url"), "^(https?)://", 1))
@@ -258,7 +258,7 @@ df.withColumn("protocol", regexpExtract(col("url"), "^(https?)://", 1))
 ### File Path Operations
 
 ```typescript
-import { col, regexpExtract, regexpReplace } from "Molniya";
+import { col, regexpExtract, regexpReplace } from "molniya";
 
 // Extract filename from path
 df.withColumn("filename", regexpExtract(col("path"), "([^/]+)$", 1))
@@ -275,7 +275,7 @@ df.withColumn("new_path", regexpReplace(col("path"), "\\.[^.]+$", ".txt"))
 ### Email Validation
 
 ```typescript
-import { col, regexpMatch, lower } from "Molniya";
+import { col, regexpMatch, lower } from "molniya";
 
 const emailPattern = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$";
 
@@ -287,7 +287,7 @@ const validEmails = df
 ### Phone Number Normalization
 
 ```typescript
-import { col, regexpReplace, lpad } from "Molniya";
+import { col, regexpReplace, lpad } from "molniya";
 
 const normalized = df
   // Remove all non-digit characters
@@ -299,7 +299,7 @@ const normalized = df
 ### Name Formatting
 
 ```typescript
-import { col, concat, upper, lower, substring, length } from "Molniya";
+import { col, concat, upper, lower, substring, length } from "molniya";
 
 const formatted = df
   // Capitalize first letter, lowercase rest
@@ -321,7 +321,7 @@ const formatted = df
 ### Tag Processing
 
 ```typescript
-import { col, lower, trim, split, explode } from "Molniya";
+import { col, lower, trim, split, explode } from "molniya";
 
 // Normalize and split tags
 const tagAnalysis = df
@@ -336,7 +336,7 @@ const tagAnalysis = df
 ### Search Highlighting
 
 ```typescript
-import { col, contains, when, lit } from "Molniya";
+import { col, contains, when, lit } from "molniya";
 
 // Mark rows containing search term
 const searchTerm = "urgent";

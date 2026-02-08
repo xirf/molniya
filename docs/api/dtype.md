@@ -5,7 +5,7 @@
 ## Overview
 
 ```typescript
-import { DType } from "Molniya";
+import { DType } from "molniya";
 
 // Non-nullable types
 DType.int32
@@ -55,7 +55,7 @@ Nullable types allow `null` values in the column and use an additional null bitm
 ## Usage in Schemas
 
 ```typescript
-import { DType } from "Molniya";
+import { DType } from "molniya";
 
 const schema = {
   // Required fields
@@ -85,7 +85,7 @@ interface DType<K extends DTypeKind = DTypeKind> {
 Check if a type is numeric (supports arithmetic).
 
 ```typescript
-import { isNumericDType, DType } from "Molniya";
+import { isNumericDType, DType } from "molniya";
 
 isNumericDType(DType.int32)    // true
 isNumericDType(DType.float64)  // true
@@ -97,7 +97,7 @@ isNumericDType(DType.string)   // false
 Check if a type is an integer (not floating point).
 
 ```typescript
-import { isIntegerDType, DType } from "Molniya";
+import { isIntegerDType, DType } from "molniya";
 
 isIntegerDType(DType.int32)    // true
 isIntegerDType(DType.float64)  // false
@@ -109,7 +109,7 @@ isIntegerDType(DType.string)   // false
 Check if a type uses BigInt representation.
 
 ```typescript
-import { isBigIntDType, DType } from "Molniya";
+import { isBigIntDType, DType } from "molniya";
 
 isBigIntDType(DType.int64)      // true
 isBigIntDType(DType.uint64)     // true
@@ -122,7 +122,7 @@ isBigIntDType(DType.int32)      // false
 Get the byte size of a type.
 
 ```typescript
-import { getDTypeSize, DType } from "Molniya";
+import { getDTypeSize, DType } from "molniya";
 
 getDTypeSize(DType.int32)    // 4
 getDTypeSize(DType.float64)  // 8
@@ -134,7 +134,7 @@ getDTypeSize(DType.string)   // 4 (dictionary index)
 Convert any type to its nullable variant.
 
 ```typescript
-import { toNullable, DType } from "Molniya";
+import { toNullable, DType } from "molniya";
 
 const nullableInt = toNullable(DType.int32);
 // Equivalent to DType.nullable.int32
@@ -145,7 +145,7 @@ const nullableInt = toNullable(DType.int32);
 The `DTypeToTS` type maps DType kinds to TypeScript types:
 
 ```typescript
-import type { DTypeToTS, DTypeKind } from "Molniya";
+import type { DTypeToTS, DTypeKind } from "molniya";
 
 type Int32Type = DTypeToTS<DTypeKind.Int32>  // number
 type Int64Type = DTypeToTS<DTypeKind.Int64>  // bigint

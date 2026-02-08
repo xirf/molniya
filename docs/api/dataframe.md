@@ -48,7 +48,7 @@ console.log(df.columnNames);
 Creates an empty DataFrame with a given schema.
 
 ```typescript
-import { DataFrame, createSchema, unwrap, DType } from "Molniya";
+import { DataFrame, createSchema, unwrap, DType } from "molniya";
 
 const schema = unwrap(createSchema({
   id: DType.int32,
@@ -63,7 +63,7 @@ const empty = DataFrame.empty(schema, null);
 Creates a DataFrame from existing chunks (advanced use).
 
 ```typescript
-import { DataFrame } from "Molniya";
+import { DataFrame } from "molniya";
 
 const df = DataFrame.fromChunks(chunks, schema, dictionary);
 ```
@@ -73,7 +73,7 @@ const df = DataFrame.fromChunks(chunks, schema, dictionary);
 Creates a DataFrame from an async iterable of chunks (advanced use).
 
 ```typescript
-import { DataFrame } from "Molniya";
+import { DataFrame } from "molniya";
 
 const df = DataFrame.fromStream(asyncIterable, schema, dictionary);
 ```

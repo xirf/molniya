@@ -7,7 +7,7 @@ Recipes for ordering DataFrame rows and limiting result sets.
 ### Sort by Single Column
 
 ```typescript
-import { col, asc, desc } from "Molniya";
+import { col, asc, desc } from "molniya";
 
 // Ascending order (default)
 df.sort(asc("name"))
@@ -31,7 +31,7 @@ df.sort([asc("category"), desc("price")])
 ### Top N Items
 
 ```typescript
-import { desc } from "Molniya";
+import { desc } from "molniya";
 
 // Top 10 most expensive products
 const top10 = df.sort(desc("price")).limit(10);
@@ -43,7 +43,7 @@ const top5 = df.sort(desc("sales_count")).limit(5);
 ### Bottom N Items
 
 ```typescript
-import { asc } from "Molniya";
+import { asc } from "molniya";
 
 // 10 cheapest products
 const cheapest = df.sort(asc("price")).limit(10);
@@ -55,7 +55,7 @@ const lowest = df.sort(asc("score")).limit(5);
 ### Sort by Computed Column
 
 ```typescript
-import { col, desc } from "Molniya";
+import { col, desc } from "molniya";
 
 // Sort by total (price * quantity)
 df.withColumn("total", col("price").mul(col("quantity")))
@@ -67,7 +67,7 @@ df.withColumn("total", col("price").mul(col("quantity")))
 ### Sort with Nulls
 
 ```typescript
-import { asc, desc } from "Molniya";
+import { asc, desc } from "molniya";
 
 // Nulls first (default)
 df.sort(asc("middle_name"))  // nulls appear first
@@ -82,7 +82,7 @@ df.sort(desc("rating").nullsLast())
 ### Sort by Multiple Criteria
 
 ```typescript
-import { asc, desc } from "Molniya";
+import { asc, desc } from "molniya";
 
 // Complex sort: active first, then by score descending, then by name
 df.sort(
@@ -95,7 +95,7 @@ df.sort(
 ### Sort by String Length
 
 ```typescript
-import { col, length, desc } from "Molniya";
+import { col, length, desc } from "molniya";
 
 // Sort by name length (longest first)
 df.sort(desc(length(col("name"))))
@@ -141,7 +141,7 @@ const last5 = df.tail(5);
 ### Top Performers
 
 ```typescript
-import { desc } from "Molniya";
+import { desc } from "molniya";
 
 // Top 20 employees by sales
 const topPerformers = df
@@ -152,7 +152,7 @@ const topPerformers = df
 ### Recent Items
 
 ```typescript
-import { desc } from "Molniya";
+import { desc } from "molniya";
 
 // 50 most recent orders
 const recent = df
@@ -163,7 +163,7 @@ const recent = df
 ### Worst Performers
 
 ```typescript
-import { asc } from "Molniya";
+import { asc } from "molniya";
 
 // 10 products with lowest ratings
 const worstRated = df
@@ -177,7 +177,7 @@ const worstRated = df
 ### Top Categories
 
 ```typescript
-import { sum, desc } from "Molniya";
+import { sum, desc } from "molniya";
 
 // Top 5 categories by revenue
 const topCategories = df
@@ -191,7 +191,7 @@ const topCategories = df
 ### Bottom Groups
 
 ```typescript
-import { count, asc } from "Molniya";
+import { count, asc } from "molniya";
 
 // Categories with fewest products
 const smallestCategories = df
@@ -219,7 +219,7 @@ const tenPercent = df.sample(0.1);
 ### Prioritize Non-Null Values
 
 ```typescript
-import { col, desc } from "Molniya";
+import { col, desc } from "molniya";
 
 // Sort by priority (non-null first), then by date
 df.sort(
@@ -231,7 +231,7 @@ df.sort(
 ### Fill Then Sort
 
 ```typescript
-import { col, asc } from "Molniya";
+import { col, asc } from "molniya";
 
 // Replace nulls with 0, then sort
 df.withColumn("score_filled", col("score").fillNull(0))
@@ -266,7 +266,7 @@ df.filter(col("year").eq(2024))
 ### Leaderboard
 
 ```typescript
-import { desc } from "Molniya";
+import { desc } from "molniya";
 
 // Top 100 players by score
 const leaderboard = df
@@ -279,7 +279,7 @@ const leaderboard = df
 ### Recent Activity Feed
 
 ```typescript
-import { desc } from "Molniya";
+import { desc } from "molniya";
 
 // Latest 20 activities
 const feed = df
@@ -291,7 +291,7 @@ const feed = df
 ### Price Range Display
 
 ```typescript
-import { asc, desc } from "Molniya";
+import { asc, desc } from "molniya";
 
 // Show price range: 5 cheapest and 5 most expensive
 const cheapest = df.sort(asc("price")).limit(5);
@@ -302,7 +302,7 @@ const priceRange = cheapest.union(mostExpensive);
 ### Alphabetical Listing
 
 ```typescript
-import { asc } from "Molniya";
+import { asc } from "molniya";
 
 // A-Z listing with pagination
 const page = df

@@ -24,13 +24,13 @@ import {
   col, lit, and, or, not,
   sum, avg, min, max, count, first, last,
   asc, desc
-} from "Molniya";
+} from "molniya";
 
 // Advanced: Direct access to operators
-import { filter, project, aggregate, sort, limit } from "Molniya";
+import { filter, project, aggregate, sort, limit } from "molniya";
 
 // Advanced: Schema and types
-import { createSchema, DTypeKind } from "Molniya";
+import { createSchema, DTypeKind } from "molniya";
 ```
 
 ## API Categories
@@ -89,7 +89,7 @@ import type {
   AggSpec,
   SortKey,
   JoinConfig
-} from "Molniya";
+} from "molniya";
 ```
 
 ## Error Handling

@@ -18,7 +18,7 @@ filter(expr: Expr): DataFrame<T>
 **Example:**
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 df.filter(col("age").gte(18))
 df.filter(col("status").eq("active"))
@@ -139,7 +139,7 @@ and(...exprs: Expr[]): LogicalExpr
 **Example:**
 
 ```typescript
-import { and, col } from "Molniya";
+import { and, col } from "molniya";
 
 and(
   col("age").gte(18),
@@ -158,7 +158,7 @@ or(...exprs: Expr[]): LogicalExpr
 **Example:**
 
 ```typescript
-import { or, col } from "Molniya";
+import { or, col } from "molniya";
 
 or(
   col("category").eq("electronics"),
@@ -177,7 +177,7 @@ not(expr: Expr): LogicalExpr
 **Example:**
 
 ```typescript
-import { not, col } from "Molniya";
+import { not, col } from "molniya";
 
 not(col("deleted").eq(true))
 ```
@@ -294,7 +294,7 @@ col("email").regexpMatch("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")
 ### Date Comparisons
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Compare dates
 col("order_date").gt(new Date("2024-01-01"))
@@ -304,7 +304,7 @@ col("created_at").gte(Date.now() - 86400000)  // Last 24 hours
 ### Year/Month/Day Extraction
 
 ```typescript
-import { col, year, month, day } from "Molniya";
+import { col, year, month, day } from "molniya";
 
 // Filter by date component
 year(col("date")).eq(2024)
@@ -359,7 +359,7 @@ df.filter(col("age").gte(18))
 Equivalent to:
 
 ```typescript
-import { and, col } from "Molniya";
+import { and, col } from "molniya";
 
 df.filter(and(
   col("age").gte(18),
@@ -373,7 +373,7 @@ df.filter(and(
 ### Multi-Condition Filter
 
 ```typescript
-import { and, or, col } from "Molniya";
+import { and, or, col } from "molniya";
 
 df.filter(and(
   or(
@@ -389,7 +389,7 @@ df.filter(and(
 ### Date Range Filter
 
 ```typescript
-import { and, col } from "Molniya";
+import { and, col } from "molniya";
 
 const startDate = new Date("2024-01-01");
 const endDate = new Date("2024-12-31");
@@ -403,7 +403,7 @@ df.filter(and(
 ### Search Filter
 
 ```typescript
-import { or, col } from "Molniya";
+import { or, col } from "molniya";
 
 const searchTerm = "laptop";
 

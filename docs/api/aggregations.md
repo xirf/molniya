@@ -24,7 +24,7 @@ sum(column: string | ColumnRef): AggregationExpr
 **Example:**
 
 ```typescript
-import { sum, col } from "Molniya";
+import { sum, col } from "molniya";
 
 // Sum of column
 sum("amount")
@@ -53,7 +53,7 @@ avg(column: string | ColumnRef): AggregationExpr
 **Example:**
 
 ```typescript
-import { avg } from "Molniya";
+import { avg } from "molniya";
 
 avg("score")
 avg(col("total"))
@@ -72,7 +72,7 @@ min(column: string | ColumnRef): AggregationExpr
 **Example:**
 
 ```typescript
-import { min } from "Molniya";
+import { min } from "molniya";
 
 min("price")
 min("date")  // Works with dates too
@@ -91,7 +91,7 @@ max(column: string | ColumnRef): AggregationExpr
 **Example:**
 
 ```typescript
-import { max } from "Molniya";
+import { max } from "molniya";
 
 max("price")
 max("date")
@@ -111,7 +111,7 @@ count(column: string | ColumnRef): AggregationExpr  // Count non-null values
 **Example:**
 
 ```typescript
-import { count } from "Molniya";
+import { count } from "molniya";
 
 // Count all rows
 count()
@@ -143,7 +143,7 @@ std(column: string | ColumnRef): AggregationExpr
 **Example:**
 
 ```typescript
-import { std } from "Molniya";
+import { std } from "molniya";
 
 std("value")
 ```
@@ -161,7 +161,7 @@ var(column: string | ColumnRef): AggregationExpr
 **Example:**
 
 ```typescript
-import { var as variance } from "Molniya";
+import { var as variance } from "molniya";
 
 variance("value")
 ```
@@ -179,7 +179,7 @@ median(column: string | ColumnRef): AggregationExpr
 **Example:**
 
 ```typescript
-import { median } from "Molniya";
+import { median } from "molniya";
 
 median("income")
 ```
@@ -199,7 +199,7 @@ first(column: string | ColumnRef): AggregationExpr
 **Example:**
 
 ```typescript
-import { first } from "Molniya";
+import { first } from "molniya";
 
 first("name")
 first(col("created_at"))
@@ -220,7 +220,7 @@ last(column: string | ColumnRef): AggregationExpr
 **Example:**
 
 ```typescript
-import { last } from "Molniya";
+import { last } from "molniya";
 
 last("status")
 last(col("updated_at"))
@@ -239,7 +239,7 @@ countDistinct(column: string | ColumnRef): AggregationExpr
 **Example:**
 
 ```typescript
-import { countDistinct } from "Molniya";
+import { countDistinct } from "molniya";
 
 df.groupBy("region", [
   { name: "unique_customers", expr: countDistinct("customer_id") },
@@ -252,7 +252,7 @@ df.groupBy("region", [
 Apply aggregations to the entire DataFrame:
 
 ```typescript
-import { sum, avg, min, max, count } from "Molniya";
+import { sum, avg, min, max, count } from "molniya";
 
 // Single aggregation
 const total = await df.agg(sum("amount"));
@@ -272,7 +272,7 @@ const stats = await df.agg([
 Filter aggregations to specific rows:
 
 ```typescript
-import { sum, count, col } from "Molniya";
+import { sum, count, col } from "molniya";
 
 df.groupBy("category", [
   { 
@@ -291,7 +291,7 @@ df.groupBy("category", [
 Use expressions within aggregations:
 
 ```typescript
-import { sum, avg, col } from "Molniya";
+import { sum, avg, col } from "molniya";
 
 df.groupBy("category", [
   { name: "total_revenue", expr: sum(col("price").mul(col("quantity"))) },
@@ -304,7 +304,7 @@ df.groupBy("category", [
 Multiple aggregations in a single groupBy:
 
 ```typescript
-import { sum, avg, min, max, count, first, last } from "Molniya";
+import { sum, avg, min, max, count, first, last } from "molniya";
 
 df.groupBy("department", [
   { name: "total_salary", expr: sum("salary") },
