@@ -4,7 +4,7 @@
 /* ==================================================== */
 
 import type { AggExpr, Expr } from "../expr/ast.ts";
-import type { ComputedColumn, SortKey } from "../ops/index.ts";
+import type { ComputedColumn, SortExpression, SortKey } from "../ops/index.ts";
 import type { ColumnRef } from "../expr/builders.ts";
 import type { DType } from "../types/dtypes.ts";
 
@@ -124,8 +124,22 @@ declare module "./core.ts" {
 		mean(column: keyof T): Promise<number | null>;
 
 		// Sorting
-		sort(keys: keyof T | (keyof T)[] | SortKey[]): DataFrame<T>;
-		orderBy(keys: keyof T | (keyof T)[] | SortKey[]): DataFrame<T>;
+		sort(
+			keys:
+				| keyof T
+				| (keyof T)[]
+				| SortKey[]
+				| SortExpression
+				| SortExpression[],
+		): DataFrame<T>;
+		orderBy(
+			keys:
+				| keyof T
+				| (keyof T)[]
+				| SortKey[]
+				| SortExpression
+				| SortExpression[],
+		): DataFrame<T>;
 
 		// Joins
 		innerJoin<U, L extends keyof T = keyof T, R extends keyof U = keyof U>(

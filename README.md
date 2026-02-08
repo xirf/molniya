@@ -2,6 +2,9 @@
 
 **Molniya** is a high-performance, arrow-like dataframe library for TypeScript/Javascript (running on Bun). It focuses on columnar memory layout, zero-copy operations, and a fluent API inspired by Polars/Spark.
 
+> [!WARNING]
+> This is experimental project. It is not ready for production use.
+
 ## Features
 
 - **Columnar Memory**: Uses TypedArrays for efficient storage and SIMD-friendly access.

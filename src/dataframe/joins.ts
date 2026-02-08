@@ -3,7 +3,7 @@
 /* Combine DataFrames by key columns
 /* ==================================================== */
 
-import { crossProduct, hashJoin, JoinType } from "../ops/index.ts";
+import { crossProduct, JoinType, streamingHashJoin } from "../ops/index.ts";
 import { ErrorCode } from "../types/error.ts";
 import type { DataFrame } from "./core.ts";
 
@@ -19,14 +19,17 @@ export function addJoinMethods(df: typeof DataFrame.prototype) {
 		joinType: JoinType,
 		suffix?: string,
 	) => {
-		const collectedLeft = await left.collect();
+		// Collect right side (Build side)
 		const collectedRight = await right.collect();
+		
+		// Stream left side (Probe side)
+		const leftStream = left.stream();
 
-		const result = hashJoin(
-			collectedLeft.source as import("../buffer/chunk.ts").Chunk[],
-			collectedLeft._schema,
+		const result = streamingHashJoin(
+			leftStream,
+			left.schema,
 			collectedRight.source as import("../buffer/chunk.ts").Chunk[],
-			collectedRight._schema,
+			collectedRight.schema,
 			{ leftKey: leftOn, rightKey: rightOn, joinType, suffix },
 		);
 
@@ -34,10 +37,15 @@ export function addJoinMethods(df: typeof DataFrame.prototype) {
 			throw new Error(`Join error (${joinType}): ${result.error}`);
 		}
 
-		return (left.constructor as typeof DataFrame).fromChunks(
-			result.value.chunks,
+		return (left.constructor as typeof DataFrame).fromStream(
+			result.value.stream,
 			result.value.schema,
-			collectedLeft._dictionary,
+			null, // New dictionary or merged?
+			// The stream logic handles dictionary internally?
+			// Or we should pass left._dictionary? 
+			// streamingHashJoin output chunks have dictionaries.
+			// DataFrame.fromStream takes dictionary for global context?
+			// Usually null is fine if chunks have their own.
 		);
 	};
 

@@ -228,6 +228,99 @@ export class Pipeline {
 	}
 
 	/**
+	 * Execute pipeline and stream results (generator).
+	 */
+	*stream(chunks: Iterable<Chunk>): Generator<Chunk> {
+		for (const chunk of chunks) {
+			const result = this.executeChunk(chunk);
+			// If error, we should throw or handle? Generator can throw.
+			if (result.error !== ErrorCode.None) {
+				throw new Error(`Pipeline error: ${result.error}`);
+			}
+
+			if (result.value.chunks.length > 0) {
+				for (const outChunk of result.value.chunks) {
+					yield outChunk;
+				}
+			}
+
+			if (result.value.done) break;
+		}
+
+		// Finish operators
+		for (let i = 0; i < this.operators.length; i++) {
+			const op = this.operators[i]!;
+			const result = op.finish();
+			if (result.error !== ErrorCode.None) {
+				throw new Error(`Pipeline error: ${result.error}`);
+			}
+
+			if (result.value.chunk !== null) {
+				let chunk: Chunk | null = result.value.chunk;
+				// Pass through remaining operators
+				for (let j = i + 1; j < this.operators.length && chunk !== null; j++) {
+					const downstream = this.operators[j]!;
+					const downstreamResult = downstream.process(chunk);
+					if (downstreamResult.error !== ErrorCode.None) {
+						throw new Error(`Pipeline error: ${downstreamResult.error}`);
+					}
+					chunk = downstreamResult.value.chunk;
+				}
+
+				if (chunk !== null) {
+					yield chunk;
+				}
+			}
+		}
+	}
+
+	/**
+	 * Execute pipeline on async stream (async generator).
+	 */
+	async *streamAsync(chunks: AsyncIterable<Chunk>): AsyncGenerator<Chunk> {
+		for await (const chunk of chunks) {
+			const result = this.executeChunk(chunk);
+			if (result.error !== ErrorCode.None) {
+				throw new Error(`Pipeline error: ${result.error}`);
+			}
+
+			if (result.value.chunks.length > 0) {
+				for (const outChunk of result.value.chunks) {
+					yield outChunk;
+				}
+			}
+
+			if (result.value.done) break;
+		}
+
+		// Finish operators
+		for (let i = 0; i < this.operators.length; i++) {
+			const op = this.operators[i]!;
+			const result = op.finish();
+			if (result.error !== ErrorCode.None) {
+				throw new Error(`Pipeline error: ${result.error}`);
+			}
+
+			if (result.value.chunk !== null) {
+				let chunk: Chunk | null = result.value.chunk;
+				// Pass through remaining operators
+				for (let j = i + 1; j < this.operators.length && chunk !== null; j++) {
+					const downstream = this.operators[j]!;
+					const downstreamResult = downstream.process(chunk);
+					if (downstreamResult.error !== ErrorCode.None) {
+						throw new Error(`Pipeline error: ${downstreamResult.error}`);
+					}
+					chunk = downstreamResult.value.chunk;
+				}
+
+				if (chunk !== null) {
+					yield chunk;
+				}
+			}
+		}
+	}
+
+	/**
 	 * Reset all operators for reuse.
 	 */
 	reset(): void {

@@ -15,6 +15,14 @@ export {
 	readCsvString,
 } from "./csv-source.ts";
 
+export * as mbf from "./mbf/index.ts";
+
+export {
+	MbfSource,
+	type MbfOptions,
+	readMbf,
+} from "./mbf-source.ts";
+
 export {
 	ParquetReader,
 	readParquet,

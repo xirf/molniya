@@ -187,26 +187,70 @@ export class SortOperator implements Operator {
 /**
  * Create a sort operator.
  */
+/**
+ * Sort expression builder for configuring sort options.
+ */
+export class SortExpression {
+	constructor(
+		public readonly column: string,
+		public readonly descending: boolean = false,
+		private readonly _nullsFirst?: boolean,
+	) {}
+
+	/**
+	 * Configure nulls to appear first.
+	 */
+	nullsFirst(): SortExpression {
+		return new SortExpression(this.column, this.descending, true);
+	}
+
+	/**
+	 * Configure nulls to appear last.
+	 */
+	nullsLast(): SortExpression {
+		return new SortExpression(this.column, this.descending, false);
+	}
+
+	/** Conversion to SortKey interface */
+	toSortKey(): SortKey {
+		return {
+			column: this.column,
+			descending: this.descending,
+			nullsFirst: this._nullsFirst,
+		};
+	}
+}
+
+/**
+ * Handle input that can be string, SortKey, or SortExpression
+ */
+function toSortKey(k: string | SortKey | SortExpression): SortKey {
+	if (typeof k === "string") return { column: k };
+	if (k instanceof SortExpression) return k.toSortKey();
+	return k;
+}
+
+/**
+ * Create a sort operator.
+ */
 export function sort(
 	schema: Schema,
-	...keys: (string | SortKey)[]
+	...keys: (string | SortKey | SortExpression)[]
 ): Result<SortOperator> {
-	const sortKeys: SortKey[] = keys.map((k) =>
-		typeof k === "string" ? { column: k } : k,
-	);
+	const sortKeys: SortKey[] = keys.map(toSortKey);
 	return SortOperator.create(schema, sortKeys);
 }
 
 /**
  * Create an ascending sort key.
  */
-export function asc(column: string, nullsFirst?: boolean): SortKey {
-	return { column, descending: false, nullsFirst };
+export function asc(column: string): SortExpression {
+	return new SortExpression(column, false);
 }
 
 /**
  * Create a descending sort key.
  */
-export function desc(column: string, nullsFirst?: boolean): SortKey {
-	return { column, descending: true, nullsFirst };
+export function desc(column: string): SortExpression {
+	return new SortExpression(column, true);
 }

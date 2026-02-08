@@ -128,6 +128,105 @@ export function hashJoin(
 }
 
 /**
+ * Perform a streaming hash join.
+ * Right side (build) is materialized. Left side (probe) is streamed.
+ */
+export function streamingHashJoin(
+	leftSource:  AsyncIterable<Chunk> | Iterable<Chunk>,
+	leftSchema: Schema,
+	rightChunks: Chunk[],
+	rightSchema: Schema,
+	config: JoinConfig,
+): Result<{ stream: AsyncGenerator<Chunk>; schema: Schema }> {
+	const joinType = config.joinType ?? JoinType.Inner;
+	const suffix = config.suffix ?? "_right";
+
+	// Validate key columns
+	const leftKeyResult = getColumnIndex(leftSchema, config.leftKey);
+	if (leftKeyResult.error !== ErrorCode.None) {
+		return err(ErrorCode.UnknownColumn);
+	}
+	const leftKeyIdx = leftKeyResult.value;
+
+	const rightKeyResult = getColumnIndex(rightSchema, config.rightKey);
+	if (rightKeyResult.error !== ErrorCode.None) {
+		return err(ErrorCode.UnknownColumn);
+	}
+	const rightKeyIdx = rightKeyResult.value;
+
+	// Build output schema
+	const outputSchemaResult = buildJoinSchema(
+		leftSchema,
+		rightSchema,
+		config.leftKey,
+		config.rightKey,
+		suffix,
+		joinType,
+	);
+	if (outputSchemaResult.error !== ErrorCode.None) {
+		return err(outputSchemaResult.error);
+	}
+	const outputSchema = outputSchemaResult.value;
+
+	// Build hash table from right side
+	const hashTable = buildHashTable(rightChunks, rightKeyIdx);
+
+	// Track matched right rows for right/outer joins
+	const rightMatched =
+		joinType === JoinType.Right ? new Set<string>() : undefined;
+
+	// Generator function
+	async function* generator(): AsyncGenerator<Chunk> {
+		for await (const leftChunk of leftSource) {
+			const result = processLeftChunk(
+				leftChunk,
+				leftKeyIdx,
+				rightChunks,
+				rightKeyIdx,
+				hashTable,
+				outputSchema,
+				leftSchema,
+				rightSchema,
+				joinType,
+				rightMatched,
+				config.leftKey,
+			);
+
+			if (result.rowCount > 0) {
+				yield result;
+			}
+		}
+
+		// For right join, add unmatched right rows
+		if (joinType === JoinType.Right && rightMatched) {
+			// Issue: We need a left dictionary for string interning if left columns are involved
+			// But we don't have access to left chunks anymore.
+			// We can create a new temporary dictionary or reuse first chunk's if we captured it?
+			// `addUnmatchedRight` needs `leftDict`.
+			// We can use an empty dictionary or create one.
+			const leftDict = createDictionary();
+
+			const unmatchedResult = addUnmatchedRight(
+				rightChunks,
+				rightKeyIdx,
+				rightMatched,
+				outputSchema,
+				leftSchema,
+				rightSchema,
+				config.leftKey,
+				leftDict,
+			);
+
+			if (unmatchedResult.rowCount > 0) {
+				yield unmatchedResult;
+			}
+		}
+	}
+
+	return ok({ stream: generator(), schema: outputSchema });
+}
+
+/**
  * Perform a cross join (cartesian product).
  */
 export function crossProduct(

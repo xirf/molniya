@@ -95,7 +95,7 @@ export function fromRecords<T = Record<string, unknown>>(
 			const value = records[i]?.[colName];
 
 			if (value === null || value === undefined) {
-				buffer.setNull(i);
+				buffer.setNull(i, true);
 			} else if (kind === DTypeKind.String) {
 				const dictIdx = dictionary.internString(String(value));
 				buffer.set(i, dictIdx);
@@ -251,7 +251,7 @@ export function fromColumns<T = Record<string, unknown>>(
 		for (let i = 0; i < rowCount; i++) {
 			const value = values[i];
 			if (value === null || value === undefined) {
-				buffer.setNull(i);
+				buffer.setNull(i, true);
 			} else if (kind === DTypeKind.String) {
 				const dictIdx = dictionary.internString(String(value));
 				buffer.set(i, dictIdx);
