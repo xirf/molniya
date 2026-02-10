@@ -13,9 +13,9 @@ export {
 	createColumnBuffer,
 	createDictionary,
 	createEmptyChunk,
-	type DictIndex,
 	Dictionary,
 	NULL_INDEX,
+	type DictIndex,
 	type TypedArray,
 } from "./buffer/index.ts";
 // Re-export DataFrame

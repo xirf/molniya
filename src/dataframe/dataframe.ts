@@ -95,7 +95,7 @@ export function fromRecords<T = Record<string, unknown>>(
 			const value = records[i]?.[colName];
 
 			if (value === null || value === undefined) {
-				buffer.setNull(i);
+				buffer.setNull(i, true);
 			} else if (kind === DTypeKind.String) {
 				const dictIdx = dictionary.internString(String(value));
 				buffer.set(i, dictIdx);
@@ -108,7 +108,7 @@ export function fromRecords<T = Record<string, unknown>>(
 				} else if (typeof value === "bigint") {
 					buffer.set(i, value);
 				} else {
-					buffer.set(i, BigInt(value));
+					buffer.set(i, BigInt(value as string | number | boolean));
 				}
 			} else {
 				buffer.set(i, value as number | bigint);
@@ -174,7 +174,7 @@ export async function readParquet<T = Record<string, unknown>>(
 ): Promise<DataFrame<T>> {
 	const df = (await ioReadParquet(path)) as DataFrame<T>;
 	const projected = options?.projection?.length
-		? df.select(...options.projection)
+		? df.select(...(options.projection as (keyof T & string)[]))
 		: df;
 	return options?.filter ? projected.filter(options.filter) : projected;
 }
@@ -251,7 +251,7 @@ export function fromColumns<T = Record<string, unknown>>(
 		for (let i = 0; i < rowCount; i++) {
 			const value = values[i];
 			if (value === null || value === undefined) {
-				buffer.setNull(i);
+				buffer.setNull(i, true);
 			} else if (kind === DTypeKind.String) {
 				const dictIdx = dictionary.internString(String(value));
 				buffer.set(i, dictIdx);
@@ -264,7 +264,7 @@ export function fromColumns<T = Record<string, unknown>>(
 				} else if (typeof value === "bigint") {
 					buffer.set(i, value);
 				} else {
-					buffer.set(i, BigInt(value));
+					buffer.set(i, BigInt(value as string | number | boolean));
 				}
 			} else {
 				buffer.set(i, value as number | bigint);
@@ -321,10 +321,7 @@ export function range(
 		throw new Error("Step cannot be zero");
 	}
 
-	return fromColumns(
-		{ [columnName]: values },
-		{ [columnName]: DType.float64 },
-	);
+	return fromColumns({ [columnName]: values }, { [columnName]: DType.float64 });
 }
 
 /* EXPRESSION BUILDERS

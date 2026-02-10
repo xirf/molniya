@@ -4,6 +4,7 @@
  * Each aggregation function has a state object that accumulates values
  * across chunks and produces a final result.
  */
+/** biome-ignore-all lint/style/noNonNullAssertion: Intenional, data is impossible to be null */
 
 import { type DType, DType as DTypeFactory } from "../types/dtypes.ts";
 

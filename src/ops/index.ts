@@ -3,10 +3,10 @@
  */
 
 // Aggregation state
-// biome-ignore assist/source/organizeImports: Grouped export
 export {
 	createAggState,
 	AggType,
+	type AggState,
 	AvgState,
 	CountAllState,
 	CountState,
