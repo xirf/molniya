@@ -112,11 +112,7 @@ export function fromRecords<T = Record<string, unknown>>(
 				} else if (typeof value === "bigint") {
 					buffer.set(i, value);
 				} else {
-<<<<<<< HEAD
-					buffer.set(i, BigInt(value as string | number | boolean));
-=======
 					buffer.set(i, BigInt(value as string | number | bigint | boolean));
->>>>>>> 1a5dc455cb450d3f5ea622fd48d379f794d8a79b
 				}
 			} else {
 				buffer.set(i, value as number | bigint);
@@ -206,7 +202,7 @@ export async function readCsv<T = Record<string, unknown>>(
 		}
 
 		// Write to MBF
-		await writeToMbf(df as any, cachePath);
+		await writeToMbf(df as DataFrame, cachePath);
 
 		// Register for cleanup if temp
 		if (isTemp) {
@@ -277,7 +273,7 @@ export async function readParquet<T = Record<string, unknown>>(
 				null, // MBF chunks have their own dictionaries
 			);
 			const projected = options?.projection?.length
-				? df.select(...options.projection)
+				? df.select(...(options.projection as (keyof T & string)[]))
 				: df;
 			return options?.filter ? projected.filter(options.filter) : projected;
 		}
@@ -287,12 +283,12 @@ export async function readParquet<T = Record<string, unknown>>(
 		
 		// Apply projection and filter if specified
 		const projected = options?.projection?.length
-			? df.select(...options.projection)
+			? df.select(...(options.projection as (keyof T & string)[]))
 			: df;
 		df = options?.filter ? projected.filter(options.filter) : projected;
 
 		// Write to MBF
-		await writeToMbf(df as any, cachePath);
+		await writeToMbf(df as DataFrame, cachePath);
 
 		// Register for cleanup if temp
 		if (isTemp) {
@@ -402,11 +398,7 @@ export function fromColumns<T = Record<string, unknown>>(
 				} else if (typeof value === "bigint") {
 					buffer.set(i, value);
 				} else {
-<<<<<<< HEAD
-					buffer.set(i, BigInt(value as string | number | boolean));
-=======
 					buffer.set(i, BigInt(value as string | number | bigint | boolean));
->>>>>>> 1a5dc455cb450d3f5ea622fd48d379f794d8a79b
 				}
 			} else {
 				buffer.set(i, value as number | bigint);
