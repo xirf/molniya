@@ -101,7 +101,6 @@ export class ColumnBuffer<K extends DTypeKind = DTypeKind> {
 
 	/** Get value at index (no bounds check for performance) */
 	get(index: number): TypedArrayFor<K>[number] {
-		// biome-ignore lint/style/noNonNullAssertion: performance critical, no bounds check
 		return this.data[index]!;
 	}
 
