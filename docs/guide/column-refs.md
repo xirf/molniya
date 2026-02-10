@@ -7,7 +7,7 @@ Column references are expressions that point to existing columns in a DataFrame.
 Use the `col()` function to create column references:
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Basic column reference
 col("id")
@@ -35,7 +35,7 @@ Column references provide chainable methods for building expressions:
 ### Arithmetic Methods
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Addition
 col("a").add(col("b"))      // a + b
@@ -61,7 +61,7 @@ col("value").neg()            // -value
 ### Comparison Methods
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Equal
 col("status").eq("active")
@@ -86,7 +86,7 @@ col("quantity").lte(10)
 ### Null Handling Methods
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Check for null
 col("email").isNull()
@@ -104,7 +104,7 @@ col("nickname").fillNull(col("name"))
 ### String Methods
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // String length
 col("name").length()
@@ -131,7 +131,7 @@ col("file").endsWith(".csv")
 ### Date/Time Methods
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Extract year
 col("date").year()
@@ -161,7 +161,7 @@ col("end").diffDays(col("start"))
 ### Type Casting
 
 ```typescript
-import { col, DType } from "Molniya";
+import { col, DType } from "molniya";
 
 // Cast to integer
 col("price").cast(DType.int32)
@@ -178,7 +178,7 @@ col("id").cast(DType.string)
 These methods work within groupBy operations:
 
 ```typescript
-import { col, sum, avg, min, max, count } from "Molniya";
+import { col, sum, avg, min, max, count } from "molniya";
 
 // Sum of column values
 sum(col("amount"))
@@ -210,7 +210,7 @@ last(col("name"))
 Column reference methods can be chained to build complex expressions:
 
 ```typescript
-import { col, lit } from "Molniya";
+import { col, lit } from "molniya";
 
 // Complex calculation
 df.withColumn("final_price",
@@ -233,7 +233,7 @@ df.filter(
 Reference multiple columns in a single operation:
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Select multiple columns
 df.select(col("id"), col("name"), col("email"))
@@ -276,7 +276,7 @@ Using `col()` makes your intent clear and enables better type inference and auto
 When column names are determined at runtime:
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 function filterByColumn(df: DataFrame, columnName: string, value: unknown) {
   return df.filter(col(columnName).eq(value));
@@ -291,7 +291,7 @@ const filtered = filterByColumn(df, "status", "active");
 Column references work differently in aggregation contexts:
 
 ```typescript
-import { col, sum, avg } from "Molniya";
+import { col, sum, avg } from "molniya";
 
 // Regular context - per-row operation
 df.withColumn("doubled", col("value").mul(2))

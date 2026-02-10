@@ -22,7 +22,7 @@ readCsv<T = Record<string, unknown>>(
 **Example:**
 
 ```typescript
-import { readCsv, DType } from "Molniya";
+import { readCsv, DType } from "molniya";
 
 const df = await readCsv("data.csv", {
   id: DType.int32,
@@ -58,7 +58,7 @@ readParquet<T = Record<string, unknown>>(
 **Example:**
 
 ```typescript
-import { readParquet } from "Molniya";
+import { readParquet } from "molniya";
 
 const df = await readParquet("data.parquet");
 ```
@@ -82,7 +82,7 @@ fromCsvString<T = Record<string, unknown>>(
 **Example:**
 
 ```typescript
-import { fromCsvString, DType } from "Molniya";
+import { fromCsvString, DType } from "molniya";
 
 const csvData = `
 id,name,score
@@ -116,7 +116,7 @@ fromRecords<T = Record<string, unknown>>(
 **Example:**
 
 ```typescript
-import { fromRecords, DType } from "Molniya";
+import { fromRecords, DType } from "molniya";
 
 const records = [
   { id: 1, name: "Alice", score: 95 },
@@ -149,7 +149,7 @@ DataFrame.empty<T = Record<string, unknown>>(
 **Example:**
 
 ```typescript
-import { DataFrame, createSchema, unwrap, DType } from "Molniya";
+import { DataFrame, createSchema, unwrap, DType } from "molniya";
 
 const schema = unwrap(createSchema({
   id: DType.int32,

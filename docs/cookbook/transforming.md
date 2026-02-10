@@ -9,7 +9,7 @@ Add, modify, and compute new columns from existing data.
 Add a single computed column.
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Simple calculation
 df.withColumn("total", col("price").mul(col("quantity")))
@@ -44,7 +44,7 @@ df.withColumns({
 ### Basic Math
 
 ```typescript
-import { col, add, sub, mul, div } from "Molniya";
+import { col, add, sub, mul, div } from "molniya";
 
 // Addition
 df.withColumn("total", col("a").add(col("b")))
@@ -86,7 +86,7 @@ df.withColumn(
 Molniya doesn't have a direct `when/then/otherwise`, but you can achieve similar results:
 
 ```typescript
-import { col, lit } from "Molniya";
+import { col, lit } from "molniya";
 
 // Create separate DataFrames for each condition
 const premium = df
@@ -120,7 +120,7 @@ df.withColumn("has_email", col("email").isNotNull())
 ### Concatenation
 
 ```typescript
-import { col, lit } from "Molniya";
+import { col, lit } from "molniya";
 
 // Simple concatenation
 df.withColumn("display", col("first").add(" ").add(col("last")))
@@ -146,7 +146,7 @@ await df.replace("status", "old", "new");  // Replace text
 ### Working with Timestamps
 
 ```typescript
-import { col, lit } from "Molniya";
+import { col, lit } from "molniya";
 
 // Timestamps are milliseconds since epoch (bigint)
 const oneDay = 24n * 60n * 60n * 1000n;
@@ -178,7 +178,7 @@ const withDateParts = rows.map(row => ({
 ### Casting
 
 ```typescript
-import { DType, col } from "Molniya";
+import { DType, col } from "molniya";
 
 // Cast to float for division
 df.withColumn("ratio", col("part").cast(DType.float64).div(col("total")))
@@ -201,7 +201,7 @@ Casting from larger to smaller types may overflow. Casting float to int truncate
 Use the first non-null value:
 
 ```typescript
-import { coalesce, col, lit } from "Molniya";
+import { coalesce, col, lit } from "molniya";
 
 // Use backup if primary is null
 df.withColumn(

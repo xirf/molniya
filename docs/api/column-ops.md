@@ -19,7 +19,7 @@ withColumn(name: string, expr: Expr): DataFrame<T & Record<K, V>>
 **Example:**
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Add new column
 df.withColumn("total", col("price").mul(col("quantity")))
@@ -42,7 +42,7 @@ withColumns(columns: Record<string, Expr> | Array<{name: string, expr: Expr}>): 
 **Example:**
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Object syntax
 df.withColumns({
@@ -73,7 +73,7 @@ cast(schema: Partial<Record<keyof T, DType>>): DataFrame<T>
 **Example:**
 
 ```typescript
-import { DType } from "Molniya";
+import { DType } from "molniya";
 
 df.cast({
   id: DType.int32,
@@ -96,7 +96,7 @@ fillNull(value: Expr | unknown): ColumnRef
 **Example:**
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Fill with constant
 df.withColumn("discount", col("discount").fillNull(0))
@@ -338,7 +338,7 @@ when(condition: Expr, value: Expr | unknown): WhenExpr
 **Example:**
 
 ```typescript
-import { when, col, lit } from "Molniya";
+import { when, col, lit } from "molniya";
 
 df.withColumn("grade",
   when(col("score").gte(90), "A")
@@ -359,7 +359,7 @@ coalesce(...exprs: Expr[]): Expr
 **Example:**
 
 ```typescript
-import { coalesce, col } from "Molniya";
+import { coalesce, col } from "molniya";
 
 df.withColumn("contact",
   coalesce(col("email"), col("phone"), col("address"))
@@ -379,7 +379,7 @@ concat(...exprs: Expr[]): StringExpr
 **Example:**
 
 ```typescript
-import { concat, col, lit } from "Molniya";
+import { concat, col, lit } from "molniya";
 
 df.withColumn("full_name",
   concat(col("first"), lit(" "), col("last"))
@@ -397,7 +397,7 @@ length(col: ColumnRef): Expr
 **Example:**
 
 ```typescript
-import { length, col } from "Molniya";
+import { length, col } from "molniya";
 
 df.withColumn("name_length", length(col("name")))
 ```
@@ -447,7 +447,7 @@ day(col: ColumnRef): Expr
 **Example:**
 
 ```typescript
-import { year, month, day, col } from "Molniya";
+import { year, month, day, col } from "molniya";
 
 df.withColumn("year", year(col("date")))
   .withColumn("month", month(col("date")))
@@ -497,7 +497,7 @@ cast(dtype: DType): Expr
 **Example:**
 
 ```typescript
-import { DType } from "Molniya";
+import { DType } from "molniya";
 
 col("id").cast(DType.int32)
 col("price").cast(DType.float64)

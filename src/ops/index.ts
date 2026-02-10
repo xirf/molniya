@@ -58,6 +58,7 @@ export {
 	JoinType,
 	leftJoin,
 	crossProduct,
+	streamingHashJoin,
 } from "./join.ts";
 // Limit
 export { LimitOperator, limit } from "./limit.ts";
@@ -85,10 +86,12 @@ export {
 	projectWithRename,
 } from "./project.ts";
 // Sort
+// Sort
 export {
 	asc,
 	desc,
 	type SortKey,
+	SortExpression,
 	SortOperator,
 	sort,
 } from "./sort.ts";

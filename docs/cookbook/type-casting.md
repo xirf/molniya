@@ -7,7 +7,7 @@ Recipes for converting data between different types in Molniya.
 ### Cast to Different Type
 
 ```typescript
-import { col, cast, DType } from "Molniya";
+import { col, cast, DType } from "molniya";
 
 // Cast to integer
 df.withColumn("id_int", cast(col("id"), DType.int32))
@@ -22,7 +22,7 @@ df.withColumn("id_string", cast(col("id"), DType.string))
 ### Cast Multiple Columns
 
 ```typescript
-import { col, cast, DType } from "Molniya";
+import { col, cast, DType } from "molniya";
 
 // Cast multiple columns at once
 df.withColumns({
@@ -37,7 +37,7 @@ df.withColumns({
 ### Integer to Float
 
 ```typescript
-import { col, cast, DType } from "Molniya";
+import { col, cast, DType } from "molniya";
 
 // Integer division vs float division
 df.withColumn("ratio_int", col("a").div(col("b")))           // Integer division
@@ -47,7 +47,7 @@ df.withColumn("ratio_float", cast(col("a"), DType.float64).div(col("b")))  // Fl
 ### Float to Integer
 
 ```typescript
-import { col, cast, DType } from "Molniya";
+import { col, cast, DType } from "molniya";
 
 // Truncate decimal (simple cast)
 df.withColumn("price_truncated", cast(col("price"), DType.int32))
@@ -65,7 +65,7 @@ df.withColumn("price_ceil", cast(col("price").ceil(), DType.int32))
 ### Between Integer Sizes
 
 ```typescript
-import { col, cast, DType } from "Molniya";
+import { col, cast, DType } from "molniya";
 
 // Downcast to save memory
 df.withColumn("small_count", cast(col("count"), DType.int16))
@@ -80,7 +80,7 @@ df.withColumn("big_sum", cast(col("amount"), DType.int64))
 ### String to Number
 
 ```typescript
-import { col, cast, DType } from "Molniya";
+import { col, cast, DType } from "molniya";
 
 // Parse integer from string
 df.withColumn("id_parsed", cast(col("id_str"), DType.int32))
@@ -99,7 +99,7 @@ df.withColumn("amount_clean",
 ### Number to String
 
 ```typescript
-import { col, cast, DType } from "Molniya";
+import { col, cast, DType } from "molniya";
 
 // Convert number to string
 df.withColumn("id_str", cast(col("id"), DType.string))
@@ -113,7 +113,7 @@ df.withColumn("code",
 ### String to Boolean
 
 ```typescript
-import { col, when, lit } from "Molniya";
+import { col, when, lit } from "molniya";
 
 // Parse yes/no, true/false, 1/0
 df.withColumn("is_active",
@@ -132,7 +132,7 @@ df.withColumn("is_active",
 ### String to Date
 
 ```typescript
-import { col, toDate } from "Molniya";
+import { col, toDate } from "molniya";
 
 // Parse date string
 df.withColumn("date_parsed", toDate(col("date_str"), "YYYY-MM-DD"))
@@ -145,7 +145,7 @@ df.withColumn("date_eu", toDate(col("date_eu"), "DD/MM/YYYY"))
 ### String to Timestamp
 
 ```typescript
-import { col, toTimestamp } from "Molniya";
+import { col, toTimestamp } from "molniya";
 
 // Parse timestamp
 df.withColumn("ts_parsed", toTimestamp(col("ts_str"), "YYYY-MM-DD HH:mm:ss"))
@@ -157,7 +157,7 @@ df.withColumn("ts_iso", toTimestamp(col("ts_iso"), "YYYY-MM-DDTHH:mm:ssZ"))
 ### Date to String
 
 ```typescript
-import { col, formatDate } from "Molniya";
+import { col, formatDate } from "molniya";
 
 // Format date
 df.withColumn("date_formatted", formatDate(col("date"), "YYYY-MM-DD"))
@@ -170,7 +170,7 @@ df.withColumn("date_display", formatDate(col("date"), "MMM DD, YYYY"))
 ### Timestamp to Date
 
 ```typescript
-import { col, cast, DType } from "Molniya";
+import { col, cast, DType } from "molniya";
 
 // Extract date from timestamp
 df.withColumn("date_only", cast(col("timestamp"), DType.date))
@@ -179,7 +179,7 @@ df.withColumn("date_only", cast(col("timestamp"), DType.date))
 ### Epoch Conversions
 
 ```typescript
-import { col, lit } from "Molniya";
+import { col, lit } from "molniya";
 
 // Seconds since epoch to timestamp
 df.withColumn("ts_from_seconds", col("epoch_seconds").mul(1000))
@@ -193,7 +193,7 @@ df.withColumn("date_from_ms", cast(col("epoch_ms"), DType.date))
 ### To Boolean
 
 ```typescript
-import { col, cast, DType, neq } from "Molniya";
+import { col, cast, DType, neq } from "molniya";
 
 // Number to boolean (0 = false, non-zero = true)
 df.withColumn("has_value", cast(col("count"), DType.boolean))
@@ -208,7 +208,7 @@ df.withColumn("has_email", col("email").isNotNull())
 ### From Boolean
 
 ```typescript
-import { col, when, lit, cast, DType } from "Molniya";
+import { col, when, lit, cast, DType } from "molniya";
 
 // Boolean to number (1/0)
 df.withColumn("active_flag", cast(col("is_active"), DType.int32))
@@ -224,7 +224,7 @@ df.withColumn("status_text",
 ### Safe Casting
 
 ```typescript
-import { col, cast, DType, regexpMatch, when, lit } from "Molniya";
+import { col, cast, DType, regexpMatch, when, lit } from "molniya";
 
 // Only cast valid numeric strings
 df.withColumn("amount_safe",
@@ -237,7 +237,7 @@ df.withColumn("amount_safe",
 ### Try Cast Pattern
 
 ```typescript
-import { col, cast, DType, when } from "Molniya";
+import { col, cast, DType, when } from "molniya";
 
 // Try cast with fallback
 df.withColumn("amount_or_zero",
@@ -252,7 +252,7 @@ df.withColumn("amount_or_zero",
 ### Currency Conversion
 
 ```typescript
-import { col, cast, DType, round } from "Molniya";
+import { col, cast, DType, round } from "molniya";
 
 // Convert cents to dollars
 df.withColumn("amount_dollars", 
@@ -268,7 +268,7 @@ df.withColumn("amount_cents",
 ### Percentage Handling
 
 ```typescript
-import { col, cast, DType } from "Molniya";
+import { col, cast, DType } from "molniya";
 
 // String percentage to decimal
 df.withColumn("rate_decimal",
@@ -284,7 +284,7 @@ df.withColumn("rate_percent",
 ### ID Formatting
 
 ```typescript
-import { col, cast, DType, lpad } from "Molniya";
+import { col, cast, DType, lpad } from "molniya";
 
 // Format ID with leading zeros
 df.withColumn("formatted_id",
@@ -296,7 +296,7 @@ df.withColumn("formatted_id",
 ### Unix Timestamp Conversion
 
 ```typescript
-import { col, cast, DType } from "Molniya";
+import { col, cast, DType } from "molniya";
 
 // Unix timestamp (seconds) to date
 df.withColumn("date",
@@ -312,7 +312,7 @@ df.withColumn("unix_ts",
 ### JSON String Parsing
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Parse JSON string (returns object, then extract field)
 df.withColumn("parsed", parseJson(col("json_str")))
@@ -325,7 +325,7 @@ df.withColumn("parsed", parseJson(col("json_str")))
 ### Cast Entire DataFrame
 
 ```typescript
-import { cast, DType } from "Molniya";
+import { cast, DType } from "molniya";
 
 // Cast all columns to new schema
 df.cast({
@@ -339,7 +339,7 @@ df.cast({
 ### Selective Casting
 
 ```typescript
-import { col, cast, DType } from "Molniya";
+import { col, cast, DType } from "molniya";
 
 // Only cast specific columns
 df.withColumn("id", cast(col("id"), DType.int32))

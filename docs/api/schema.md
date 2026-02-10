@@ -30,7 +30,7 @@ interface ColumnDef {
 Define schemas as plain objects:
 
 ```typescript
-import { DType } from "Molniya";
+import { DType } from "molniya";
 
 const schema = {
   id: DType.int32,
@@ -57,7 +57,7 @@ createSchema(spec: Record<string, DType>): Result<Schema, Error>
 **Example:**
 
 ```typescript
-import { createSchema, DType, unwrap } from "Molniya";
+import { createSchema, DType, unwrap } from "molniya";
 
 const schema = unwrap(createSchema({
   id: DType.int32,
@@ -144,7 +144,7 @@ for (const column of df.schema.columns) {
 ### Compare Schemas
 
 ```typescript
-import { DTypeKind } from "Molniya";
+import { DTypeKind } from "molniya";
 
 function schemasEqual(a: Schema, b: Schema): boolean {
   if (a.columnCount !== b.columnCount) return false;
@@ -307,7 +307,7 @@ function schemaToJSON(schema: Schema): object {
 ### From JSON
 
 ```typescript
-import { DTypeKind, createSchema, DType } from "Molniya";
+import { DTypeKind, createSchema, DType } from "molniya";
 
 function schemaFromJSON(json: any): Schema {
   const spec: Record<string, DType> = {};

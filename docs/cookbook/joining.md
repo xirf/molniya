@@ -23,7 +23,7 @@ Joins currently load both DataFrames into memory. For large datasets, filter bef
 Returns only rows where the join key exists in both DataFrames.
 
 ```typescript
-import { readCsv, DType, col } from "Molniya";
+import { readCsv, DType, col } from "molniya";
 
 const orders = await readCsv("orders.csv", {
   orderId: DType.int32,

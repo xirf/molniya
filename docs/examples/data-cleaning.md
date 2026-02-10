@@ -15,7 +15,7 @@ You have a messy dataset with common issues:
 ## Sample Messy Data
 
 ```typescript
-import { fromCsvString, DType, col, when, lit, count, sum } from "Molniya";
+import { fromCsvString, DType, col, when, lit, count, sum } from "molniya";
 
 const messyData = `
 id,name,email,age,phone,salary,join_date,department,status

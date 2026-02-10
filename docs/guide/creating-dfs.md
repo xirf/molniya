@@ -9,7 +9,7 @@ Molniya provides several ways to create DataFrames from various data sources, be
 Create a DataFrame from an array of JavaScript objects:
 
 ```typescript
-import { fromRecords, DType } from "Molniya";
+import { fromRecords, DType } from "molniya";
 
 const users = [
   { id: 1, name: "Alice", age: 30, active: true },
@@ -55,7 +55,7 @@ const df = fromRecords(data, schema);
 Create a DataFrame from column-oriented data:
 
 ```typescript
-import { fromColumns, DType } from "Molniya";
+import { fromColumns, DType } from "molniya";
 
 const columns = {
   id: new Int32Array([1, 2, 3]),
@@ -77,7 +77,7 @@ const df = fromColumns(columns, schema);
 For best performance, use TypedArrays for numeric columns:
 
 ```typescript
-import { fromColumns, DType } from "Molniya";
+import { fromColumns, DType } from "molniya";
 
 const data = {
   // Integer arrays
@@ -114,7 +114,7 @@ const df = fromColumns(data, schema);
 Create an empty DataFrame with a defined schema:
 
 ```typescript
-import { DataFrame, DType } from "Molniya";
+import { DataFrame, DType } from "molniya";
 
 const schema = {
   id: DType.int32,
@@ -163,7 +163,7 @@ function createUserDataFrame(records: UserRecord[]) {
 Create a DataFrame from a CSV string in memory:
 
 ```typescript
-import { fromCsvString, DType } from "Molniya";
+import { fromCsvString, DType } from "molniya";
 
 const csvData = `
 id,name,age,city
@@ -201,7 +201,7 @@ const df = fromCsvString(csvData, schema, {
 Create a DataFrame from arrays of values:
 
 ```typescript
-import { fromArrays, DType } from "Molniya";
+import { fromArrays, DType } from "molniya";
 
 const df = fromArrays(
   ["id", "name", "score"],  // Column names
@@ -225,7 +225,7 @@ const df = fromArrays(
 Create a DataFrame with repeated values:
 
 ```typescript
-import { DataFrame, DType, lit } from "Molniya";
+import { DataFrame, DType, lit } from "molniya";
 
 // Create a single-row DataFrame
 const singleRow = fromRecords([{ id: 1, value: 100 }], {
@@ -240,7 +240,7 @@ const df = existingDf.crossJoin(singleRow);
 ### Range of Numbers
 
 ```typescript
-import { range } from "Molniya";
+import { range } from "molniya";
 
 // Create DataFrame with sequence
 const df = range(0, 100, {
@@ -283,7 +283,7 @@ const combined = df1.unionAll(df2);
 ### From JSON
 
 ```typescript
-import { fromRecords, DType } from "Molniya";
+import { fromRecords, DType } from "molniya";
 
 const jsonData = '[{"id":1,"name":"Alice"},{"id":2,"name":"Bob"}]';
 const records = JSON.parse(jsonData);
@@ -297,7 +297,7 @@ const df = fromRecords(records, {
 ### From Database Results
 
 ```typescript
-import { fromRecords, DType } from "Molniya";
+import { fromRecords, DType } from "molniya";
 
 // Assuming you have a database query result
 const dbResults = await db.query("SELECT id, name, email FROM users");
@@ -312,7 +312,7 @@ const df = fromRecords(dbResults, {
 ### From API Response
 
 ```typescript
-import { fromRecords, DType } from "Molniya";
+import { fromRecords, DType } from "molniya";
 
 const response = await fetch("https://api.example.com/users");
 const data = await response.json();
@@ -349,7 +349,7 @@ import {
   col, 
   sum,
   desc 
-} from "Molniya";
+} from "molniya";
 
 // Create sample data
 const salesData = [

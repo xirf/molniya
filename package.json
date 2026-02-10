@@ -1,13 +1,19 @@
 {
-	"name": "Molniya",
-	"version": "0.1.0",
+	"name": "molniya",
+	"version": "0.2.0",
 	"module": "src/index.ts",
 	"devDependencies": {
 		"@biomejs/biome": "2.3.13",
 		"@types/bun": "latest"
 	},
 	"peerDependencies": {
-		"typescript": "^5"
+		"typescript": "^5",
+		"hyparquet": "^1.24.1"
+	},
+	"peerDependenciesMeta": {
+		"hyparquet": {
+			"optional": true
+		}
 	},
 	"description": "High-performance, stream-only, binary-level data manipulation for Bun runtime",
 	"scripts": {

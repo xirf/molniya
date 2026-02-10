@@ -28,7 +28,7 @@ Molniya provides a comprehensive set of data types optimized for analytical work
 Access types through the `DType` object:
 
 ```typescript
-import { DType } from "Molniya";
+import { DType } from "molniya";
 
 // Non-nullable types
 const schema = {
@@ -188,7 +188,7 @@ Nullable types:
 Convert between types using `cast()`:
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Cast int32 to float64 for division
 df.withColumn("ratio", col("part").cast(DType.float64).div(col("total")))
@@ -242,7 +242,7 @@ DType.boolean
 Molniya validates schemas at creation time:
 
 ```typescript
-import { createSchema } from "Molniya";
+import { createSchema } from "molniya";
 
 const result = createSchema({
   "invalid-column-name!": DType.int32  // Error: invalid characters

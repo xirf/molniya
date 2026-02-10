@@ -7,7 +7,7 @@ Expressions are the building blocks of data transformations in Molniya. They rep
 An expression (`Expr`) is a description of a computation, not the result itself. Expressions are combined to build transformation pipelines:
 
 ```typescript
-import { col, lit } from "Molniya";
+import { col, lit } from "molniya";
 
 // These are expressions - descriptions of computations
 const priceExpr = col("price");           // Reference to "price" column
@@ -24,7 +24,7 @@ const totalExpr = priceExpr.mul(1.1);      // Arithmetic expression
 Reference existing columns using [`col()`](./column-refs):
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 col("id")           // Simple reference
 col("price")        // Numeric column
@@ -36,7 +36,7 @@ col("name")         // String column
 Create constant values using `lit()`:
 
 ```typescript
-import { lit } from "Molniya";
+import { lit } from "molniya";
 
 lit(100)            // Number literal
 lit("active")       // String literal
@@ -57,7 +57,7 @@ df.filter(col("status").eq(lit("active")))
 ### Basic Operations
 
 ```typescript
-import { col, add, sub, mul, div, mod, neg } from "Molniya";
+import { col, add, sub, mul, div, mod, neg } from "molniya";
 
 // Using method chaining
 df.withColumn("total", col("price").mul(col("quantity")))
@@ -86,7 +86,7 @@ df.withColumn("avg", div(col("sum"), col("count")))
 ### Comparison Operators
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Equal
 col("status").eq("active")
@@ -122,7 +122,7 @@ col("email").isNotNull()
 Combine conditions with logical operators:
 
 ```typescript
-import { and, or, not } from "Molniya";
+import { and, or, not } from "molniya";
 
 // AND - all conditions must be true
 and(
@@ -152,7 +152,7 @@ and(
 ## String Expressions
 
 ```typescript
-import { col, length, substring, contains, upper, lower } from "Molniya";
+import { col, length, substring, contains, upper, lower } from "molniya";
 
 // String length
 col("name").length()
@@ -174,7 +174,7 @@ col("first").add(" ").add(col("last"))
 ## Date/Time Expressions
 
 ```typescript
-import { col, year, month, day, addDays, diffDays } from "Molniya";
+import { col, year, month, day, addDays, diffDays } from "molniya";
 
 // Extract components
 year(col("order_date"))
@@ -194,7 +194,7 @@ diffDays(col("end"), col("start"))
 Create conditional logic:
 
 ```typescript
-import { when, col } from "Molniya";
+import { when, col } from "molniya";
 
 // Simple if-then-else
 when(col("score").gte(90), "A")
@@ -215,7 +215,7 @@ df.withColumn("grade",
 Expressions can be arbitrarily complex:
 
 ```typescript
-import { col, lit, and, or } from "Molniya";
+import { col, lit, and, or } from "molniya";
 
 // Complex calculation
 df.withColumn("discounted_price",
@@ -240,7 +240,7 @@ df.filter(and(
 Convert between types within expressions:
 
 ```typescript
-import { col, cast, DType } from "Molniya";
+import { col, cast, DType } from "molniya";
 
 // Cast to different type
 df.withColumn("price_int", cast(col("price"), DType.int32))
@@ -265,7 +265,7 @@ df.withColumn("doubled", col("value").mul(2))
 Aggregation expressions collapse multiple rows into one value:
 
 ```typescript
-import { sum, avg, count } from "Molniya";
+import { sum, avg, count } from "molniya";
 
 // Evaluated across groups
 df.groupBy("category", [

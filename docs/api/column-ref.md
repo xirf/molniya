@@ -7,7 +7,7 @@ The `ColumnRef` class provides a fluent API for building column expressions.
 `ColumnRef` is returned by the `col()` function and provides chainable methods for creating expressions.
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Create a column reference
 const priceCol = col("price");
@@ -27,7 +27,7 @@ col(name: string): ColumnRef
 **Example:**
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 col("id")
 col("customer_name")
@@ -336,7 +336,7 @@ cast(targetDType: DTypeKind): CastExpr
 **Example:**
 
 ```typescript
-import { DTypeKind } from "Molniya";
+import { DTypeKind } from "molniya";
 
 col("id").cast(DTypeKind.Int64)
 col("price").cast(DTypeKind.Float64)

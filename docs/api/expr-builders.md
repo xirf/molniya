@@ -11,7 +11,7 @@ import {
   and, or, not,                // Logical
   sum, avg, min, max, count,   // Aggregations
   first, last                  // Window-like
-} from "Molniya";
+} from "molniya";
 ```
 
 ## Column References
@@ -27,7 +27,7 @@ col(name: string): ColumnRef
 **Example:**
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Simple reference
 col("price")
@@ -52,7 +52,7 @@ lit(value: number | bigint | string | boolean | null): LiteralExpr
 **Example:**
 
 ```typescript
-import { lit, col } from "Molniya";
+import { lit, col } from "molniya";
 
 // In arithmetic
 df.withColumn("with_tax", col("price").mul(lit(1.1)))
@@ -75,7 +75,7 @@ typedLit(value: number | bigint | string | boolean | null, dtype: DTypeKind): Li
 **Example:**
 
 ```typescript
-import { typedLit, DTypeKind } from "Molniya";
+import { typedLit, DTypeKind } from "molniya";
 
 typedLit(42, DTypeKind.Int32)
 typedLit("hello", DTypeKind.String)
@@ -94,7 +94,7 @@ add(left: Expr | ColumnRef | number, right: Expr | ColumnRef | number): Arithmet
 **Example:**
 
 ```typescript
-import { add, col } from "Molniya";
+import { add, col } from "molniya";
 
 add(col("a"), col("b"))
 add(col("price"), col("tax"))
@@ -115,7 +115,7 @@ sub(left: Expr | ColumnRef | number, right: Expr | ColumnRef | number): Arithmet
 **Example:**
 
 ```typescript
-import { sub, col } from "Molniya";
+import { sub, col } from "molniya";
 
 sub(col("total"), col("discount"))
 
@@ -134,7 +134,7 @@ mul(left: Expr | ColumnRef | number, right: Expr | ColumnRef | number): Arithmet
 **Example:**
 
 ```typescript
-import { mul, col } from "Molniya";
+import { mul, col } from "molniya";
 
 mul(col("price"), col("quantity"))
 mul(col("amount"), 0.1)  // Calculate 10%
@@ -154,7 +154,7 @@ div(left: Expr | ColumnRef | number, right: Expr | ColumnRef | number): Arithmet
 **Example:**
 
 ```typescript
-import { div, col } from "Molniya";
+import { div, col } from "molniya";
 
 div(col("total"), col("count"))
 
@@ -177,7 +177,7 @@ mod(left: Expr | ColumnRef | number, right: Expr | ColumnRef | number): Arithmet
 **Example:**
 
 ```typescript
-import { mod, col } from "Molniya";
+import { mod, col } from "molniya";
 
 mod(col("n"), 2)  // Check even/odd
 
@@ -196,7 +196,7 @@ neg(expr: Expr | ColumnRef | number): NegExpr
 **Example:**
 
 ```typescript
-import { neg, col } from "Molniya";
+import { neg, col } from "molniya";
 
 neg(col("debt"))
 
@@ -217,7 +217,7 @@ and(...exprs: (Expr | ColumnRef)[]): LogicalExpr
 **Example:**
 
 ```typescript
-import { and, col } from "Molniya";
+import { and, col } from "molniya";
 
 and(
   col("age").gte(18),
@@ -237,7 +237,7 @@ or(...exprs: (Expr | ColumnRef)[]): LogicalExpr
 **Example:**
 
 ```typescript
-import { or, col } from "Molniya";
+import { or, col } from "molniya";
 
 or(
   col("status").eq("pending"),
@@ -256,7 +256,7 @@ not(expr: Expr | ColumnRef): NotExpr
 **Example:**
 
 ```typescript
-import { not, col } from "Molniya";
+import { not, col } from "molniya";
 
 not(col("deleted"))
 ```
@@ -276,7 +276,7 @@ sum(column: string | Expr | ColumnRef): AggExpr
 **Example:**
 
 ```typescript
-import { sum, col } from "Molniya";
+import { sum, col } from "molniya";
 
 // Sum a column
 sum("amount")
@@ -296,7 +296,7 @@ avg(column: string | Expr | ColumnRef): AggExpr
 **Example:**
 
 ```typescript
-import { avg } from "Molniya";
+import { avg } from "molniya";
 
 avg("salary")
 avg(col("score"))
@@ -313,7 +313,7 @@ min(column: string | Expr | ColumnRef): AggExpr
 **Example:**
 
 ```typescript
-import { min } from "Molniya";
+import { min } from "molniya";
 
 min("price")
 min("created_at")
@@ -330,7 +330,7 @@ max(column: string | Expr | ColumnRef): AggExpr
 **Example:**
 
 ```typescript
-import { max } from "Molniya";
+import { max } from "molniya";
 
 max("price")
 max("created_at")
@@ -347,7 +347,7 @@ count(column?: string | Expr | ColumnRef): CountExpr
 **Example:**
 
 ```typescript
-import { count } from "Molniya";
+import { count } from "molniya";
 
 count()           // Count all rows
 count("email")    // Count non-null emails
@@ -365,7 +365,7 @@ first(column: string | Expr | ColumnRef): AggExpr
 **Example:**
 
 ```typescript
-import { first } from "Molniya";
+import { first } from "molniya";
 
 first("order_date")
 ```
@@ -381,7 +381,7 @@ last(column: string | Expr | ColumnRef): AggExpr
 **Example:**
 
 ```typescript
-import { last } from "Molniya";
+import { last } from "molniya";
 
 last("order_date")
 ```
@@ -399,7 +399,7 @@ asc(column: string): SortKey
 **Example:**
 
 ```typescript
-import { asc } from "Molniya";
+import { asc } from "molniya";
 
 df.sort(asc("name"))  // Same as df.sort("name")
 ```
@@ -415,7 +415,7 @@ desc(column: string): SortKey
 **Example:**
 
 ```typescript
-import { desc } from "Molniya";
+import { desc } from "molniya";
 
 df.sort(desc("amount"))  // Highest amounts first
 ```
@@ -433,7 +433,7 @@ coalesce(...exprs: (Expr | ColumnRef | number | string | boolean | null)[]): Coa
 **Example:**
 
 ```typescript
-import { coalesce, col, lit } from "Molniya";
+import { coalesce, col, lit } from "molniya";
 
 // Use backup email if primary is null
 coalesce(col("primary_email"), col("backup_email"), lit("no-email"))

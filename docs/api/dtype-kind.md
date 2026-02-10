@@ -31,7 +31,7 @@ API reference for the `DTypeKind` enum, which represents the fundamental data ty
 ### Checking Column Types
 
 ```typescript
-import { DTypeKind } from "Molniya";
+import { DTypeKind } from "molniya";
 
 const schema = df.schema;
 
@@ -55,7 +55,7 @@ for (const column of schema.columns) {
 ### Type Guards
 
 ```typescript
-import { DTypeKind } from "Molniya";
+import { DTypeKind } from "molniya";
 
 function isNumeric(kind: DTypeKind): boolean {
   return [
@@ -89,7 +89,7 @@ function isInteger(kind: DTypeKind): boolean {
 ### Schema Inspection
 
 ```typescript
-import { DTypeKind } from "Molniya";
+import { DTypeKind } from "molniya";
 
 // Find all string columns
 const stringColumns = df.schema.columns
@@ -112,7 +112,7 @@ const numericColumns = df.schema.columns
 | **Example** | `DTypeKind.Int32` | `DType.int32`, `DType.nullable.int32` |
 
 ```typescript
-import { DType, DTypeKind } from "Molniya";
+import { DType, DTypeKind } from "molniya";
 
 // DType includes nullability
 const intType = DType.int32;           // non-nullable
@@ -218,7 +218,7 @@ function getTypeSize(kind: DTypeKind): number {
 Check if types are compatible for operations:
 
 ```typescript
-import { DTypeKind } from "Molniya";
+import { DTypeKind } from "molniya";
 
 function canAdd(left: DTypeKind, right: DTypeKind): boolean {
   // Numeric types can be added together

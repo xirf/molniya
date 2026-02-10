@@ -235,7 +235,7 @@ orders
 ## Complete Example
 
 ```typescript
-import { readCsv, DType, col, sum, desc } from "Molniya";
+import { readCsv, DType, col, sum, desc } from "molniya";
 
 const orders = await readCsv("orders.csv", {
   order_id: DType.int32,

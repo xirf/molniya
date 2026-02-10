@@ -19,7 +19,7 @@ sort(exprs: SortExpr[]): DataFrame<T>
 **Example:**
 
 ```typescript
-import { asc, desc } from "Molniya";
+import { asc, desc } from "molniya";
 
 // Single column
 df.sort(asc("name"))
@@ -48,7 +48,7 @@ asc(column: string | ColumnRef): SortExpr
 **Example:**
 
 ```typescript
-import { asc, col } from "Molniya";
+import { asc, col } from "molniya";
 
 asc("name")
 asc(col("created_at"))
@@ -80,7 +80,7 @@ desc(column: string | ColumnRef): SortExpr
 **Example:**
 
 ```typescript
-import { desc, col } from "Molniya";
+import { desc, col } from "molniya";
 
 desc("price")
 desc(col("score"))
@@ -216,7 +216,7 @@ dropDuplicates(...columns: string[]): DataFrame<T>
 ### Top N
 
 ```typescript
-import { desc } from "Molniya";
+import { desc } from "molniya";
 
 // Top 10 by score
 const top10 = df.sort(desc("score")).limit(10);
@@ -228,7 +228,7 @@ const mostExpensive = df.sort(desc("price")).limit(5);
 ### Bottom N
 
 ```typescript
-import { asc } from "Molniya";
+import { asc } from "molniya";
 
 // Bottom 10 by score
 const bottom10 = df.sort(asc("score")).limit(10);
@@ -252,7 +252,7 @@ const page = df
 ### Multi-Level Sort
 
 ```typescript
-import { asc, desc } from "Molniya";
+import { asc, desc } from "molniya";
 
 // Sort by category, then by price descending within category
 df.sort(asc("category"), desc("price"));
@@ -264,7 +264,7 @@ df.sort(desc("year"), asc("month"));
 ### Sort with Computed Column
 
 ```typescript
-import { col, desc } from "Molniya";
+import { col, desc } from "molniya";
 
 // Sort by total (price * quantity)
 df.withColumn("total", col("price").mul(col("quantity")))

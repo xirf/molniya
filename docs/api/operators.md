@@ -20,7 +20,7 @@ col(name: string): ColumnRef
 **Example:**
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 col("price")
 col("customer.name")  // Nested column reference
@@ -42,7 +42,7 @@ lit(value: number | bigint | string | boolean | null | Date): LiteralExpr
 **Example:**
 
 ```typescript
-import { lit } from "Molniya";
+import { lit } from "molniya";
 
 lit(100)
 lit("active")
@@ -65,7 +65,7 @@ add(left: Expr, right: Expr | number): ArithmeticExpr
 **Example:**
 
 ```typescript
-import { add, col } from "Molniya";
+import { add, col } from "molniya";
 
 add(col("a"), col("b"))
 add(col("value"), 10)
@@ -82,7 +82,7 @@ sub(left: Expr, right: Expr | number): ArithmeticExpr
 **Example:**
 
 ```typescript
-import { sub, col } from "Molniya";
+import { sub, col } from "molniya";
 
 sub(col("total"), col("tax"))
 ```
@@ -98,7 +98,7 @@ mul(left: Expr, right: Expr | number): ArithmeticExpr
 **Example:**
 
 ```typescript
-import { mul, col } from "Molniya";
+import { mul, col } from "molniya";
 
 mul(col("price"), col("quantity"))
 ```
@@ -114,7 +114,7 @@ div(left: Expr, right: Expr | number): ArithmeticExpr
 **Example:**
 
 ```typescript
-import { div, col } from "Molniya";
+import { div, col } from "molniya";
 
 div(col("sum"), col("count"))
 ```
@@ -130,7 +130,7 @@ mod(left: Expr, right: Expr | number): ArithmeticExpr
 **Example:**
 
 ```typescript
-import { mod, col } from "Molniya";
+import { mod, col } from "molniya";
 
 mod(col("value"), 10)
 ```
@@ -146,7 +146,7 @@ neg(expr: Expr): ArithmeticExpr
 **Example:**
 
 ```typescript
-import { neg, col } from "Molniya";
+import { neg, col } from "molniya";
 
 neg(col("value"))
 ```
@@ -164,7 +164,7 @@ and(...exprs: Expr[]): LogicalExpr
 **Example:**
 
 ```typescript
-import { and, col } from "Molniya";
+import { and, col } from "molniya";
 
 and(
   col("age").gte(18),
@@ -183,7 +183,7 @@ or(...exprs: Expr[]): LogicalExpr
 **Example:**
 
 ```typescript
-import { or, col } from "Molniya";
+import { or, col } from "molniya";
 
 or(
   col("category").eq("electronics"),
@@ -202,7 +202,7 @@ not(expr: Expr): LogicalExpr
 **Example:**
 
 ```typescript
-import { not, col } from "Molniya";
+import { not, col } from "molniya";
 
 not(col("deleted").eq(true))
 ```
@@ -220,7 +220,7 @@ eq(left: Expr, right: Expr | unknown): ComparisonExpr
 **Example:**
 
 ```typescript
-import { eq, col } from "Molniya";
+import { eq, col } from "molniya";
 
 eq(col("status"), "active")
 ```
@@ -236,7 +236,7 @@ neq(left: Expr, right: Expr | unknown): ComparisonExpr
 **Example:**
 
 ```typescript
-import { neq, col } from "Molniya";
+import { neq, col } from "molniya";
 
 neq(col("type"), "deleted")
 ```
@@ -252,7 +252,7 @@ gt(left: Expr, right: Expr | number): ComparisonExpr
 **Example:**
 
 ```typescript
-import { gt, col } from "Molniya";
+import { gt, col } from "molniya";
 
 gt(col("age"), 18)
 ```
@@ -268,7 +268,7 @@ gte(left: Expr, right: Expr | number): ComparisonExpr
 **Example:**
 
 ```typescript
-import { gte, col } from "Molniya";
+import { gte, col } from "molniya";
 
 gte(col("score"), 60)
 ```
@@ -284,7 +284,7 @@ lt(left: Expr, right: Expr | number): ComparisonExpr
 **Example:**
 
 ```typescript
-import { lt, col } from "Molniya";
+import { lt, col } from "molniya";
 
 lt(col("price"), 100)
 ```
@@ -300,7 +300,7 @@ lte(left: Expr, right: Expr | number): ComparisonExpr
 **Example:**
 
 ```typescript
-import { lte, col } from "Molniya";
+import { lte, col } from "molniya";
 
 lte(col("quantity"), 10)
 ```
@@ -318,7 +318,7 @@ concat(...exprs: Expr[]): StringExpr
 **Example:**
 
 ```typescript
-import { concat, col, lit } from "Molniya";
+import { concat, col, lit } from "molniya";
 
 concat(col("first"), lit(" "), col("last"))
 ```
@@ -334,7 +334,7 @@ length(expr: Expr): Expr
 **Example:**
 
 ```typescript
-import { length, col } from "Molniya";
+import { length, col } from "molniya";
 
 length(col("name"))
 ```
@@ -350,7 +350,7 @@ substring(expr: Expr, start: number, len: number): StringExpr
 **Example:**
 
 ```typescript
-import { substring, col } from "Molniya";
+import { substring, col } from "molniya";
 
 substring(col("phone"), 0, 3)
 ```
@@ -366,7 +366,7 @@ upper(expr: Expr): StringExpr
 **Example:**
 
 ```typescript
-import { upper, col } from "Molniya";
+import { upper, col } from "molniya";
 
 upper(col("code"))
 ```
@@ -382,7 +382,7 @@ lower(expr: Expr): StringExpr
 **Example:**
 
 ```typescript
-import { lower, col } from "Molniya";
+import { lower, col } from "molniya";
 
 lower(col("email"))
 ```
@@ -400,7 +400,7 @@ year(expr: Expr): Expr
 **Example:**
 
 ```typescript
-import { year, col } from "Molniya";
+import { year, col } from "molniya";
 
 year(col("date"))
 ```
@@ -416,7 +416,7 @@ month(expr: Expr): Expr
 **Example:**
 
 ```typescript
-import { month, col } from "Molniya";
+import { month, col } from "molniya";
 
 month(col("date"))
 ```
@@ -432,7 +432,7 @@ day(expr: Expr): Expr
 **Example:**
 
 ```typescript
-import { day, col } from "Molniya";
+import { day, col } from "molniya";
 
 day(col("date"))
 ```
@@ -448,7 +448,7 @@ toDate(expr: Expr, format: string): Expr
 **Example:**
 
 ```typescript
-import { toDate, col } from "Molniya";
+import { toDate, col } from "molniya";
 
 toDate(col("date_str"), "YYYY-MM-DD")
 ```
@@ -464,7 +464,7 @@ toTimestamp(expr: Expr, format: string): Expr
 **Example:**
 
 ```typescript
-import { toTimestamp, col } from "Molniya";
+import { toTimestamp, col } from "molniya";
 
 toTimestamp(col("ts_str"), "YYYY-MM-DD HH:mm:ss")
 ```
@@ -482,7 +482,7 @@ when(condition: Expr, value: Expr | unknown): WhenExpr
 **Example:**
 
 ```typescript
-import { when, col, lit } from "Molniya";
+import { when, col, lit } from "molniya";
 
 when(col("score").gte(90), "A")
   .when(col("score").gte(80), "B")
@@ -500,7 +500,7 @@ coalesce(...exprs: Expr[]): Expr
 **Example:**
 
 ```typescript
-import { coalesce, col } from "Molniya";
+import { coalesce, col } from "molniya";
 
 coalesce(col("email"), col("phone"), col("address"))
 ```
@@ -518,7 +518,7 @@ cast(expr: Expr, dtype: DType): Expr
 **Example:**
 
 ```typescript
-import { cast, col, DType } from "Molniya";
+import { cast, col, DType } from "molniya";
 
 cast(col("id"), DType.int32)
 ```

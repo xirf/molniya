@@ -35,17 +35,14 @@ export class TransformOperator extends SimpleOperator {
 	readonly name = "Transform";
 	readonly outputSchema: Schema;
 
-	private readonly inputSchema: Schema;
 	private readonly computedColumns: readonly CompiledColumn[];
 
 	private constructor(
-		inputSchema: Schema,
 		outputSchema: Schema,
 		computedColumns: CompiledColumn[],
 		_maxChunkSize: number,
 	) {
 		super();
-		this.inputSchema = inputSchema;
 		this.outputSchema = outputSchema;
 		this.computedColumns = computedColumns;
 	}
@@ -61,7 +58,7 @@ export class TransformOperator extends SimpleOperator {
 		if (columns.length === 0) {
 			// No columns to add - could just use passthrough
 			return ok(
-				new TransformOperator(inputSchema, inputSchema, [], maxChunkSize),
+				new TransformOperator(inputSchema, [], maxChunkSize),
 			);
 		}
 
@@ -101,7 +98,6 @@ export class TransformOperator extends SimpleOperator {
 
 		return ok(
 			new TransformOperator(
-				inputSchema,
 				currentSchema,
 				compiledColumns,
 				maxChunkSize,
@@ -119,59 +115,62 @@ export class TransformOperator extends SimpleOperator {
 			return ok(opResult(chunk));
 		}
 
-		// Get existing columns
-		const newColumns: ColumnBuffer[] = [];
-		for (let i = 0; i < this.inputSchema.columnCount; i++) {
-			const col = chunk.getColumn(i);
-			if (col === undefined) {
-				return err(ErrorCode.InvalidOffset);
-			}
-			newColumns.push(col);
-		}
+		// Get physical row count (length of first column buffer)
+		const inputColumns = chunk.getColumns();
+		const physicalRowCount = inputColumns[0]?.length ?? 0;
+		const selection = chunk.getSelection();
 
-		// Materialize chunk if it has a selection (we need actual indices)
-		let workingChunk = chunk;
-		if (chunk.hasSelection()) {
-			const materializeResult = chunk.materialize();
-			if (materializeResult.error !== ErrorCode.None) {
-				return err(materializeResult.error);
-			}
-			workingChunk = materializeResult.value;
-
-			// Re-get columns from materialized chunk
-			newColumns.length = 0;
-			for (let i = 0; i < this.inputSchema.columnCount; i++) {
-				const col = workingChunk.getColumn(i);
-				if (col === undefined) {
-					return err(ErrorCode.InvalidOffset);
-				}
-				newColumns.push(col);
-			}
-		}
-
-		const rowCount = workingChunk.rowCount;
+		const newColumns: ColumnBuffer[] = [...inputColumns];
 
 		// Compute new columns
 		for (const computed of this.computedColumns) {
-			const buffer = createColumnForDType(computed.dtype, rowCount);
+			// Create buffer with physical capacity
+			const buffer = createColumnForDType(computed.dtype, physicalRowCount);
 			const isString = computed.dtype.kind === DTypeKind.String;
 
-			// Evaluate expression for each row
-			for (let i = 0; i < rowCount; i++) {
-				const value = computed.compute(workingChunk, i);
-				if (value === null) {
-					buffer.appendNull();
-				} else if (isString && typeof value === "string") {
-					// Intern string into dictionary and store dict index
-					const dictIndex = workingChunk.dictionary?.internString(value) ?? 0;
-					buffer.append(dictIndex as never);
-				} else if (typeof value === "bigint") {
-					// For bigint, need to handle based on buffer type
-					buffer.append(value as never);
-				} else if (typeof value === "boolean") {
-					buffer.append((value ? 1 : 0) as never);
-				} else {
-					buffer.append(value as never);
+			// Initialize buffer length to physical row count
+			// We will sparsely populate it if there is a selection
+			buffer.setLength(physicalRowCount);
+
+			if (selection) {
+				// Sparse population matching selection
+				const selectedCount = chunk.rowCount;
+				for (let i = 0; i < selectedCount; i++) {
+					const physicalIndex = selection[i]!;
+					// Compute using logical index (chunk + i)
+					const value = computed.compute(chunk, i);
+
+					if (value === null) {
+						buffer.setNull(physicalIndex, true);
+					} else if (isString && typeof value === "string") {
+						const dictIndex = chunk.dictionary?.internString(value) ?? 0;
+						buffer.set(physicalIndex, dictIndex as never);
+					} else if (typeof value === "bigint") {
+						buffer.set(physicalIndex, value as never);
+					} else if (typeof value === "boolean") {
+						buffer.set(physicalIndex, (value ? 1 : 0) as never);
+					} else {
+						buffer.set(physicalIndex, value as never);
+					}
+				}
+			} else {
+				// Dense population (all rows)
+				const rowCount = chunk.rowCount;
+				for (let i = 0; i < rowCount; i++) {
+					const value = computed.compute(chunk, i);
+
+					if (value === null) {
+						buffer.setNull(i, true);
+					} else if (isString && typeof value === "string") {
+						const dictIndex = chunk.dictionary?.internString(value) ?? 0;
+						buffer.set(i, dictIndex as never);
+					} else if (typeof value === "bigint") {
+						buffer.set(i, value as never);
+					} else if (typeof value === "boolean") {
+						buffer.set(i, (value ? 1 : 0) as never);
+					} else {
+						buffer.set(i, value as never);
+					}
 				}
 			}
 
@@ -184,6 +183,11 @@ export class TransformOperator extends SimpleOperator {
 			newColumns,
 			chunk.dictionary,
 		);
+
+		// Re-apply selection if it existed
+		if (selection) {
+			resultChunk.applySelection(selection, chunk.rowCount);
+		}
 
 		return ok(opResult(resultChunk));
 	}

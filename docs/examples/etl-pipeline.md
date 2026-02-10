@@ -83,7 +83,7 @@ const productSchema = {
 Load data from multiple sources:
 
 ```typescript
-import { fromCsvString, DType } from "Molniya";
+import { fromCsvString, DType } from "molniya";
 
 // Load all sources
 const customers = fromCsvString(customersData, customerSchema);

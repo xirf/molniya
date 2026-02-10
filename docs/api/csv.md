@@ -19,7 +19,7 @@ readCsv<T = Record<string, unknown>>(
 **Example:**
 
 ```typescript
-import { readCsv, DType } from "Molniya";
+import { readCsv, DType } from "molniya";
 
 const df = await readCsv("data.csv", {
   id: DType.int32,
@@ -43,7 +43,7 @@ fromCsvString<T = Record<string, unknown>>(
 **Example:**
 
 ```typescript
-import { fromCsvString, DType } from "Molniya";
+import { fromCsvString, DType } from "molniya";
 
 const df = fromCsvString("id,name\n1,Alice", {
   id: DType.int32,
@@ -230,7 +230,7 @@ const df = await readCsv("wide_table.csv", schema, {
 ### Streaming with CsvSource
 
 ```typescript
-import { CsvSource, unwrap } from "Molniya";
+import { CsvSource, unwrap } from "molniya";
 
 const source = unwrap(CsvSource.fromFile("huge.csv", schema));
 
@@ -244,7 +244,7 @@ for await (const chunk of source) {
 ### Custom Parsing
 
 ```typescript
-import { createCsvParser, CsvSource, unwrap } from "Molniya";
+import { createCsvParser, CsvSource, unwrap } from "molniya";
 
 const schema = unwrap(createSchema({
   id: DType.int32,
@@ -262,7 +262,7 @@ const final = parser.finish();
 ## Error Handling
 
 ```typescript
-import { CsvSource, isErr } from "Molniya";
+import { CsvSource, isErr } from "molniya";
 
 const result = CsvSource.fromFile("data.csv", schema);
 

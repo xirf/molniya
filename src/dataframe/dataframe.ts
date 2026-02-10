@@ -58,11 +58,15 @@ import { createSchema, type SchemaSpec } from "../types/schema.ts";
 
 export type CsvReadOptions = CsvOptions & {
 	filter?: Expr | ColumnRef;
+	offload?: boolean;
+	offloadFile?: string;
 };
 
 export interface ParquetReadOptions {
 	projection?: string[];
 	filter?: Expr | ColumnRef;
+	offload?: boolean;
+	offloadFile?: string;
 }
 
 /**
@@ -108,7 +112,11 @@ export function fromRecords<T = Record<string, unknown>>(
 				} else if (typeof value === "bigint") {
 					buffer.set(i, value);
 				} else {
+<<<<<<< HEAD
 					buffer.set(i, BigInt(value as string | number | boolean));
+=======
+					buffer.set(i, BigInt(value as string | number | bigint | boolean));
+>>>>>>> 1a5dc455cb450d3f5ea622fd48d379f794d8a79b
 				}
 			} else {
 				buffer.set(i, value as number | bigint);
@@ -150,6 +158,71 @@ export async function readCsv<T = Record<string, unknown>>(
 	schema: CsvSchemaSpec,
 	options?: CsvReadOptions,
 ): Promise<DataFrame<T>> {
+	// Import offload utilities
+	const { OffloadManager } = await import("../io/offload-manager.ts");
+	const { writeToMbf, isCacheValid } = await import("../io/offload-utils.ts");
+	const { readMbf } = await import("../io/index.ts");
+
+	// Handle offloading if requested
+	if (options?.offload || options?.offloadFile) {
+		// Determine cache path
+		let cachePath: string;
+		let isTemp = false;
+
+		if (options.offloadFile) {
+			// User-specified persistent cache
+			cachePath = options.offloadFile;
+		} else {
+			// Auto-managed temp cache
+			await OffloadManager.ensureCacheDir();
+			const cacheKey = await OffloadManager.generateCacheKey(path);
+			cachePath = OffloadManager.getCachePath(cacheKey);
+			isTemp = true;
+		}
+
+		// Check if valid cache exists
+		if (await isCacheValid(cachePath, path)) {
+			// Use cached MBF
+			const mbfResult = unwrap(await readMbf(cachePath));
+			const df = DataFrame.fromStream<T>(
+				mbfResult,
+				mbfResult.getSchema(),
+				null, // MBF chunks have their own dictionaries
+			);
+			return options?.filter ? df.filter(options.filter) : df;
+		}
+
+		// No valid cache: read CSV → write to MBF → return MBF DataFrame
+		const source = unwrap(CsvSource.fromFile(path, schema, options));
+		let df = DataFrame.fromStream<T>(
+			source as unknown as AsyncIterable<Chunk>,
+			source.getSchema(),
+			source.getDictionary(),
+		);
+
+		// Apply filter if specified
+		if (options?.filter) {
+			df = df.filter(options.filter);
+		}
+
+		// Write to MBF
+		await writeToMbf(df as any, cachePath);
+
+		// Register for cleanup if temp
+		if (isTemp) {
+			OffloadManager.registerTempFile(cachePath);
+		}
+
+		// Return DataFrame backed by MBF
+		const mbfResult = unwrap(await readMbf(cachePath));
+		return DataFrame.fromStream<T>(
+			mbfResult,
+			mbfResult.getSchema(),
+			null, // MBF chunks have their own dictionaries
+		);
+	}
+
+	// No offload: normal streaming path
 	const source = unwrap(CsvSource.fromFile(path, schema, options));
 
 	// Return lazy DataFrame immediately
@@ -172,6 +245,70 @@ export async function readParquet<T = Record<string, unknown>>(
 	path: string,
 	options?: ParquetReadOptions,
 ): Promise<DataFrame<T>> {
+	// Import offload utilities
+	const { OffloadManager } = await import("../io/offload-manager.ts");
+	const { writeToMbf, isCacheValid } = await import("../io/offload-utils.ts");
+	const { readMbf } = await import("../io/index.ts");
+
+	// Handle offloading if requested
+	if (options?.offload || options?.offloadFile) {
+		// Determine cache path
+		let cachePath: string;
+		let isTemp = false;
+
+		if (options.offloadFile) {
+			// User-specified persistent cache
+			cachePath = options.offloadFile;
+		} else {
+			// Auto-managed temp cache
+			await OffloadManager.ensureCacheDir();
+			const cacheKey = await OffloadManager.generateCacheKey(path);
+			cachePath = OffloadManager.getCachePath(cacheKey);
+			isTemp = true;
+		}
+
+		// Check if valid cache exists
+		if (await isCacheValid(cachePath, path)) {
+			// Use cached MBF
+			const mbfResult = unwrap(await readMbf(cachePath));
+			const df = DataFrame.fromStream<T>(
+				mbfResult,
+				mbfResult.getSchema(),
+				null, // MBF chunks have their own dictionaries
+			);
+			const projected = options?.projection?.length
+				? df.select(...options.projection)
+				: df;
+			return options?.filter ? projected.filter(options.filter) : projected;
+		}
+
+		// No valid cache: read Parquet → write to MBF → return MBF DataFrame
+		let df = (await ioReadParquet(path)) as DataFrame<T>;
+		
+		// Apply projection and filter if specified
+		const projected = options?.projection?.length
+			? df.select(...options.projection)
+			: df;
+		df = options?.filter ? projected.filter(options.filter) : projected;
+
+		// Write to MBF
+		await writeToMbf(df as any, cachePath);
+
+		// Register for cleanup if temp
+		if (isTemp) {
+			OffloadManager.registerTempFile(cachePath);
+		}
+
+		// Return DataFrame backed by MBF
+		const mbfResult = unwrap(await readMbf(cachePath));
+		return DataFrame.fromStream<T>(
+			mbfResult,
+			mbfResult.getSchema(),
+			null, // MBF chunks have their own dictionaries
+		);
+	}
+
+	// No offload: normal path
 	const df = (await ioReadParquet(path)) as DataFrame<T>;
 	const projected = options?.projection?.length
 		? df.select(...(options.projection as (keyof T & string)[]))
@@ -182,9 +319,10 @@ export async function readParquet<T = Record<string, unknown>>(
 /**
  * Infer DType from a column's values.
  */
-function inferColumnType(values: unknown[]): DType {
+function inferColumnType(values: ArrayLike<unknown>): DType {
 	// Find first non-null value
-	for (const v of values) {
+	for (let i = 0; i < values.length; i++) {
+		const v = values[i];
 		if (v === null || v === undefined) continue;
 
 		if (typeof v === "number") {
@@ -209,7 +347,7 @@ function inferColumnType(values: unknown[]): DType {
  * @param schema Optional schema specification (inferred if not provided)
  */
 export function fromColumns<T = Record<string, unknown>>(
-	columns: Record<string, unknown[]>,
+	columns: Record<string, ArrayLike<unknown>>,
 	schema?: SchemaSpec,
 ): DataFrame<T> {
 	const columnNames = Object.keys(columns);
@@ -264,7 +402,11 @@ export function fromColumns<T = Record<string, unknown>>(
 				} else if (typeof value === "bigint") {
 					buffer.set(i, value);
 				} else {
+<<<<<<< HEAD
 					buffer.set(i, BigInt(value as string | number | boolean));
+=======
+					buffer.set(i, BigInt(value as string | number | bigint | boolean));
+>>>>>>> 1a5dc455cb450d3f5ea622fd48d379f794d8a79b
 				}
 			} else {
 				buffer.set(i, value as number | bigint);
@@ -288,11 +430,7 @@ export function fromArrays<T = Record<string, unknown>>(
 	arrays: Record<string, ArrayLike<unknown>>,
 	schema?: SchemaSpec,
 ): DataFrame<T> {
-	const columns: Record<string, unknown[]> = {};
-	for (const [name, arr] of Object.entries(arrays)) {
-		columns[name] = Array.from(arr as ArrayLike<unknown>);
-	}
-	return fromColumns(columns, schema);
+	return fromColumns(arrays, schema);
 }
 
 /**

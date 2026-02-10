@@ -14,7 +14,7 @@ You have web server logs in Common Log Format and want to:
 ## Sample Data
 
 ```typescript
-import { fromCsvString, DType, col, count, avg, sum, desc } from "Molniya";
+import { fromCsvString, DType, col, count, avg, sum, desc } from "molniya";
 
 // Common Log Format: host ident authuser date request status bytes
 const logData = `

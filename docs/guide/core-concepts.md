@@ -100,7 +100,7 @@ Benefits:
 Molniya has a strict type system built on `DType`:
 
 ```typescript
-import { DType } from "Molniya";
+import { DType } from "molniya";
 
 // Non-nullable types
 DType.int8
@@ -140,7 +140,7 @@ type RowType = { id: number; amount: number };
 Expressions are the building blocks of transformations:
 
 ```typescript
-import { col, lit, and, sum, avg } from "Molniya";
+import { col, lit, and, sum, avg } from "molniya";
 
 // Column references
 col("name")

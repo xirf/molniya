@@ -48,7 +48,7 @@ df = pl.scan_csv("data.csv")
 ```
 
 ```typescript [Molniya]
-import { readCsv, DType } from "Molniya";
+import { readCsv, DType } from "molniya";
 
 // Schema required
 const df = await readCsv("data.csv", {
@@ -97,7 +97,7 @@ pl.col("amount").sum()
 ```
 
 ```typescript [Molniya]
-import { col, sum } from "Molniya";
+import { col, sum } from "molniya";
 
 col("name")
 col("age").alias("years")
@@ -131,7 +131,7 @@ pl.col("a") % pl.col("b")
 ```
 
 ```typescript [Molniya]
-import { add, sub, mul, div, mod, col } from "Molniya";
+import { add, sub, mul, div, mod, col } from "molniya";
 
 add(col("a"), col("b"))
 sub(col("a"), col("b"))
@@ -157,7 +157,7 @@ df.filter(pl.col("name").is_null())
 ```
 
 ```typescript [Molniya]
-import { col, and, or, not } from "Molniya";
+import { col, and, or, not } from "molniya";
 
 df.filter(col("age").gt(25))
 df.filter(and(col("age").gt(25), col("dept").eq("Engineering")))
@@ -183,7 +183,7 @@ df.with_columns(
 ```
 
 ```typescript [Molniya]
-import { col } from "Molniya";
+import { col } from "molniya";
 
 df.withColumns({
   bonus: col("salary").mul(0.1),
@@ -229,7 +229,7 @@ df.group_by(["dept", "role"]).agg(...)
 ```
 
 ```typescript [Molniya]
-import { sum, avg, count, col } from "Molniya";
+import { sum, avg, count, col } from "molniya";
 
 df.groupBy("dept", [
   { name: "total", expr: sum("salary") },
@@ -254,7 +254,7 @@ df.sort(["dept", "salary"], descending=[False, True])
 ```
 
 ```typescript [Molniya]
-import { asc, desc } from "Molniya";
+import { asc, desc } from "molniya";
 
 df.sort(asc("age"))
 df.sort(desc("age"))
@@ -351,7 +351,7 @@ pl.col("amount").cast(pl.Float32)
 ```
 
 ```typescript [Molniya]
-import { DTypeKind } from "Molniya";
+import { DTypeKind } from "molniya";
 
 col("id").cast(DTypeKind.Int64)
 col("amount").cast(DTypeKind.Float32)

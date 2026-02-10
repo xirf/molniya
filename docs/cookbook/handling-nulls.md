@@ -7,13 +7,13 @@ Recipes for detecting, filtering, and replacing null (missing) values in your da
 ### Find Null Values
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Rows where email is null
 const missingEmail = df.filter(col("email").isNull());
 
 // Rows where any of several columns are null
-import { or } from "Molniya";
+import { or } from "molniya";
 const missingData = df.filter(or(
   col("email").isNull(),
   col("phone").isNull()
@@ -23,13 +23,13 @@ const missingData = df.filter(or(
 ### Find Non-Null Values
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Rows where email is not null
 const hasEmail = df.filter(col("email").isNotNull());
 
 // All required fields present
-import { and } from "Molniya";
+import { and } from "molniya";
 const completeRecords = df.filter(and(
   col("name").isNotNull(),
   col("email").isNotNull(),
@@ -40,7 +40,7 @@ const completeRecords = df.filter(and(
 ### Count Nulls
 
 ```typescript
-import { col, sum, count, when, lit } from "Molniya";
+import { col, sum, count, when, lit } from "molniya";
 
 // Count nulls in a column
 const nullCount = await df.agg(
@@ -60,7 +60,7 @@ const nullCounts = await df.agg([
 ### Remove Rows with Nulls
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Remove rows where specific column is null
 df.filter(col("email").isNotNull())
@@ -75,7 +75,7 @@ df.dropNulls("all")
 ### Keep Only Complete Records
 
 ```typescript
-import { col, and } from "Molniya";
+import { col, and } from "molniya";
 
 // Keep rows with all required fields
 df.filter(and(
@@ -90,7 +90,7 @@ df.filter(and(
 ### Fill with a Constant
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Replace nulls with 0
 df.withColumn("discount", col("discount").fillNull(0))
@@ -105,7 +105,7 @@ df.withColumn("status", col("status").fillNull("pending"))
 ### Fill with Another Column
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Use nickname if available, otherwise use name
 df.withColumn("display_name", 
@@ -121,7 +121,7 @@ df.withColumn("billing_address",
 ### Fill Multiple Columns
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Fill multiple columns at once
 df.withColumns({
@@ -136,7 +136,7 @@ df.withColumns({
 ### Fill Based on Condition
 
 ```typescript
-import { col, when, lit } from "Molniya";
+import { col, when, lit } from "molniya";
 
 // Fill null discount with 0 for active orders only
 df.withColumn("discount",
@@ -150,7 +150,7 @@ df.withColumn("discount",
 ### Fill with Calculated Value
 
 ```typescript
-import { col, avg } from "Molniya";
+import { col, avg } from "molniya";
 
 // Calculate average, then fill nulls with it
 const avgValue = await df.agg(avg("score"));
@@ -167,7 +167,7 @@ df.withColumn("score_filled",
 Last Observation Carried Forward - fill nulls with previous non-null value:
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Fill nulls with previous value
 df.withColumn("temperature", col("temperature").forwardFill())
@@ -178,7 +178,7 @@ df.withColumn("temperature", col("temperature").forwardFill())
 Fill nulls with next non-null value:
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Fill nulls with next value
 df.withColumn("temperature", col("temperature").backwardFill())
@@ -187,7 +187,7 @@ df.withColumn("temperature", col("temperature").backwardFill())
 ### Fill with Group Context
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Forward fill within each group
 df.sort(asc("date"))
@@ -202,7 +202,7 @@ df.sort(asc("date"))
 Most aggregation functions ignore nulls by default:
 
 ```typescript
-import { sum, avg, count } from "Molniya";
+import { sum, avg, count } from "molniya";
 
 // Sum ignores nulls automatically
 df.groupBy("category", [
@@ -215,7 +215,7 @@ df.groupBy("category", [
 ### Count Non-Nulls
 
 ```typescript
-import { count } from "Molniya";
+import { count } from "molniya";
 
 // Count only non-null values
 df.groupBy("category", [
@@ -227,7 +227,7 @@ df.groupBy("category", [
 ### Treat Null as Zero
 
 ```typescript
-import { col, sum } from "Molniya";
+import { col, sum } from "molniya";
 
 // Fill nulls with 0 before summing
 df.groupBy("category", [
@@ -240,7 +240,7 @@ df.groupBy("category", [
 ### Define Nullable Columns
 
 ```typescript
-import { DType } from "Molniya";
+import { DType } from "molniya";
 
 const schema = {
   // Required columns (cannot be null)
@@ -258,7 +258,7 @@ const schema = {
 ### Convert Nullable to Non-Nullable
 
 ```typescript
-import { col, DType } from "Molniya";
+import { col, DType } from "molniya";
 
 // Fill nulls, then cast to non-nullable
 df.withColumn("email", col("email").fillNull("unknown"))
@@ -270,7 +270,7 @@ df.withColumn("email", col("email").fillNull("unknown"))
 ### Data Cleaning Pipeline
 
 ```typescript
-import { col, and } from "Molniya";
+import { col, and } from "molniya";
 
 const cleaned = df
   // Fill defaults
@@ -292,7 +292,7 @@ const cleaned = df
 ### Coalesce Multiple Columns
 
 ```typescript
-import { col, coalesce } from "Molniya";
+import { col, coalesce } from "molniya";
 
 // Use first non-null value from multiple columns
 df.withColumn("contact",
@@ -303,7 +303,7 @@ df.withColumn("contact",
 ### Null Indicator Column
 
 ```typescript
-import { col, when, lit } from "Molniya";
+import { col, when, lit } from "molniya";
 
 // Add flag column for missing data
 df.withColumn("has_email", 
@@ -331,7 +331,7 @@ import {
   lit,
   sum,
   avg 
-} from "Molniya";
+} from "molniya";
 
 const data = [
   { id: 1, name: "Alice", email: "alice@example.com", score: 95 },

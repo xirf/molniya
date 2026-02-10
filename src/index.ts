@@ -85,6 +85,8 @@ export {
 	ParquetReader,
 	readCsvFile,
 	readCsvString,
+	MbfSource,
+	readMbf,
 } from "./io/index.ts";
 
 // Re-export operators

@@ -129,7 +129,7 @@ const result = df.select(...existingCols);
 ### Select with Aliases
 
 ```typescript
-import { col } from "Molniya";
+import { col } from "molniya";
 
 // Select with computed columns
 df.select("id")

@@ -13,7 +13,7 @@ You have a CSV file with sales transactions and want to:
 ## Sample Data
 
 ```typescript
-import { fromCsvString, DType, col, sum, avg, count, desc } from "Molniya";
+import { fromCsvString, DType, col, sum, avg, count, desc } from "molniya";
 
 const salesData = `
 transaction_id,date,product,category,customer_id,quantity,unit_price

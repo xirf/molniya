@@ -147,32 +147,52 @@ export function convertColumn(
 	// DECIMAL
 	if (ctype === CONVERTED_TYPE.DECIMAL) {
 		const factor = 10 ** -(scale || 0);
-		return Array.from(data).map((v) => {
+		const result = new Array(data.length);
+		for (let i = 0; i < data.length; i++) {
+			const v = data[i];
 			if (v instanceof Uint8Array) {
-				return parseDecimal(v) * factor;
+				result[i] = parseDecimal(v) * factor;
+			} else {
+				result[i] = Number(v) * factor;
 			}
-			return Number(v) * factor;
-		});
+		}
+		return result;
 	}
 
 	// INT96 (timestamp)
 	if (type === PARQUET_TYPE.INT96) {
-		return Array.from(data).map((v) => int96ToDate(v as bigint));
+		const result = new Array(data.length);
+		for (let i = 0; i < data.length; i++) {
+			result[i] = int96ToDate(data[i] as bigint);
+		}
+		return result;
 	}
 
 	// DATE
 	if (ctype === CONVERTED_TYPE.DATE) {
-		return Array.from(data).map((v) => daysToDate(v as number));
+		const result = new Array(data.length);
+		for (let i = 0; i < data.length; i++) {
+			result[i] = daysToDate(data[i] as number);
+		}
+		return result;
 	}
 
 	// TIMESTAMP_MILLIS
 	if (ctype === CONVERTED_TYPE.TIMESTAMP_MILLIS) {
-		return Array.from(data).map((v) => millisToDate(v as number | bigint));
+		const result = new Array(data.length);
+		for (let i = 0; i < data.length; i++) {
+			result[i] = millisToDate(data[i] as number | bigint);
+		}
+		return result;
 	}
 
 	// TIMESTAMP_MICROS
 	if (ctype === CONVERTED_TYPE.TIMESTAMP_MICROS) {
-		return Array.from(data).map((v) => microsToDate(v as bigint));
+		const result = new Array(data.length);
+		for (let i = 0; i < data.length; i++) {
+			result[i] = microsToDate(data[i] as bigint);
+		}
+		return result;
 	}
 
 	// UTF8 / BYTE_ARRAY - keep as bytes for interning if requested

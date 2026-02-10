@@ -251,6 +251,35 @@ export class DataFrame<T = Record<string, unknown>> {
 		throw new Error("Method not implemented. Ensure mixins are loaded.");
 	}
 
+	/** @internal Execute pipeline and return stream */
+	async *stream(): AsyncGenerator<Chunk> {
+		if (this.operators.length === 0) {
+			if (Symbol.asyncIterator in this.source) {
+				for await (const chunk of this.source as AsyncIterable<Chunk>) {
+					yield chunk;
+				}
+			} else {
+				for (const chunk of this.source as Iterable<Chunk>) {
+					yield chunk;
+				}
+			}
+			return;
+		}
+
+		const pipeline = new Pipeline(this.operators);
+		
+		if (Symbol.asyncIterator in this.source) {
+			yield* pipeline.streamAsync(this.source as AsyncIterable<Chunk>);
+		} else {
+			// Wrap sync iterator in async generator or just yield from sync stream?
+			// Pipeline.stream returns Generator (sync). We need AsyncGenerator.
+			const syncStream = pipeline.stream(this.source as Iterable<Chunk>);
+			for (const chunk of syncStream) {
+				yield chunk;
+			}
+		}
+	}
+
 	/** @internal Execute pipeline */
 	async collect(): Promise<DataFrame<T>> {
 		if (this.operators.length === 0) {
