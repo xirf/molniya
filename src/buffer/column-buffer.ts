@@ -46,13 +46,15 @@ export type TypedArrayFor<K extends DTypeKind> = K extends DTypeKind.Int8
 										? Float64Array
 										: K extends DTypeKind.Boolean
 											? Uint8Array
-											: K extends DTypeKind.String
+											: K extends DTypeKind.String | DTypeKind.StringDict
 												? Uint32Array
-												: K extends DTypeKind.Date
-													? Int32Array
-													: K extends DTypeKind.Timestamp
-														? BigInt64Array
-														: never;
+												: K extends DTypeKind.StringView
+													? Uint8Array  // Special: handled by AdaptiveStringColumn
+													: K extends DTypeKind.Date
+														? Int32Array
+														: K extends DTypeKind.Timestamp
+															? BigInt64Array
+															: never;
 
 /**
  * A column buffer storing values of a specific dtype.

@@ -106,6 +106,14 @@ export class DataFrame<T = Record<string, unknown>> {
 		]);
 	}
 
+	/** @internal Replace operators and add a new one (used by optimizer for filter fusion) */
+	withOperators<U = T>(ops: Operator[], extra: Operator): DataFrame<U> {
+		return new DataFrame<U>(this.source, this._schema, this._dictionary, [
+			...ops,
+			extra,
+		]);
+	}
+
 	/* OPERATORS (Typed Definitions)
   /*-----------------------------------------------------
   /* Methods are implemented via mixins but defined here for TS
@@ -163,6 +171,21 @@ export class DataFrame<T = Record<string, unknown>> {
 
 	/** Show first N rows */
 	async show(_n?: number): Promise<void> {
+		throw new Error("Method not implemented. Ensure mixins are loaded.");
+	}
+
+	/** Export as columnar data (zero-copy for numeric columns) */
+	async toColumns(): Promise<Record<string, unknown>> {
+		throw new Error("Method not implemented. Ensure mixins are loaded.");
+	}
+
+	/** Streaming forEach — O(chunk) memory */
+	async forEach(_fn: (row: T) => void): Promise<void> {
+		throw new Error("Method not implemented. Ensure mixins are loaded.");
+	}
+
+	/** Streaming reduce — O(1) memory */
+	async reduce<R>(_fn: (acc: R, row: T) => R, _initial: R): Promise<R> {
 		throw new Error("Method not implemented. Ensure mixins are loaded.");
 	}
 

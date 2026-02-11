@@ -60,6 +60,10 @@ export enum ErrorCode {
 	CastNotSupported = 510,
 	CastOverflow = 511,
 	InvalidFillValue = 512,
+
+	// Internal/state errors (520-529)
+	InvalidState = 520,
+	InvalidArgument = 521,
 }
 
 /** Human-readable error messages for debugging */
@@ -102,6 +106,8 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
 	[ErrorCode.CastNotSupported]: "Cast not supported for this type combination",
 	[ErrorCode.CastOverflow]: "Value overflow during cast",
 	[ErrorCode.InvalidFillValue]: "Invalid fill value for column type",
+	[ErrorCode.InvalidState]: "Invalid state",
+	[ErrorCode.InvalidArgument]: "Invalid argument",
 };
 
 /**

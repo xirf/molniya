@@ -88,6 +88,11 @@ export class Chunk {
 		return this.columns;
 	}
 
+	/** Get the number of physical (unselected) rows in underlying buffers */
+	getPhysicalRowCount(): number {
+		return this.physicalRowCount;
+	}
+
 	/**
 	 * Apply a selection vector.
 	 * This doesn't copy data; it just marks which rows are valid.
@@ -107,6 +112,29 @@ export class Chunk {
 			this.selection = newSelection;
 			this.selectedCount = count;
 		}
+	}
+
+	/**
+	 * Create a new Chunk view with the given selection applied.
+	 * Shares the same underlying column data (zero-copy) but has its own selection.
+	 * This is the non-mutating alternative to applySelection.
+	 */
+	withSelection(selection: Uint32Array, count: number): Chunk {
+		const view = new Chunk(this.schema, this.columns, this.dictionary);
+		if (this.selection !== null) {
+			// Compose: map new selection through existing selection
+			const composed = new Uint32Array(count);
+			for (let i = 0; i < count; i++) {
+				const idx = selection[i] ?? 0;
+				composed[i] = this.selection[idx] ?? 0;
+			}
+			view.selection = composed;
+		} else {
+			view.selection = selection.slice(0, count);
+		}
+		view.selectedCount = count;
+		view.physicalRowCount = this.physicalRowCount;
+		return view;
 	}
 
 	/** Clear selection (all rows become valid again) */

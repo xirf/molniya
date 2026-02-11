@@ -97,8 +97,17 @@ export class CountAllState implements AggState {
 		this.count = 0n;
 	}
 
-	accumulate(_value: number | bigint | null): void {
-		this.count++;
+	accumulate(value: number | bigint | null): void {
+		// Support batch accumulation: if value is a number > 1, add that many.
+		// This allows the aggregate operator to pass rowCount directly
+		// instead of calling accumulate() per row.
+		if (typeof value === "number") {
+			this.count += BigInt(value);
+		} else if (typeof value === "bigint") {
+			this.count += value;
+		} else {
+			this.count++;
+		}
 	}
 
 	result(): bigint {

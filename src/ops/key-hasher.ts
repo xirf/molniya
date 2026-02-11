@@ -16,6 +16,10 @@
 const FNV_OFFSET_BASIS = 2166136261;
 const FNV_PRIME = 16777619;
 
+/** Module-level singleton for float hashing (3.4 optimization — avoid per-call allocation) */
+const _hashBuf = new ArrayBuffer(8);
+const _hashView = new DataView(_hashBuf);
+
 /**
  * Hash a single value using FNV-1a.
  * Returns a 32-bit hash code.
@@ -49,12 +53,10 @@ function hashValue(value: number | bigint | null): number {
 		hash ^= (v >>> 24) & 0xff;
 		hash = Math.imul(hash, FNV_PRIME);
 	} else {
-		// For floats, use a simpler hash based on the bit pattern
-		const buffer = new ArrayBuffer(8);
-		const view = new DataView(buffer);
-		view.setFloat64(0, value, true); // little-endian
-		const low = view.getUint32(0, true);
-		const high = view.getUint32(4, true);
+		// For floats, use pre-allocated DataView to read bit pattern
+		_hashView.setFloat64(0, value, true);
+		const low = _hashView.getUint32(0, true);
+		const high = _hashView.getUint32(4, true);
 		hash = hashCombine(hashValue(low), high);
 	}
 

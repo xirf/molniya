@@ -47,12 +47,17 @@ export class Dictionary {
 	private hashTable: Int32Array;
 	/** Chain links: index -> next index with same hash (-1 = end) */
 	private chains: Int32Array;
+	/** Cached hash values per entry, avoids recomputation during rehash */
+	private hashes: Uint32Array;
 	/** Current hash table size (power of 2) */
 	private hashTableSize: number;
 
 	/** Text encoder/decoder for string conversion (only used at boundaries) */
 	private readonly encoder: TextEncoder;
 	private readonly decoder: TextDecoder;
+
+	/** Lazy string cache: decoded strings indexed by DictIndex */
+	private stringCache: string[] = [];
 
 	constructor(initialCapacity: number = INITIAL_CAPACITY) {
 		// Ensure power of 2 for hash table
@@ -66,6 +71,7 @@ export class Dictionary {
 
 		this.hashTable = new Int32Array(this.hashTableSize).fill(-1);
 		this.chains = new Int32Array(initialCapacity).fill(-1);
+		this.hashes = new Uint32Array(initialCapacity);
 
 		this.encoder = new TextEncoder();
 		this.decoder = new TextDecoder("utf-8", { fatal: true });
@@ -120,18 +126,24 @@ export class Dictionary {
 	}
 
 	/**
-	 * Get string by index.
-	 * Returns undefined if index is out of bounds.
+	 * Get string by index (cached).
+	 * First call per index decodes from UTF-8; subsequent calls return cached string.
 	 */
 	getString(index: DictIndex): string | undefined {
 		if (index >= this.count) {
 			return undefined;
 		}
+		// Check cache (undefined means not yet cached; sparse array access returns undefined)
+		const cached = this.stringCache[index];
+		if (cached !== undefined) return cached;
+
 		const bytes = this.getBytes(index);
 		if (bytes === undefined) {
 			return undefined;
 		}
-		return this.decoder.decode(bytes);
+		const str = this.decoder.decode(bytes);
+		this.stringCache[index] = str;
+		return str;
 	}
 
 	/**
@@ -239,6 +251,14 @@ export class Dictionary {
 		this.data.set(bytes, this.dataOffset);
 		this.dataOffset += bytes.length;
 
+		// Store hash for fast rehash later
+		if (index >= this.hashes.length) {
+			const newHashes = new Uint32Array(this.hashes.length * 2);
+			newHashes.set(this.hashes);
+			this.hashes = newHashes;
+		}
+		this.hashes[index] = hash;
+
 		// Add to hash chain
 		this.chains[index] = this.hashTable[slot] ?? -1;
 		this.hashTable[slot] = index;
@@ -284,12 +304,10 @@ export class Dictionary {
 		this.hashTable = new Int32Array(this.hashTableSize).fill(-1);
 		this.chains.fill(-1);
 
-		// Re-insert all entries
+		// Re-insert all entries using cached hashes (no recomputation needed)
+		const mask = this.hashTableSize - 1;
 		for (let i = 0; i < this.count; i++) {
-			const bytes = this.getBytes(i);
-			if (!bytes) continue; // Should not happen
-			const hash = this.hash(bytes);
-			const slot = hash & (this.hashTableSize - 1);
+			const slot = (this.hashes[i]!) & mask;
 			this.chains[i] = this.hashTable[slot] ?? -1;
 			this.hashTable[slot] = i;
 		}

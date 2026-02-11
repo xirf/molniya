@@ -7,6 +7,7 @@
 
 import { Chunk } from "../buffer/chunk.ts";
 import type { ColumnBuffer } from "../buffer/column-buffer.ts";
+import { EnhancedChunk } from "../buffer/chunk-ext.ts";
 import { ErrorCode, err, ok, type Result } from "../types/error.ts";
 import {
 	createSchema,
@@ -128,6 +129,33 @@ export class ProjectOperator extends SimpleOperator {
 			newColumns,
 			chunk.dictionary,
 		);
+
+		// Preserve and remap enhanced chunk metadata for StringView support
+		const enhancedChunk = (chunk as any)._enhancedChunk;
+		if (enhancedChunk) {
+			// Remap StringView columns to new indices
+			const remappedStringViews = new Map<number, any>();
+			for (let newIdx = 0; newIdx < this.columnMapping.length; newIdx++) {
+				const oldIdx = this.columnMapping[newIdx];
+				const adapter = enhancedChunk.getColumnAdapter(oldIdx);
+				// Check if this column has a StringView adapter
+				if (adapter && adapter.isStringView()) {
+					const storage = adapter.getStorage();
+					remappedStringViews.set(newIdx, storage);
+				}
+			}
+			
+			// Create new EnhancedChunk with remapped columns
+			if (remappedStringViews.size > 0) {
+				const newEnhanced = new EnhancedChunk(
+					this.outputSchema,
+					newColumns,
+					chunk.dictionary,
+					remappedStringViews
+				);
+				(projectedChunk as any)._enhancedChunk = newEnhanced;
+			}
+		}
 
 		// Preserve selection if any
 		const existingSelection = chunk.getSelection();

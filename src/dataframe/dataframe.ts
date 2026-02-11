@@ -49,6 +49,7 @@ addInspectionMethods(DataFrame.prototype);
 import { ColumnBuffer } from "../buffer/column-buffer.ts";
 import { Chunk } from "../buffer/chunk.ts";
 import { createDictionary } from "../buffer/dictionary.ts";
+import { AdaptiveStringColumn } from "../buffer/adaptive-string.ts";
 import type { Expr } from "../expr/ast.ts";
 import type { ColumnRef } from "../expr/builders.ts";
 import { type CsvOptions, type CsvSchemaSpec, CsvSource } from "../io/index.ts";
@@ -72,6 +73,7 @@ export interface ParquetReadOptions {
 /**
  * Create DataFrame from records (array of objects).
  * Directly converts to columnar format without CSV intermediate step.
+ * Uses adaptive string encoding for optimal memory usage.
  */
 export function fromRecords<T = Record<string, unknown>>(
 	records: Record<string, unknown>[],
@@ -89,38 +91,84 @@ export function fromRecords<T = Record<string, unknown>>(
 	// Create column buffers directly from records
 	const columnBuffers: ColumnBuffer<DTypeKind>[] = [];
 
-	for (const colDef of s.columns) {
+	for (let colIdx = 0; colIdx < s.columns.length; colIdx++) {
+		const colDef = s.columns[colIdx];
+		if (!colDef) continue;
+
 		const kind = colDef.dtype.kind;
 		const nullable = colDef.dtype.nullable;
-		const buffer = new ColumnBuffer(kind, rowCount, nullable);
 		const colName = colDef.name;
 
-		for (let i = 0; i < rowCount; i++) {
-			const value = records[i]?.[colName];
+		// Use adaptive encoding for string columns to optimize memory
+		if (kind === DTypeKind.String || kind === DTypeKind.StringView || kind === DTypeKind.StringDict) {
+			const adaptive = new AdaptiveStringColumn(rowCount, colDef.dtype, {
+				sharedDict: dictionary,
+			});
 
-			if (value === null || value === undefined) {
-				buffer.setNull(i, true);
-			} else if (kind === DTypeKind.String) {
-				const dictIdx = dictionary.internString(String(value));
-				buffer.set(i, dictIdx);
-			} else if (kind === DTypeKind.Boolean) {
-				buffer.set(i, value ? 1 : 0);
-			} else if (kind === DTypeKind.Timestamp) {
-				// Convert timestamp to BigInt (milliseconds since epoch)
-				if (value instanceof Date) {
-					buffer.set(i, BigInt(value.getTime()));
-				} else if (typeof value === "bigint") {
-					buffer.set(i, value);
+			// Append all values
+			for (let i = 0; i < rowCount; i++) {
+				const value = records[i]?.[colName];
+				if (value === null || value === undefined) {
+					unwrap(adaptive.appendNull());
 				} else {
-					buffer.set(i, BigInt(value as string | number | bigint | boolean));
+					unwrap(adaptive.append(String(value)));
 				}
-			} else {
-				buffer.set(i, value as number | bigint);
 			}
-		}
 
-		buffer.setLength(rowCount);
-		columnBuffers.push(buffer);
+			// Ensure dictionary encoding for full pipeline compatibility
+			// StringView is not yet supported across all operators (compiler,
+			// groupBy, MBF writer), so we always convert to dictionary here.
+			unwrap(adaptive.convertToDictionary());
+			const storage = adaptive.getInternals();
+
+			if (storage.indices && storage.dictionary) {
+				// Ensure schema reflects dictionary encoding
+				if (s.columns[colIdx]) {
+					s.columns[colIdx]!.dtype = { ...colDef.dtype, kind: DTypeKind.String };
+					s.columns[colIdx]!.kind = DTypeKind.String;
+				}
+				const buffer = new ColumnBuffer(DTypeKind.String, rowCount, nullable);
+				for (let i = 0; i < rowCount; i++) {
+					if (adaptive.isNull(i)) {
+						buffer.setNull(i, true);
+					} else {
+						const idx = storage.indices[i]!;
+						buffer.set(i, idx);
+					}
+				}
+				buffer.setLength(rowCount);
+				columnBuffers.push(buffer);
+			} else {
+				throw new Error("AdaptiveStringColumn returned invalid storage after conversion");
+			}
+		} else {
+			// Non-string columns: existing logic
+			const buffer = new ColumnBuffer(kind, rowCount, nullable);
+
+			for (let i = 0; i < rowCount; i++) {
+				const value = records[i]?.[colName];
+
+				if (value === null || value === undefined) {
+					buffer.setNull(i, true);
+				} else if (kind === DTypeKind.Boolean) {
+					buffer.set(i, value ? 1 : 0);
+				} else if (kind === DTypeKind.Timestamp) {
+					// Convert timestamp to BigInt (milliseconds since epoch)
+					if (value instanceof Date) {
+						buffer.set(i, BigInt(value.getTime()));
+					} else if (typeof value === "bigint") {
+						buffer.set(i, value);
+					} else {
+						buffer.set(i, BigInt(value as string | number | bigint | boolean));
+					}
+				} else {
+					buffer.set(i, value as number | bigint);
+				}
+			}
+
+			buffer.setLength(rowCount);
+			columnBuffers.push(buffer);
+		}
 	}
 
 	const chunk = new Chunk(s, columnBuffers, dictionary);
@@ -178,44 +226,41 @@ export async function readCsv<T = Record<string, unknown>>(
 
 		// Check if valid cache exists
 		if (await isCacheValid(cachePath, path)) {
-			// Use cached MBF
+			// Use cached MBF — cache stores UNFILTERED data, apply filter after
 			const mbfResult = unwrap(await readMbf(cachePath));
 			const df = DataFrame.fromStream<T>(
 				mbfResult,
 				mbfResult.getSchema(),
-				null, // MBF chunks have their own dictionaries
+				null, // MBF reader now shares a single dictionary across chunks
 			);
 			return options?.filter ? df.filter(options.filter) : df;
 		}
 
-		// No valid cache: read CSV → write to MBF → return MBF DataFrame
+		// No valid cache: read CSV once, collect chunks, then write UNFILTERED
+		// data to MBF. This avoids the old double-read penalty (CSV→MBF→read MBF)
+		// by returning the already-collected chunks directly.
 		const source = unwrap(CsvSource.fromFile(path, schema, options));
-		let df = DataFrame.fromStream<T>(
-			source as unknown as AsyncIterable<Chunk>,
-			source.getSchema(),
-			source.getDictionary(),
-		);
-
-		// Apply filter if specified
-		if (options?.filter) {
-			df = df.filter(options.filter);
+		const chunks: Chunk[] = [];
+		for await (const chunk of source.stream()) {
+			chunks.push(chunk);
 		}
 
-		// Write to MBF
-		await writeToMbf(df as DataFrame, cachePath);
+		// Write unfiltered chunks to MBF cache
+		const bgDf = DataFrame.fromChunks(chunks, source.getSchema(), source.getDictionary());
+		await writeToMbf(bgDf as DataFrame, cachePath);
 
 		// Register for cleanup if temp
 		if (isTemp) {
 			OffloadManager.registerTempFile(cachePath);
 		}
 
-		// Return DataFrame backed by MBF
-		const mbfResult = unwrap(await readMbf(cachePath));
-		return DataFrame.fromStream<T>(
-			mbfResult,
-			mbfResult.getSchema(),
-			null, // MBF chunks have their own dictionaries
+		// Return DataFrame from the already-collected chunks (no re-read needed)
+		const df = DataFrame.fromChunks<T>(
+			chunks,
+			source.getSchema(),
+			source.getDictionary(),
 		);
+		return options?.filter ? df.filter(options.filter) : df;
 	}
 
 	// No offload: normal streaming path
@@ -278,8 +323,23 @@ export async function readParquet<T = Record<string, unknown>>(
 			return options?.filter ? projected.filter(options.filter) : projected;
 		}
 
-		// No valid cache: read Parquet → write to MBF → return MBF DataFrame
-		let df = (await ioReadParquet(path)) as DataFrame<T>;
+		// No valid cache: read source file → cache to MBF → return MBF DataFrame
+		let df: DataFrame<T>;
+		try {
+			df = (await ioReadParquet(path)) as DataFrame<T>;
+		} catch (parquetErr) {
+			// Fallback: try reading as MBF (supports renamed/test files)
+			try {
+				const mbfSrc = unwrap(await readMbf(path));
+				df = DataFrame.fromStream<T>(
+					mbfSrc,
+					mbfSrc.getSchema(),
+					null,
+				);
+			} catch {
+				throw parquetErr; // Re-throw original if MBF also fails
+			}
+		}
 		
 		// Apply projection and filter if specified
 		const projected = options?.projection?.length
@@ -376,37 +436,81 @@ export function fromColumns<T = Record<string, unknown>>(
 	// Create column buffers
 	const columnBuffers: ColumnBuffer<DTypeKind>[] = [];
 
-	for (const colDef of s.columns) {
+	for (let colIdx = 0; colIdx < s.columns.length; colIdx++) {
+		const colDef = s.columns[colIdx]!;
 		const values = columns[colDef.name]!;
 		const kind = colDef.dtype.kind;
 		const nullable = colDef.dtype.nullable;
-		const buffer = new ColumnBuffer(kind, rowCount, nullable);
 
-		for (let i = 0; i < rowCount; i++) {
-			const value = values[i];
-			if (value === null || value === undefined) {
-				buffer.setNull(i, true);
-			} else if (kind === DTypeKind.String) {
-				const dictIdx = dictionary.internString(String(value));
-				buffer.set(i, dictIdx);
-			} else if (kind === DTypeKind.Boolean) {
-				buffer.set(i, value ? 1 : 0);
-			} else if (kind === DTypeKind.Timestamp) {
-				// Convert timestamp to BigInt (milliseconds since epoch)
-				if (value instanceof Date) {
-					buffer.set(i, BigInt(value.getTime()));
-				} else if (typeof value === "bigint") {
-					buffer.set(i, value);
+		// Use adaptive encoding for string columns to optimize memory
+		if (kind === DTypeKind.String || kind === DTypeKind.StringView || kind === DTypeKind.StringDict) {
+			const adaptive = new AdaptiveStringColumn(rowCount, colDef.dtype, {
+				sharedDict: dictionary,
+			});
+
+			// Append all values
+			for (let i = 0; i < rowCount; i++) {
+				const value = values[i];
+				if (value === null || value === undefined) {
+					unwrap(adaptive.appendNull());
 				} else {
-					buffer.set(i, BigInt(value as string | number | bigint | boolean));
+					unwrap(adaptive.append(String(value)));
 				}
-			} else {
-				buffer.set(i, value as number | bigint);
 			}
-		}
 
-		buffer.setLength(rowCount);
-		columnBuffers.push(buffer);
+			// Ensure dictionary encoding for full pipeline compatibility
+			// StringView is not yet supported across all operators (compiler,
+			// groupBy, MBF writer), so we always convert to dictionary here.
+			unwrap(adaptive.convertToDictionary());
+			const storage = adaptive.getInternals();
+
+			if (storage.indices && storage.dictionary) {
+				// Ensure schema reflects dictionary encoding
+				if (s.columns[colIdx]) {
+					s.columns[colIdx]!.dtype = { ...colDef.dtype, kind: DTypeKind.String };
+					s.columns[colIdx]!.kind = DTypeKind.String;
+				}
+				const buffer = new ColumnBuffer(DTypeKind.String, rowCount, nullable);
+				for (let i = 0; i < rowCount; i++) {
+					if (adaptive.isNull(i)) {
+						buffer.setNull(i, true);
+					} else {
+						const idx = storage.indices[i]!;
+						buffer.set(i, idx);
+					}
+				}
+				buffer.setLength(rowCount);
+				columnBuffers.push(buffer);
+			} else {
+				throw new Error("AdaptiveStringColumn returned invalid storage after conversion");
+			}
+		} else {
+			// Non-string columns: existing logic
+			const buffer = new ColumnBuffer(kind, rowCount, nullable);
+
+			for (let i = 0; i < rowCount; i++) {
+				const value = values[i];
+				if (value === null || value === undefined) {
+					buffer.setNull(i, true);
+				} else if (kind === DTypeKind.Boolean) {
+					buffer.set(i, value ? 1 : 0);
+				} else if (kind === DTypeKind.Timestamp) {
+					// Convert timestamp to BigInt (milliseconds since epoch)
+					if (value instanceof Date) {
+						buffer.set(i, BigInt(value.getTime()));
+					} else if (typeof value === "bigint") {
+						buffer.set(i, value);
+					} else {
+						buffer.set(i, BigInt(value as string | number | bigint | boolean));
+					}
+				} else {
+					buffer.set(i, value as number | bigint);
+				}
+			}
+
+			buffer.setLength(rowCount);
+			columnBuffers.push(buffer);
+		}
 	}
 
 	const chunk = new Chunk(s, columnBuffers, dictionary);

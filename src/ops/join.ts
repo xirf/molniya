@@ -385,13 +385,14 @@ function buildJoinSchema(
 
 /**
  * Build hash table from right chunks.
- * Maps key value (as string) to array of (chunkIdx, rowIdx) pairs.
+ * Maps key value (as string) to flat packed arrays of (chunkIdx, rowIdx) pairs.
+ * Uses type-prefixed keys to avoid collisions (e.g. 42 vs "42" vs 42n).
  */
 function buildHashTable(
 	rightChunks: Chunk[],
 	keyIdx: number,
-): Map<string, Array<{ chunkIdx: number; rowIdx: number }>> {
-	const table = new Map<string, Array<{ chunkIdx: number; rowIdx: number }>>();
+): Map<string, { chunkIndices: Uint16Array; rowIndices: Uint32Array; length: number }> {
+	const table = new Map<string, { chunkIndices: Uint16Array; rowIndices: Uint32Array; length: number }>();
 
 	for (let c = 0; c < rightChunks.length; c++) {
 		const chunk = rightChunks[c]!;
@@ -399,12 +400,24 @@ function buildHashTable(
 			if (chunk.isNull(keyIdx, r)) continue;
 
 			const keyValue = getKeyAsString(chunk, keyIdx, r);
-			let entries = table.get(keyValue);
-			if (!entries) {
-				entries = [];
-				table.set(keyValue, entries);
+			let entry = table.get(keyValue);
+			if (!entry) {
+				entry = { chunkIndices: new Uint16Array(4), rowIndices: new Uint32Array(4), length: 0 };
+				table.set(keyValue, entry);
 			}
-			entries.push({ chunkIdx: c, rowIdx: r });
+			// Grow if needed
+			if (entry.length >= entry.chunkIndices.length) {
+				const newSize = entry.chunkIndices.length * 2;
+				const newChunks = new Uint16Array(newSize);
+				newChunks.set(entry.chunkIndices);
+				entry.chunkIndices = newChunks;
+				const newRows = new Uint32Array(newSize);
+				newRows.set(entry.rowIndices);
+				entry.rowIndices = newRows;
+			}
+			entry.chunkIndices[entry.length] = c;
+			entry.rowIndices[entry.length] = r;
+			entry.length++;
 		}
 	}
 
@@ -413,15 +426,21 @@ function buildHashTable(
 
 /**
  * Get key value as string for hashing.
+ * Uses type prefixes to avoid collisions (e.g. n:42 vs s:42 vs b:42).
  */
 function getKeyAsString(chunk: Chunk, colIdx: number, rowIdx: number): string {
 	const dtype = chunk.schema.columns[colIdx]!.dtype;
 
 	if (dtype.kind === DTypeKind.String) {
-		return chunk.getStringValue(colIdx, rowIdx) ?? "";
+		// Prefix with "s:" to distinguish from numeric "42"
+		return "s:" + (chunk.getStringValue(colIdx, rowIdx) ?? "");
 	}
 
-	return String(chunk.getValue(colIdx, rowIdx));
+	const value = chunk.getValue(colIdx, rowIdx);
+	if (typeof value === "bigint") {
+		return "b:" + value.toString();
+	}
+	return "n:" + String(value);
 }
 
 /**
@@ -432,7 +451,7 @@ function processLeftChunk(
 	leftKeyIdx: number,
 	rightChunks: Chunk[],
 	rightKeyIdx: number,
-	hashTable: Map<string, Array<{ chunkIdx: number; rowIdx: number }>>,
+	hashTable: Map<string, { chunkIndices: Uint16Array; rowIndices: Uint32Array; length: number }>,
 	outputSchema: Schema,
 	leftSchema: Schema,
 	rightSchema: Schema,
@@ -454,7 +473,7 @@ function processLeftChunk(
 
 	for (let r = 0; r < leftChunk.rowCount; r++) {
 		const isNullKey = leftChunk.isNull(leftKeyIdx, r);
-		let matches: { chunkIdx: number; rowIdx: number }[] | undefined;
+		let matches: { chunkIndices: Uint16Array; rowIndices: Uint32Array; length: number } | undefined;
 
 		if (!isNullKey) {
 			const keyValue = getKeyAsString(leftChunk, leftKeyIdx, r);
@@ -471,7 +490,8 @@ function processLeftChunk(
 					leftSchema,
 					rightSchema,
 					null,
-					null,
+					-1,
+					-1,
 					rightKeyIdx,
 					leftKey,
 					joinType,
@@ -485,7 +505,8 @@ function processLeftChunk(
 					leftSchema,
 					rightSchema,
 					null,
-					null,
+					-1,
+					-1,
 					rightKeyIdx,
 					leftKey,
 					joinType,
@@ -509,7 +530,8 @@ function processLeftChunk(
 				leftSchema,
 				rightSchema,
 				null,
-				null,
+				-1,
+				-1,
 				rightKeyIdx,
 				leftKey,
 				joinType,
@@ -518,8 +540,10 @@ function processLeftChunk(
 		}
 
 		// Add a row for each match (Inner, Left, Right)
-		for (const match of matches) {
-			const rightChunk = rightChunks[match.chunkIdx]!;
+		for (let m = 0; m < matches.length; m++) {
+			const chunkIdx = matches.chunkIndices[m]!;
+			const rowIdx = matches.rowIndices[m]!;
+			const rightChunk = rightChunks[chunkIdx]!;
 			appendLeftRow(
 				columns,
 				leftChunk,
@@ -527,12 +551,13 @@ function processLeftChunk(
 				leftSchema,
 				rightSchema,
 				rightChunk,
-				match,
+				chunkIdx,
+				rowIdx,
 				rightKeyIdx,
 				leftKey,
 				joinType,
 			);
-			if (rightMatched) rightMatched.add(`${match.chunkIdx}:${match.rowIdx}`);
+			if (rightMatched) rightMatched.add(`${chunkIdx}:${rowIdx}`);
 		}
 	}
 
@@ -557,7 +582,8 @@ function appendLeftRow(
 	leftSchema: Schema,
 	rightSchema: Schema,
 	rightChunk: Chunk | null,
-	rightMatch: { chunkIdx: number; rowIdx: number } | null,
+	rightChunkIdx: number,
+	rightRowIdx: number,
 	rightKeyIdx: number,
 	leftKey: string,
 	joinType: JoinType,
@@ -591,11 +617,11 @@ function appendLeftRow(
 		const col = columns[outIdx++]!;
 		const rightColDef = rightSchema.columns[c]!;
 
-		if (rightChunk && rightMatch) {
-			if (rightChunk.isNull(c, rightMatch.rowIdx)) {
+		if (rightChunk && rightRowIdx >= 0) {
+			if (rightChunk.isNull(c, rightRowIdx)) {
 				col.appendNull();
 			} else {
-				let value = rightChunk.getValue(c, rightMatch.rowIdx);
+				let value = rightChunk.getValue(c, rightRowIdx);
 
 				if (
 					rightColDef.dtype.kind === DTypeKind.String &&

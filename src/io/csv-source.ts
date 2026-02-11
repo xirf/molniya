@@ -145,24 +145,27 @@ export class CsvSource {
 
 	/**
 	 * Read all chunks (blocking).
+	 * Uses streaming internally to avoid loading entire file into memory at once.
 	 */
 	async collectChunks(): Promise<Result<Chunk[]>> {
 		const chunks: Chunk[] = [];
 
 		try {
 			if (this.isFile) {
-				const file = Bun.file(this.source as string);
-				const buffer = await file.arrayBuffer();
-				chunks.push(...this.parser.parse(new Uint8Array(buffer)));
+				// Stream the file in chunks rather than loading entire file
+				// into memory with file.arrayBuffer()
+				for await (const chunk of this.stream()) {
+					chunks.push(chunk);
+				}
 			} else {
 				const encoder = new TextEncoder();
 				const bytes = encoder.encode(this.source as string);
 				chunks.push(...this.parser.parse(bytes));
-			}
 
-			const final = this.parser.finish();
-			if (final) {
-				chunks.push(final);
+				const final = this.parser.finish();
+				if (final) {
+					chunks.push(final);
+				}
 			}
 
 			return ok(chunks);

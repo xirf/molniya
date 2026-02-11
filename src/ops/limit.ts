@@ -34,12 +34,13 @@ export class LimitOperator implements Operator {
 		this.offset = offset;
 	}
 
-	process(chunk: Chunk): Result<OperatorResult> {
+	process(inputChunk: Chunk): Result<OperatorResult> {
 		// Already reached limit
 		if (this.rowsPassed >= this.limit) {
 			return ok(opDone());
 		}
 
+		let chunk = inputChunk;
 		const rowCount = chunk.rowCount;
 		if (rowCount === 0) {
 			return ok(opEmpty());
@@ -55,17 +56,14 @@ export class LimitOperator implements Operator {
 				return ok(opEmpty());
 			}
 
-			// Partial skip - create selection for remaining rows
+			// Partial skip - create selection for remaining rows (non-mutating)
 			const remaining = rowCount - toSkip;
 			const selection = selectionPool.acquire(remaining);
 			for (let i = 0; i < remaining; i++) {
 				selection[i] = toSkip + i;
 			}
-			chunk.applySelection(selection, remaining);
-			// Note: selection buffer will be released back to pool
-			// when the chunk is recycled or when selection is cleared
-			// For now, we rely on the chunk to hold the reference
-			// and the pool to manage reuse
+			chunk = chunk.withSelection(selection, remaining);
+			selectionPool.release(selection);
 		}
 
 		// Check how many rows we can still pass
@@ -79,15 +77,16 @@ export class LimitOperator implements Operator {
 			return ok({ chunk, hasMore: false, done });
 		}
 
-		// Need to limit this chunk
+		// Need to limit this chunk (non-mutating)
 		const selection = selectionPool.acquire(canPass);
 		for (let i = 0; i < canPass; i++) {
 			selection[i] = i;
 		}
-		chunk.applySelection(selection, canPass);
+		const limitedChunk = chunk.withSelection(selection, canPass);
+		selectionPool.release(selection);
 
 		this.rowsPassed += canPass;
-		return ok({ chunk, hasMore: false, done: true });
+		return ok({ chunk: limitedChunk, hasMore: false, done: true });
 	}
 
 	finish(): Result<OperatorResult> {

@@ -58,7 +58,7 @@ type ResolvedCsvOptions = typeof DEFAULT_OPTIONS & {
 export class CsvParser {
 	private readonly options: ResolvedCsvOptions;
 	private readonly schema: Schema;
-	private readonly dictionary: Dictionary;
+	private dictionary: Dictionary;
 	private readonly decoder = new TextDecoder();
 
 	private state: ParseState = ParseState.FieldStart;
@@ -128,6 +128,11 @@ export class CsvParser {
 		this.columns = null;
 		this.chunkRowCount = 0;
 		this.currentColumnIndex = 0;
+		// Reset dictionary between iterations so that re-streaming the same
+		// source doesn't accumulate strings across passes. Within a single
+		// pass, the dictionary is shared across all chunks (ensuring correct
+		// cross-chunk string resolution).
+		this.dictionary = createDictionary();
 	}
 
 	getMetadata(): { totalRowCount: number } {
@@ -244,6 +249,7 @@ export class CsvParser {
 							this.finishField(data, i);
 						}
 
+						this.currentColumnIndex++;
 						this.state = ParseState.CR;
 						i++;
 						break;
@@ -273,6 +279,7 @@ export class CsvParser {
 						this.state = ParseState.FieldStart;
 					} else if (charCode === CR) {
 						this.finishField(data, i - 1);
+						this.currentColumnIndex++;
 						this.state = ParseState.CR;
 					} else if (charCode === LF) {
 						this.finishField(data, i - 1);
@@ -468,6 +475,11 @@ export class CsvParser {
 
 		if (this.chunkRowCount >= this.options.chunkSize || force) {
 			if (this.columns) {
+				// Create chunk with shared dictionary.
+				// All chunks share the same dictionary so that dictionary indices
+				// are consistent across chunks. The dictionary only grows by the
+				// number of UNIQUE strings, not by row count, so it doesn't
+				// accumulate unbounded memory for typical datasets.
 				const chunk = new Chunk(this.schema, this.columns, this.dictionary);
 				chunks.push(chunk);
 				this.columns = null;
@@ -737,6 +749,9 @@ export class CsvParser {
 		try {
 			switch (dtype.kind) {
 				case DTypeKind.String:
+					// TODO: Use AdaptiveStringColumn for automatic StringView/Dictionary selection
+					// based on cardinality. For high-cardinality strings (e.g., URLs, IDs),
+					// StringView would be more memory-efficient than dictionary encoding.
 					col.append(this.dictionary.internString(trimmed) as never);
 					break;
 				case DTypeKind.Int32:

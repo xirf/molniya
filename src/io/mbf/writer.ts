@@ -2,6 +2,7 @@ import * as fs from "node:fs/promises";
 import { type Chunk } from "../../buffer/chunk.ts";
 import { ColumnBuffer } from "../../buffer/column-buffer.ts";
 import { DTypeKind, DTYPE_SIZES } from "../../types/dtypes.ts";
+import { ErrorCode } from "../../types/error.ts";
 import { type Schema } from "../../types/schema.ts";
 import { MBF_MAGIC, MBF_VERSION } from "./types.ts";
 
@@ -53,16 +54,29 @@ export class BinaryWriter {
     async writeChunk(chunk: Chunk): Promise<void> {
         if (!this.handle) throw new Error("Writer not open");
 
-        const rowCount = chunk.rowCount;
+        // Materialize chunk if it has a selection vector to ensure
+        // physical data matches logical row count. Without this,
+        // we'd serialize physical columns but write logical rowCount
+        // in the header, producing a corrupt file.
+        let writeChunk = chunk;
+        if (chunk.hasSelection()) {
+            const materialized = chunk.materialize();
+            if (materialized.error !== ErrorCode.None) {
+                throw new Error(`Failed to materialize chunk: ${materialized.error}`);
+            }
+            writeChunk = materialized.value;
+        }
+
+        const rowCount = writeChunk.rowCount;
         const colCount = this.schema.columns.length;
-        const dictionary = chunk.dictionary;
+        const dictionary = writeChunk.dictionary;
 
         // Serialize all columns first to calculate sizes
         const columnBuffers: Uint8Array[] = [];
         const columnLengths: number[] = []; // Byte length of each column block
 
         for (let i = 0; i < colCount; i++) {
-            const colBuffer = chunk.getColumn(i);
+            const colBuffer = writeChunk.getColumn(i);
             if (!colBuffer) throw new Error(`Missing column ${i}`);
             const serialized = this.serializeColumn(colBuffer, dictionary);
             
@@ -100,13 +114,16 @@ export class BinaryWriter {
         
         view.setBigUint64(4, BigInt(dataTotalSize), true);
 
-        // Write Group Header
-        await this.handle.write(header);
-
-        // Write Group Data
+        // Write Group Header + Data in a single write to reduce syscalls
+        const totalWriteSize = headerSize + dataTotalSize;
+        const writeBuf = new Uint8Array(totalWriteSize);
+        writeBuf.set(header, 0);
+        let writeOffset = headerSize;
         for (const buf of columnBuffers) {
-            await this.handle.write(buf);
+            writeBuf.set(buf, writeOffset);
+            writeOffset += buf.byteLength;
         }
+        await this.handle.write(writeBuf);
 
         this.totalRows += rowCount;
     }
@@ -127,7 +144,6 @@ export class BinaryWriter {
     }
 
     private serializeColumn(col: ColumnBuffer, dictionary: import("../../buffer/dictionary.ts").Dictionary | null): Uint8Array[] {
-        console.log(`Serialize col kind=${col.kind} len=${col.length}`);
         const parts: Uint8Array[] = [];
 
         // 1. Null Bitmap (if nullable)

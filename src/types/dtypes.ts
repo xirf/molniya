@@ -19,12 +19,14 @@ export enum DTypeKind {
 	Float32 = 8,
 	Float64 = 9,
 	Boolean = 10,
-	String = 11,
-	Date = 12, // Days since epoch (int32)
-	Timestamp = 13, // Milliseconds since epoch (int64)
+	String = 11,         // Legacy: auto-adaptive string
+	StringDict = 12,     // Explicit dictionary encoding
+	StringView = 13,     // Explicit view encoding
+	Date = 14,           // Days since epoch (int32)
+	Timestamp = 15,      // Milliseconds since epoch (int64)
 }
 
-/** Byte sizes for each DType. String returns 4 (dictionary index size). */
+/** Byte sizes for each DType. String variants have different sizes. */
 export const DTYPE_SIZES: Record<DTypeKind, number> = {
 	[DTypeKind.Int8]: 1,
 	[DTypeKind.Int16]: 2,
@@ -36,10 +38,12 @@ export const DTYPE_SIZES: Record<DTypeKind, number> = {
 	[DTypeKind.UInt64]: 8,
 	[DTypeKind.Float32]: 4,
 	[DTypeKind.Float64]: 8,
-	[DTypeKind.Boolean]: 1, // Stored as uint8, not bit-packed for simplicity
-	[DTypeKind.String]: 4, // Dictionary index (uint32)
-	[DTypeKind.Date]: 4, // Days since epoch (int32)
-	[DTypeKind.Timestamp]: 8, // Milliseconds since epoch (int64)
+	[DTypeKind.Boolean]: 1,      // Stored as uint8
+	[DTypeKind.String]: 4,       // Legacy: dictionary index (uint32)
+	[DTypeKind.StringDict]: 4,   // Dictionary index (uint32)
+	[DTypeKind.StringView]: 12,  // offset(8) + length(4)
+	[DTypeKind.Date]: 4,         // Days since epoch (int32)
+	[DTypeKind.Timestamp]: 8,    // Milliseconds since epoch (int64)
 };
 
 /** TypedArray constructor for each numeric DType */
@@ -55,7 +59,9 @@ export const DTYPE_ARRAY_CONSTRUCTORS = {
 	[DTypeKind.Float32]: Float32Array,
 	[DTypeKind.Float64]: Float64Array,
 	[DTypeKind.Boolean]: Uint8Array,
-	[DTypeKind.String]: Uint32Array, // Dictionary indices
+	[DTypeKind.String]: Uint32Array,      // Legacy: dictionary indices
+	[DTypeKind.StringDict]: Uint32Array,  // Dictionary indices
+	[DTypeKind.StringView]: Uint8Array,   // View metadata (handled specially)
 	[DTypeKind.Date]: Int32Array,
 	[DTypeKind.Timestamp]: BigInt64Array,
 } as const;
@@ -74,7 +80,7 @@ export type DTypeToTS<T extends DTypeKind> = T extends
 				? bigint
 				: T extends DTypeKind.Boolean
 					? boolean
-					: T extends DTypeKind.String
+					: T extends DTypeKind.String | DTypeKind.StringDict | DTypeKind.StringView
 						? string
 						: T extends DTypeKind.Date
 							? Date
@@ -100,9 +106,11 @@ function nullableDtype<K extends DTypeKind>(kind: K): DType<K> {
  * DType factory with convenient accessors.
  *
  * Usage:
- *   DType.int32          // non-nullable int32
- *   DType.int32.nullable // nullable int32
- *   DType.string         // non-nullable string (dictionary encoded)
+ *   DType.int32            // non-nullable int32
+ *   DType.int32.nullable   // nullable int32
+ *   DType.string           // non-nullable string (auto-adaptive)
+ *   DType.stringDict       // non-nullable string (dictionary encoding)
+ *   DType.stringView       // non-nullable string (view encoding)
  */
 export const DType = {
 	int8: dtype(DTypeKind.Int8),
@@ -116,7 +124,9 @@ export const DType = {
 	float32: dtype(DTypeKind.Float32),
 	float64: dtype(DTypeKind.Float64),
 	boolean: dtype(DTypeKind.Boolean),
-	string: dtype(DTypeKind.String),
+	string: dtype(DTypeKind.String),         // Auto-adaptive
+	stringDict: dtype(DTypeKind.StringDict), // Explicit dictionary
+	stringView: dtype(DTypeKind.StringView), // Explicit view
 	date: dtype(DTypeKind.Date),
 	timestamp: dtype(DTypeKind.Timestamp),
 
@@ -133,7 +143,9 @@ export const DType = {
 		float32: nullableDtype(DTypeKind.Float32),
 		float64: nullableDtype(DTypeKind.Float64),
 		boolean: nullableDtype(DTypeKind.Boolean),
-		string: nullableDtype(DTypeKind.String),
+		string: nullableDtype(DTypeKind.String),         // Auto-adaptive
+		stringDict: nullableDtype(DTypeKind.StringDict), // Explicit dictionary
+		stringView: nullableDtype(DTypeKind.StringView), // Explicit view
 		date: nullableDtype(DTypeKind.Date),
 		timestamp: nullableDtype(DTypeKind.Timestamp),
 	},

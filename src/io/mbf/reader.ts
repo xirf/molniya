@@ -124,6 +124,9 @@ export class BinaryReader {
         };
 
         const colCount = this.globalSchema.columns.length;
+        // Share a single dictionary across all chunks so string identity
+        // is preserved cross-chunk (same as CsvParser behaviour).
+        const sharedDictionary = new Dictionary();
 
         while (this.filePos < fileSize) {
             const headerSize = 12 + (8 * colCount);
@@ -147,7 +150,6 @@ export class BinaryReader {
             
             // Read requested columns
             const columnBuffers: ColumnBuffer[] = [];
-            const dictionary = new Dictionary(); 
 
             for (let i = 0; i < indices.length; i++) {
                 const colIdx = indices[i];
@@ -169,10 +171,10 @@ export class BinaryReader {
                 const colBuf = new Uint8Array(Number(length));
                 await this.handle.read(colBuf, 0, Number(length), dataStart + Number(startOffset));
                 
-                columnBuffers.push(this.deserializeColumn(colBuf, colDef.dtype.kind, rowCount, colDef.dtype.nullable, dictionary));
+                columnBuffers.push(this.deserializeColumn(colBuf, colDef.dtype.kind, rowCount, colDef.dtype.nullable, sharedDictionary));
             }
 
-            yield new Chunk(projectedSchema, columnBuffers, dictionary);
+            yield new Chunk(projectedSchema, columnBuffers, sharedDictionary);
 
             this.filePos = nextChunkPos;
         }

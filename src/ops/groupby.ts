@@ -54,6 +54,8 @@ export class GroupByOperator implements Operator {
 	private readonly dictionary: Dictionary;
 	private finished: boolean = false;
 	private nextGroupId: number = 0;
+	/** Pre-allocated key buffer reused per row to avoid GC pressure (3.2 optimization) */
+	private readonly _keyBuffer: (number | bigint | null)[];
 
 	private constructor(
 		inputSchema: Schema,
@@ -67,6 +69,7 @@ export class GroupByOperator implements Operator {
 		this.keyColumns = keyColumns;
 		this.aggSpecs = aggSpecs;
 		this.dictionary = dictionary;
+		this._keyBuffer = new Array(keyColumns.length);
 		this.aggregators = aggSpecs.map((spec) =>
 			createVectorAggregator(spec.aggType),
 		);
@@ -179,7 +182,7 @@ export class GroupByOperator implements Operator {
 		for (let row = 0; row < rowCount; row++) {
 			const physIdx = selection ? selection[row]! : row;
 
-			const keyValues: (number | bigint | null)[] = [];
+			// Reuse a single key buffer to avoid per-row array allocation (3.2 optimization)
 			for (let k = 0; k < keyCols.length; k++) {
 				const col = keyCols[k]!;
 
@@ -194,14 +197,14 @@ export class GroupByOperator implements Operator {
 						val = null;
 					}
 				}
-				keyValues.push(val);
+				this._keyBuffer[k] = val;
 			}
 
-			let gid = this.groups.get(keyValues);
+			let gid = this.groups.get(this._keyBuffer);
 			if (gid === -1) {
 				gid = this.nextGroupId++;
-				this.groups.insert(keyValues, gid);
-				this.groupKeys.push(keyValues.slice());
+				this.groups.insert(this._keyBuffer, gid);
+				this.groupKeys.push(this._keyBuffer.slice());
 			}
 
 			chunkGroupIds[row] = gid;

@@ -116,10 +116,8 @@ export class AggregateOperator implements Operator {
 
 		for (const agg of this.aggs) {
 			if (agg.isCountAll) {
-				// Count all rows
-				for (let i = 0; i < rowCount; i++) {
-					agg.state.accumulate(1);
-				}
+				// Vectorized: accumulate entire chunk at once instead of per-row loop
+				agg.state.accumulate(rowCount);
 			} else if (agg.valueExpr !== null) {
 				// Evaluate expression and accumulate
 				for (let i = 0; i < rowCount; i++) {

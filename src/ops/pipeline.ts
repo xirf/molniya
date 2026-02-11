@@ -94,6 +94,10 @@ export class Pipeline {
 	 * Execute the pipeline on multiple chunks (streaming).
 	 */
 	execute(chunks: Iterable<Chunk>): Result<PipelineResult> {
+		// Reset all operators before execution to prevent state leaks
+		// (e.g., LimitOperator.rowsPassed persisting between queries on reused DataFrames)
+		this.reset();
+
 		const startTime = performance.now();
 		const outputChunks: Chunk[] = [];
 		let rowsIn = 0;
@@ -165,6 +169,9 @@ export class Pipeline {
 	async executeAsync(
 		chunks: AsyncIterable<Chunk>,
 	): Promise<Result<PipelineResult>> {
+		// Reset all operators before execution to prevent state leaks
+		this.reset();
+
 		const startTime = performance.now();
 		const outputChunks: Chunk[] = [];
 		let rowsIn = 0;
@@ -231,6 +238,9 @@ export class Pipeline {
 	 * Execute pipeline and stream results (generator).
 	 */
 	*stream(chunks: Iterable<Chunk>): Generator<Chunk> {
+		// Reset all operators before streaming to prevent state leaks
+		this.reset();
+
 		for (const chunk of chunks) {
 			const result = this.executeChunk(chunk);
 			// If error, we should throw or handle? Generator can throw.
@@ -278,6 +288,9 @@ export class Pipeline {
 	 * Execute pipeline on async stream (async generator).
 	 */
 	async *streamAsync(chunks: AsyncIterable<Chunk>): AsyncGenerator<Chunk> {
+		// Reset all operators before streaming to prevent state leaks
+		this.reset();
+
 		for await (const chunk of chunks) {
 			const result = this.executeChunk(chunk);
 			if (result.error !== ErrorCode.None) {

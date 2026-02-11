@@ -78,20 +78,66 @@ export class SortOperator implements Operator {
 			return ok(opEmpty());
 		}
 
-		// Build row indices and chunk references
-		const rowRefs: Array<{ chunkIdx: number; rowIdx: number }> = [];
+		// Build flat packed arrays instead of object-per-row (3.1 optimization)
+		// For N rows: 6 bytes each (Uint16 chunk + Uint32 row) vs 32+ bytes per object
+		const chunkIndices = new Uint16Array(totalRows);
+		const rowIndices = new Uint32Array(totalRows);
+		let idx = 0;
 		for (let c = 0; c < this.bufferedChunks.length; c++) {
 			const chunk = this.bufferedChunks[c]!;
 			for (let r = 0; r < chunk.rowCount; r++) {
-				rowRefs.push({ chunkIdx: c, rowIdx: r });
+				chunkIndices[idx] = c;
+				rowIndices[idx] = r;
+				idx++;
 			}
 		}
 
-		// Sort row references
-		rowRefs.sort((a, b) => this.compareRows(a, b));
+		// Indirect sort: sort a permutation array that indexes into the packed arrays
+		const perm = new Uint32Array(totalRows);
+		for (let i = 0; i < totalRows; i++) perm[i] = i;
 
-		// Build output chunk from sorted references
-		const outputChunk = this.buildSortedChunk(rowRefs);
+		perm.sort((ai, bi) => {
+			const chunkA = this.bufferedChunks[chunkIndices[ai]!]!;
+			const chunkB = this.bufferedChunks[chunkIndices[bi]!]!;
+			const rowA = rowIndices[ai]!;
+			const rowB = rowIndices[bi]!;
+
+			for (let k = 0; k < this.sortKeys.length; k++) {
+				const key = this.sortKeys[k]!;
+				const colIdx = this.columnIndices[k]!;
+				const dtype = this.outputSchema.columns[colIdx]!.dtype;
+
+				const nullA = chunkA.isNull(colIdx, rowA);
+				const nullB = chunkB.isNull(colIdx, rowB);
+
+				if (nullA && nullB) continue;
+				if (nullA) return key.nullsFirst ? -1 : 1;
+				if (nullB) return key.nullsFirst ? 1 : -1;
+
+				let cmp: number;
+				if (dtype.kind === DTypeKind.String) {
+					const strA = chunkA.getStringValue(colIdx, rowA) ?? "";
+					const strB = chunkB.getStringValue(colIdx, rowB) ?? "";
+					cmp = strA < strB ? -1 : strA > strB ? 1 : 0;
+				} else {
+					const valA = chunkA.getValue(colIdx, rowA);
+					const valB = chunkB.getValue(colIdx, rowB);
+					if (typeof valA === "bigint" && typeof valB === "bigint") {
+						cmp = valA < valB ? -1 : valA > valB ? 1 : 0;
+					} else {
+						cmp = (valA as number) - (valB as number);
+					}
+				}
+
+				if (cmp !== 0) {
+					return key.descending ? -cmp : cmp;
+				}
+			}
+			return 0;
+		});
+
+		// Build output chunk from sorted permutation
+		const outputChunk = this.buildSortedChunk(perm, chunkIndices, rowIndices);
 
 		this.bufferedChunks = []; // Clear buffer
 		return ok({
@@ -105,55 +151,10 @@ export class SortOperator implements Operator {
 		this.bufferedChunks = [];
 	}
 
-	private compareRows(
-		a: { chunkIdx: number; rowIdx: number },
-		b: { chunkIdx: number; rowIdx: number },
-	): number {
-		const chunkA = this.bufferedChunks[a.chunkIdx]!;
-		const chunkB = this.bufferedChunks[b.chunkIdx]!;
-
-		for (let k = 0; k < this.sortKeys.length; k++) {
-			const key = this.sortKeys[k]!;
-			const colIdx = this.columnIndices[k]!;
-			const dtype = this.outputSchema.columns[colIdx]!.dtype;
-
-			const nullA = chunkA.isNull(colIdx, a.rowIdx);
-			const nullB = chunkB.isNull(colIdx, b.rowIdx);
-
-			// Handle nulls
-			if (nullA && nullB) continue;
-			if (nullA) return key.nullsFirst ? -1 : 1;
-			if (nullB) return key.nullsFirst ? 1 : -1;
-
-			let cmp: number;
-
-			if (dtype.kind === DTypeKind.String) {
-				// String comparison using dictionary
-				const strA = chunkA.getStringValue(colIdx, a.rowIdx) ?? "";
-				const strB = chunkB.getStringValue(colIdx, b.rowIdx) ?? "";
-				cmp = strA.localeCompare(strB);
-			} else {
-				// Numeric comparison
-				const valA = chunkA.getValue(colIdx, a.rowIdx);
-				const valB = chunkB.getValue(colIdx, b.rowIdx);
-
-				if (typeof valA === "bigint" && typeof valB === "bigint") {
-					cmp = valA < valB ? -1 : valA > valB ? 1 : 0;
-				} else {
-					cmp = (valA as number) - (valB as number);
-				}
-			}
-
-			if (cmp !== 0) {
-				return key.descending ? -cmp : cmp;
-			}
-		}
-
-		return 0; // Equal on all sort keys
-	}
-
 	private buildSortedChunk(
-		rowRefs: Array<{ chunkIdx: number; rowIdx: number }>,
+		perm: Uint32Array,
+		chunkIndices: Uint16Array,
+		rowIndices: Uint32Array,
 	): Chunk {
 		const schema = this.outputSchema;
 		const dictionary = this.bufferedChunks[0]!.dictionary;
@@ -162,19 +163,21 @@ export class SortOperator implements Operator {
 		const columns: ColumnBuffer[] = [];
 		for (const col of schema.columns) {
 			columns.push(
-				new ColumnBuffer(col.dtype.kind, rowRefs.length, col.dtype.nullable),
+				new ColumnBuffer(col.dtype.kind, perm.length, col.dtype.nullable),
 			);
 		}
 
 		// Copy rows in sorted order
-		for (const ref of rowRefs) {
-			const srcChunk = this.bufferedChunks[ref.chunkIdx]!;
+		for (let i = 0; i < perm.length; i++) {
+			const p = perm[i]!;
+			const srcChunk = this.bufferedChunks[chunkIndices[p]!]!;
+			const srcRow = rowIndices[p]!;
 			for (let c = 0; c < schema.columnCount; c++) {
 				const destCol = columns[c]!;
-				if (srcChunk.isNull(c, ref.rowIdx)) {
+				if (srcChunk.isNull(c, srcRow)) {
 					destCol.appendNull();
 				} else {
-					const value = srcChunk.getValue(c, ref.rowIdx);
+					const value = srcChunk.getValue(c, srcRow);
 					destCol.append(value!);
 				}
 			}

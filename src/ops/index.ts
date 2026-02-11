@@ -86,7 +86,6 @@ export {
 	projectWithRename,
 } from "./project.ts";
 // Sort
-// Sort
 export {
 	asc,
 	desc,

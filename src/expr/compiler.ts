@@ -50,12 +50,12 @@ import {
 	type WhenExpr,
 		type TruncateDateExpr,
 } from "./ast.ts";
-import type { CompiledPredicate, CompiledValue } from "./compile-types.ts";
+import type { CompiledPredicate, CompiledValue, VectorizedPredicate } from "./compile-types.ts";
 
 // Re-export apply functions
 export { applyPredicate, applyValue, countMatching } from "./apply.ts";
 // Re-export types
-export type { CompiledPredicate, CompiledValue } from "./compile-types.ts";
+export type { CompiledPredicate, CompiledValue, VectorizedPredicate } from "./compile-types.ts";
 
 /**
  * Compilation context containing schema and column indices.
@@ -109,6 +109,556 @@ export function compileValue(
 	} catch {
 		return err(ErrorCode.InvalidExpression);
 	}
+}
+
+/**
+ * Attempt to compile a vectorized predicate for the expression.
+ * Returns null if the expression cannot be vectorized.
+ *
+ * Vectorizable patterns:
+ * - col(numeric) op literal  (gt, gte, lt, lte, eq, neq)
+ * - col(string) eq/neq literal (dictionary index comparison)
+ * - col(string) isIn([literals])
+ * - col(string) contains/startsWith/endsWith(literal)
+ * - AND(vectorizable, vectorizable)
+ * - NOT(vectorizable)
+ */
+export function compileVectorized(
+	expr: Expr,
+	schema: Schema,
+): VectorizedPredicate | null {
+	const ctx = createContext(schema);
+	try {
+		return compileVectorizedInternal(expr, ctx);
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Internal vectorized compiler — returns null for non-vectorizable expressions.
+ */
+function compileVectorizedInternal(
+	expr: Expr,
+	ctx: CompileContext,
+): VectorizedPredicate | null {
+	switch (expr.type) {
+		case ExprType.Eq:
+		case ExprType.Neq:
+		case ExprType.Lt:
+		case ExprType.Lte:
+		case ExprType.Gt:
+		case ExprType.Gte:
+			return tryVectorizeComparison(expr as ComparisonExpr, ctx);
+
+		case ExprType.Contains:
+		case ExprType.StartsWith:
+		case ExprType.EndsWith:
+			return tryVectorizeStringOp(expr as StringOpExpr, ctx);
+
+		case ExprType.IsIn:
+			return tryVectorizeIsIn(expr as IsInExpr, ctx);
+
+		case ExprType.And:
+			return tryVectorizeAnd(expr as LogicalExpr, ctx);
+
+		case ExprType.Not:
+			return tryVectorizeNot(expr as NotExpr, ctx);
+
+		case ExprType.Between:
+			return tryVectorizeBetween(expr as BetweenExpr, ctx);
+
+		default:
+			return null;
+	}
+}
+
+/**
+ * Vectorize a numeric comparison: col(x) op literal.
+ * Also handles dictionary string eq/neq.
+ */
+function tryVectorizeComparison(
+	expr: ComparisonExpr,
+	ctx: CompileContext,
+): VectorizedPredicate | null {
+	// Pattern: Column op Literal
+	let colIdx: number | undefined;
+	let literalValue: number | bigint | string | boolean | null = null;
+	let colOnLeft = true;
+
+	if (expr.left.type === ExprType.Column && expr.right.type === ExprType.Literal) {
+		colIdx = ctx.columnIndices.get((expr.left as ColumnExpr).name);
+		literalValue = (expr.right as LiteralExpr).value;
+		colOnLeft = true;
+	} else if (expr.right.type === ExprType.Column && expr.left.type === ExprType.Literal) {
+		colIdx = ctx.columnIndices.get((expr.right as ColumnExpr).name);
+		literalValue = (expr.left as LiteralExpr).value;
+		colOnLeft = false;
+	}
+
+	if (colIdx === undefined || literalValue === null) return null;
+
+	const colDef = ctx.schema.columns[colIdx];
+	if (!colDef) return null;
+	const kind = colDef.dtype.kind;
+
+	// String dictionary path: eq/neq only
+	if (kind === DTypeKind.String && typeof literalValue === "string") {
+		if (expr.type !== ExprType.Eq && expr.type !== ExprType.Neq) return null;
+		return vectorizeDictEqNeq(colIdx, literalValue, expr.type === ExprType.Eq);
+	}
+
+	// Numeric path
+	if (typeof literalValue !== "number" && typeof literalValue !== "bigint") return null;
+
+	const threshold = typeof literalValue === "bigint" ? Number(literalValue) : literalValue;
+	const nullable = colDef.dtype.nullable;
+	const ci = colIdx;
+
+	// Generate vectorized predicate based on comparison type
+	// Swap comparison direction if literal is on the left: 5 < col → col > 5
+	let effectiveType = expr.type;
+	if (!colOnLeft) {
+		switch (expr.type) {
+			case ExprType.Lt: effectiveType = ExprType.Gt; break;
+			case ExprType.Lte: effectiveType = ExprType.Gte; break;
+			case ExprType.Gt: effectiveType = ExprType.Lt; break;
+			case ExprType.Gte: effectiveType = ExprType.Lte; break;
+		}
+	}
+
+	return (chunk, selOut) => {
+		const col = chunk.getColumn(ci);
+		if (!col) return 0;
+		const data = col.data;
+		const selection = chunk.getSelection();
+		let count = 0;
+
+		if (selection === null) {
+			// No existing selection: scan all physical rows
+			const len = chunk.getPhysicalRowCount();
+			if (nullable) {
+				switch (effectiveType) {
+					case ExprType.Gt:
+						for (let i = 0; i < len; i++) { if (!col.isNull(i) && (data[i] as number) > threshold) selOut[count++] = i; } break;
+					case ExprType.Gte:
+						for (let i = 0; i < len; i++) { if (!col.isNull(i) && (data[i] as number) >= threshold) selOut[count++] = i; } break;
+					case ExprType.Lt:
+						for (let i = 0; i < len; i++) { if (!col.isNull(i) && (data[i] as number) < threshold) selOut[count++] = i; } break;
+					case ExprType.Lte:
+						for (let i = 0; i < len; i++) { if (!col.isNull(i) && (data[i] as number) <= threshold) selOut[count++] = i; } break;
+					case ExprType.Eq:
+						for (let i = 0; i < len; i++) { if (!col.isNull(i) && data[i] === threshold) selOut[count++] = i; } break;
+					case ExprType.Neq:
+						for (let i = 0; i < len; i++) { if (!col.isNull(i) && data[i] !== threshold) selOut[count++] = i; } break;
+				}
+			} else {
+				switch (effectiveType) {
+					case ExprType.Gt:
+						for (let i = 0; i < len; i++) { if ((data[i] as number) > threshold) selOut[count++] = i; } break;
+					case ExprType.Gte:
+						for (let i = 0; i < len; i++) { if ((data[i] as number) >= threshold) selOut[count++] = i; } break;
+					case ExprType.Lt:
+						for (let i = 0; i < len; i++) { if ((data[i] as number) < threshold) selOut[count++] = i; } break;
+					case ExprType.Lte:
+						for (let i = 0; i < len; i++) { if ((data[i] as number) <= threshold) selOut[count++] = i; } break;
+					case ExprType.Eq:
+						for (let i = 0; i < len; i++) { if (data[i] === threshold) selOut[count++] = i; } break;
+					case ExprType.Neq:
+						for (let i = 0; i < len; i++) { if (data[i] !== threshold) selOut[count++] = i; } break;
+				}
+			}
+		} else {
+			// Has existing selection: scan only selected rows
+			const len = selection.length;
+			if (nullable) {
+				switch (effectiveType) {
+					case ExprType.Gt:
+						for (let i = 0; i < len; i++) { const p = selection[i]!; if (!col.isNull(p) && (data[p] as number) > threshold) selOut[count++] = p; } break;
+					case ExprType.Gte:
+						for (let i = 0; i < len; i++) { const p = selection[i]!; if (!col.isNull(p) && (data[p] as number) >= threshold) selOut[count++] = p; } break;
+					case ExprType.Lt:
+						for (let i = 0; i < len; i++) { const p = selection[i]!; if (!col.isNull(p) && (data[p] as number) < threshold) selOut[count++] = p; } break;
+					case ExprType.Lte:
+						for (let i = 0; i < len; i++) { const p = selection[i]!; if (!col.isNull(p) && (data[p] as number) <= threshold) selOut[count++] = p; } break;
+					case ExprType.Eq:
+						for (let i = 0; i < len; i++) { const p = selection[i]!; if (!col.isNull(p) && data[p] === threshold) selOut[count++] = p; } break;
+					case ExprType.Neq:
+						for (let i = 0; i < len; i++) { const p = selection[i]!; if (!col.isNull(p) && data[p] !== threshold) selOut[count++] = p; } break;
+				}
+			} else {
+				switch (effectiveType) {
+					case ExprType.Gt:
+						for (let i = 0; i < len; i++) { const p = selection[i]!; if ((data[p] as number) > threshold) selOut[count++] = p; } break;
+					case ExprType.Gte:
+						for (let i = 0; i < len; i++) { const p = selection[i]!; if ((data[p] as number) >= threshold) selOut[count++] = p; } break;
+					case ExprType.Lt:
+						for (let i = 0; i < len; i++) { const p = selection[i]!; if ((data[p] as number) < threshold) selOut[count++] = p; } break;
+					case ExprType.Lte:
+						for (let i = 0; i < len; i++) { const p = selection[i]!; if ((data[p] as number) <= threshold) selOut[count++] = p; } break;
+					case ExprType.Eq:
+						for (let i = 0; i < len; i++) { const p = selection[i]!; if (data[p] === threshold) selOut[count++] = p; } break;
+					case ExprType.Neq:
+						for (let i = 0; i < len; i++) { const p = selection[i]!; if (data[p] !== threshold) selOut[count++] = p; } break;
+				}
+			}
+		}
+		return count;
+	};
+}
+
+/**
+ * Vectorize dictionary string eq/neq.
+ */
+function vectorizeDictEqNeq(
+	colIdx: number,
+	targetStr: string,
+	isEq: boolean,
+): VectorizedPredicate {
+	// Cache the interned dictionary index per dictionary instance
+	let cachedTargetIdx: number | undefined;
+	let cachedDict: unknown = null;
+
+	return (chunk, selOut) => {
+		const dict = chunk.dictionary;
+		if (dict !== cachedDict) {
+			cachedDict = dict;
+			cachedTargetIdx = dict?.internString(targetStr);
+		}
+
+		const col = chunk.getColumn(colIdx);
+		if (!col || cachedTargetIdx === undefined) return isEq ? 0 : chunk.rowCount;
+
+		const data = col.data;
+		const selection = chunk.getSelection();
+		const target = cachedTargetIdx;
+		let count = 0;
+
+		if (selection === null) {
+			const len = chunk.getPhysicalRowCount();
+			if (isEq) {
+				for (let i = 0; i < len; i++) { if (data[i] === target) selOut[count++] = i; }
+			} else {
+				for (let i = 0; i < len; i++) { if (data[i] !== target) selOut[count++] = i; }
+			}
+		} else {
+			const len = selection.length;
+			if (isEq) {
+				for (let i = 0; i < len; i++) { const p = selection[i]!; if (data[p] === target) selOut[count++] = p; }
+			} else {
+				for (let i = 0; i < len; i++) { const p = selection[i]!; if (data[p] !== target) selOut[count++] = p; }
+			}
+		}
+		return count;
+	};
+}
+
+/**
+ * Vectorize string ops (contains/startsWith/endsWith) with byte-level comparison.
+ */
+function tryVectorizeStringOp(
+	expr: StringOpExpr,
+	ctx: CompileContext,
+): VectorizedPredicate | null {
+	if (expr.expr.type !== ExprType.Column) return null;
+
+	const colIdx = ctx.columnIndices.get(expr.expr.name);
+	if (colIdx === undefined) return null;
+
+	const patternBytes = new TextEncoder().encode(expr.pattern);
+	const ci = colIdx;
+
+	let matchFn: (strBytes: Uint8Array) => boolean;
+	switch (expr.type) {
+		case ExprType.Contains:
+			matchFn = (b) => bytesContains(b, patternBytes);
+			break;
+		case ExprType.StartsWith:
+			matchFn = (b) => bytesStartsWith(b, patternBytes);
+			break;
+		case ExprType.EndsWith:
+			matchFn = (b) => bytesEndsWith(b, patternBytes);
+			break;
+		default:
+			return null;
+	}
+
+	return (chunk, selOut) => {
+		const dict = chunk.dictionary;
+		if (!dict) return 0;
+
+		const col = chunk.getColumn(ci);
+		if (!col) return 0;
+
+		const data = col.data;
+		const selection = chunk.getSelection();
+		let count = 0;
+
+		if (selection === null) {
+			const len = chunk.getPhysicalRowCount();
+			for (let i = 0; i < len; i++) {
+				if (col.isNull(i)) continue;
+				const strBytes = dict.getBytes(data[i] as number);
+				if (strBytes && matchFn(strBytes)) selOut[count++] = i;
+			}
+		} else {
+			const slen = selection.length;
+			for (let i = 0; i < slen; i++) {
+				const p = selection[i]!;
+				if (col.isNull(p)) continue;
+				const strBytes = dict.getBytes(data[p] as number);
+				if (strBytes && matchFn(strBytes)) selOut[count++] = p;
+			}
+		}
+		return count;
+	};
+}
+
+/**
+ * Vectorize isIn for dictionary string columns.
+ */
+function tryVectorizeIsIn(
+	expr: IsInExpr,
+	ctx: CompileContext,
+): VectorizedPredicate | null {
+	if (expr.expr.type !== ExprType.Column) return null;
+
+	const colIdx = ctx.columnIndices.get(expr.expr.name);
+	if (colIdx === undefined) return null;
+
+	const colDef = ctx.schema.columns[colIdx];
+	if (!colDef) return null;
+
+	const kind = colDef.dtype.kind;
+	const ci = colIdx;
+
+	if (kind === DTypeKind.String) {
+		// Dictionary string isIn: cache interned indices per dictionary
+		const literalStrings = expr.values.filter((v): v is string => typeof v === "string");
+		if (literalStrings.length !== expr.values.length) return null;
+
+		let cachedIndexSet: Set<number> | null = null;
+		let cachedDict: unknown = null;
+
+		return (chunk, selOut) => {
+			const dict = chunk.dictionary;
+			if (dict !== cachedDict) {
+				cachedDict = dict;
+				cachedIndexSet = new Set<number>();
+				for (const s of literalStrings) {
+					const idx = dict?.internString(s);
+					if (idx !== undefined) cachedIndexSet.add(idx);
+				}
+			}
+			if (!cachedIndexSet || cachedIndexSet.size === 0) return 0;
+
+			const col = chunk.getColumn(ci);
+			if (!col) return 0;
+			const data = col.data;
+			const selection = chunk.getSelection();
+			const indexSet = cachedIndexSet;
+			let count = 0;
+
+			if (selection === null) {
+				const len = chunk.getPhysicalRowCount();
+				for (let i = 0; i < len; i++) { if (indexSet.has(data[i] as number)) selOut[count++] = i; }
+			} else {
+				const slen = selection.length;
+				for (let i = 0; i < slen; i++) { const p = selection[i]!; if (indexSet.has(data[p] as number)) selOut[count++] = p; }
+			}
+			return count;
+		};
+	}
+
+	// Numeric isIn
+	if (expr.values.every((v) => typeof v === "number")) {
+		const numSet = new Set(expr.values as number[]);
+
+		return (chunk, selOut) => {
+			const col = chunk.getColumn(ci);
+			if (!col) return 0;
+			const data = col.data;
+			const selection = chunk.getSelection();
+			let count = 0;
+
+			if (selection === null) {
+				const len = chunk.getPhysicalRowCount();
+				for (let i = 0; i < len; i++) { if (numSet.has(data[i] as number)) selOut[count++] = i; }
+			} else {
+				const slen = selection.length;
+				for (let i = 0; i < slen; i++) { const p = selection[i]!; if (numSet.has(data[p] as number)) selOut[count++] = p; }
+			}
+			return count;
+		};
+	}
+
+	return null;
+}
+
+/**
+ * Vectorize AND: apply left vectorized, then right vectorized on the result.
+ */
+function tryVectorizeAnd(
+	expr: LogicalExpr,
+	ctx: CompileContext,
+): VectorizedPredicate | null {
+	const vecPreds: VectorizedPredicate[] = [];
+	for (const sub of expr.exprs) {
+		const vec = compileVectorizedInternal(sub, ctx);
+		if (!vec) return null; // All sub-expressions must be vectorizable
+		vecPreds.push(vec);
+	}
+
+	if (vecPreds.length === 0) return null;
+	if (vecPreds.length === 1) return vecPreds[0]!;
+
+	return (chunk, selOut) => {
+		// Apply first predicate to get initial selection
+		let count = vecPreds[0]!(chunk, selOut);
+		if (count === 0) return 0;
+
+		// For subsequent predicates, create a temporary chunk view with the selection
+		// and re-filter. We reuse the selOut buffer.
+		const tempSel = new Uint32Array(count);
+		for (let p = 1; p < vecPreds.length; p++) {
+			// Copy current selection to temp
+			tempSel.set(selOut.subarray(0, count));
+
+			// Create a virtual view by passing selection through
+			// We need to filter tempSel[0..count] and output matching to selOut
+			let newCount = 0;
+			const predFn = vecPreds[p]!;
+
+			// Use a scratch buffer for the inner predicate results
+			const innerOut = new Uint32Array(count);
+			// Temporarily apply selection via a view chunk
+			const view = chunk.withSelection(tempSel.subarray(0, count), count);
+			newCount = predFn(view, innerOut);
+
+			// Copy results back to selOut
+			for (let i = 0; i < newCount; i++) {
+				selOut[i] = innerOut[i]!;
+			}
+			count = newCount;
+			if (count === 0) return 0;
+		}
+		return count;
+	};
+}
+
+/**
+ * Vectorize NOT: apply inner vectorized, then invert.
+ */
+function tryVectorizeNot(
+	expr: NotExpr,
+	ctx: CompileContext,
+): VectorizedPredicate | null {
+	const inner = compileVectorizedInternal(expr.expr, ctx);
+	if (!inner) return null;
+
+	return (chunk, selOut) => {
+		// Get matching rows from inner predicate
+		const matchCount = inner(chunk, selOut);
+
+		// Build complement: all rows NOT in the match set
+		const selection = chunk.getSelection();
+		const total = chunk.rowCount;
+
+		if (matchCount === 0) {
+			// All rows match NOT
+			if (selection === null) {
+				const len = chunk.getPhysicalRowCount();
+				for (let i = 0; i < len; i++) selOut[i] = i;
+				return len;
+			} else {
+				for (let i = 0; i < total; i++) selOut[i] = selection[i]!;
+				return total;
+			}
+		}
+
+		// Build a set of matched physical indices for fast lookup
+		const matched = new Set<number>();
+		for (let i = 0; i < matchCount; i++) matched.add(selOut[i]!);
+
+		let count = 0;
+		if (selection === null) {
+			const len = chunk.getPhysicalRowCount();
+			for (let i = 0; i < len; i++) {
+				if (!matched.has(i)) selOut[count++] = i;
+			}
+		} else {
+			for (let i = 0; i < total; i++) {
+				const p = selection[i]!;
+				if (!matched.has(p)) selOut[count++] = p;
+			}
+		}
+		return count;
+	};
+}
+
+/**
+ * Vectorize BETWEEN: col >= low AND col <= high.
+ */
+function tryVectorizeBetween(
+	expr: BetweenExpr,
+	ctx: CompileContext,
+): VectorizedPredicate | null {
+	if (expr.expr.type !== ExprType.Column) return null;
+	if (expr.low.type !== ExprType.Literal || expr.high.type !== ExprType.Literal) return null;
+
+	const colIdx = ctx.columnIndices.get(expr.expr.name);
+	if (colIdx === undefined) return null;
+
+	const low = (expr.low as LiteralExpr).value;
+	const high = (expr.high as LiteralExpr).value;
+	if (typeof low !== "number" || typeof high !== "number") return null;
+
+	const ci = colIdx;
+	const colDef = ctx.schema.columns[ci];
+	const nullable = colDef?.dtype.nullable ?? false;
+
+	return (chunk, selOut) => {
+		const col = chunk.getColumn(ci);
+		if (!col) return 0;
+		const data = col.data;
+		const selection = chunk.getSelection();
+		let count = 0;
+
+		if (selection === null) {
+			const len = chunk.getPhysicalRowCount();
+			if (nullable) {
+				for (let i = 0; i < len; i++) {
+					if (!col.isNull(i)) {
+						const v = data[i] as number;
+						if (v >= low && v <= high) selOut[count++] = i;
+					}
+				}
+			} else {
+				for (let i = 0; i < len; i++) {
+					const v = data[i] as number;
+					if (v >= low && v <= high) selOut[count++] = i;
+				}
+			}
+		} else {
+			const slen = selection.length;
+			if (nullable) {
+				for (let i = 0; i < slen; i++) {
+					const p = selection[i]!;
+					if (!col.isNull(p)) {
+						const v = data[p] as number;
+						if (v >= low && v <= high) selOut[count++] = p;
+					}
+				}
+			} else {
+				for (let i = 0; i < slen; i++) {
+					const p = selection[i]!;
+					const v = data[p] as number;
+					if (v >= low && v <= high) selOut[count++] = p;
+				}
+			}
+		}
+		return count;
+	};
 }
 
 /**
@@ -167,6 +717,13 @@ function compileComparison(
 	expr: ComparisonExpr,
 	ctx: CompileContext,
 ): CompiledPredicate {
+	// Fast path: dictionary-level string comparison
+	// Compares dictionary indices (integers) instead of decoding strings per row
+	if (expr.type === ExprType.Eq || expr.type === ExprType.Neq) {
+		const dictPred = tryDictStringComparison(expr, ctx);
+		if (dictPred) return dictPred;
+	}
+
 	const leftValue = compileValueInternal(expr.left, ctx);
 	const rightValue = compileValueInternal(expr.right, ctx);
 
@@ -214,6 +771,58 @@ function compileComparison(
 		default:
 			throw new Error(`Unknown comparison type: ${expr.type}`);
 	}
+}
+
+/**
+ * Try to compile a dictionary-level string comparison.
+ * For col("x").eq("literal"), compares dictionary indices instead of
+ * decoding strings — ~100x faster for string equality/inequality.
+ */
+function tryDictStringComparison(
+	expr: ComparisonExpr,
+	ctx: CompileContext,
+): CompiledPredicate | null {
+	let colIdx: number | undefined;
+	let literalStr: string | null = null;
+
+	// Detect: Column(String) == Literal(string) or Literal(string) == Column(String)
+	if (expr.left.type === ExprType.Column && expr.right.type === ExprType.Literal) {
+		const ci = ctx.columnIndices.get(expr.left.name);
+		const colDef = ci !== undefined ? ctx.schema.columns[ci] : undefined;
+		if (colDef?.dtype.kind === DTypeKind.String && typeof (expr.right as LiteralExpr).value === "string") {
+			colIdx = ci;
+			literalStr = (expr.right as LiteralExpr).value as string;
+		}
+	} else if (expr.right.type === ExprType.Column && expr.left.type === ExprType.Literal) {
+		const ci = ctx.columnIndices.get(expr.right.name);
+		const colDef = ci !== undefined ? ctx.schema.columns[ci] : undefined;
+		if (colDef?.dtype.kind === DTypeKind.String && typeof (expr.left as LiteralExpr).value === "string") {
+			colIdx = ci;
+			literalStr = (expr.left as LiteralExpr).value as string;
+		}
+	}
+
+	if (colIdx === undefined || literalStr === null) return null;
+
+	const isEq = expr.type === ExprType.Eq;
+	const targetStr = literalStr;
+	const ci = colIdx;
+
+	// Cache the interned dictionary index per dictionary instance
+	let cachedTargetIdx: number | undefined;
+	let cachedDict: unknown = null;
+
+	return (chunk, row) => {
+		const dict = chunk.dictionary;
+		if (dict !== cachedDict) {
+			cachedDict = dict;
+			cachedTargetIdx = dict?.internString(targetStr);
+		}
+		if (cachedTargetIdx === undefined) return !isEq;
+		if (chunk.isNull(ci, row)) return false;
+		const rawIdx = chunk.getValue(ci, row);
+		return isEq ? rawIdx === cachedTargetIdx : rawIdx !== cachedTargetIdx;
+	};
 }
 
 /** Compile between expression. */
@@ -300,7 +909,9 @@ function compileNot(expr: NotExpr, ctx: CompileContext): CompiledPredicate {
 	return (chunk, row) => !inner(chunk, row);
 }
 
-/** Compile string operation. */
+/** Compile string operation (contains/startsWith/endsWith).
+ * Uses byte-level comparison on UTF-8 data to avoid TextDecoder per row.
+ */
 function compileStringOp(
 	expr: StringOpExpr,
 	ctx: CompileContext,
@@ -315,26 +926,72 @@ function compileStringOp(
 	}
 
 	const pattern = expr.pattern;
+	// Pre-encode pattern to UTF-8 bytes once at compile time
+	const patternBytes = new TextEncoder().encode(pattern);
 
 	switch (expr.type) {
 		case ExprType.Contains:
 			return (chunk, row) => {
-				const str = chunk.getStringValue(colIdx, row);
-				return str !== undefined && str.includes(pattern);
+				if (chunk.isNull(colIdx, row)) return false;
+				const rawIdx = chunk.getValue(colIdx, row) as number;
+				const strBytes = chunk.dictionary?.getBytes(rawIdx);
+				if (!strBytes) return false;
+				return bytesContains(strBytes, patternBytes);
 			};
 		case ExprType.StartsWith:
 			return (chunk, row) => {
-				const str = chunk.getStringValue(colIdx, row);
-				return str !== undefined && str.startsWith(pattern);
+				if (chunk.isNull(colIdx, row)) return false;
+				const rawIdx = chunk.getValue(colIdx, row) as number;
+				const strBytes = chunk.dictionary?.getBytes(rawIdx);
+				if (!strBytes) return false;
+				return bytesStartsWith(strBytes, patternBytes);
 			};
 		case ExprType.EndsWith:
 			return (chunk, row) => {
-				const str = chunk.getStringValue(colIdx, row);
-				return str !== undefined && str.endsWith(pattern);
+				if (chunk.isNull(colIdx, row)) return false;
+				const rawIdx = chunk.getValue(colIdx, row) as number;
+				const strBytes = chunk.dictionary?.getBytes(rawIdx);
+				if (!strBytes) return false;
+				return bytesEndsWith(strBytes, patternBytes);
 			};
 		default:
 			throw new Error(`Unknown string op: ${expr.type}`);
 	}
+}
+
+/** Check if haystack contains needle (byte-level, no string decode). */
+function bytesContains(haystack: Uint8Array, needle: Uint8Array): boolean {
+	if (needle.length === 0) return true;
+	if (needle.length > haystack.length) return false;
+	const end = haystack.length - needle.length;
+	const first = needle[0]!;
+	outer: for (let i = 0; i <= end; i++) {
+		if (haystack[i] !== first) continue;
+		for (let j = 1; j < needle.length; j++) {
+			if (haystack[i + j] !== needle[j]) continue outer;
+		}
+		return true;
+	}
+	return false;
+}
+
+/** Check if haystack starts with prefix (byte-level). */
+function bytesStartsWith(haystack: Uint8Array, prefix: Uint8Array): boolean {
+	if (prefix.length > haystack.length) return false;
+	for (let i = 0; i < prefix.length; i++) {
+		if (haystack[i] !== prefix[i]) return false;
+	}
+	return true;
+}
+
+/** Check if haystack ends with suffix (byte-level). */
+function bytesEndsWith(haystack: Uint8Array, suffix: Uint8Array): boolean {
+	if (suffix.length > haystack.length) return false;
+	const offset = haystack.length - suffix.length;
+	for (let i = 0; i < suffix.length; i++) {
+		if (haystack[offset + i] !== suffix[i]) return false;
+	}
+	return true;
 }
 
 /** Compile column reference as predicate (for boolean columns). */
@@ -1177,6 +1834,40 @@ function compileWhen(expr: WhenExpr, ctx: CompileContext): CompiledValue {
 
 /** Compile isIn expression as predicate. */
 function compileIsIn(expr: IsInExpr, ctx: CompileContext): CompiledPredicate {
+	// Fast path: dictionary-level isIn for string columns
+	// Compares dictionary indices instead of decoding strings per row
+	if (expr.expr.type === ExprType.Column) {
+		const colIdx = ctx.columnIndices.get(expr.expr.name);
+		const colDef = colIdx !== undefined ? ctx.schema.columns[colIdx] : undefined;
+		if (
+			colDef?.dtype.kind === DTypeKind.String &&
+			expr.values.every((v) => typeof v === "string")
+		) {
+			const stringValues = expr.values as string[];
+			const ci = colIdx!;
+			let cachedIdxSet: Set<number> | null = null;
+			let cachedDict: unknown = null;
+
+			return (chunk, row) => {
+				const dict = chunk.dictionary;
+				if (dict !== cachedDict) {
+					cachedDict = dict;
+					cachedIdxSet = new Set<number>();
+					if (dict) {
+						for (const s of stringValues) {
+							cachedIdxSet.add(dict.internString(s));
+						}
+					}
+				}
+				if (!cachedIdxSet || cachedIdxSet.size === 0) return false;
+				if (chunk.isNull(ci, row)) return false;
+				const rawIdx = chunk.getValue(ci, row) as number;
+				return cachedIdxSet.has(rawIdx);
+			};
+		}
+	}
+
+	// General path: compare materialized values
 	const inner = compileValueInternal(expr.expr, ctx);
 	const valueSet = new Set(expr.values);
 
