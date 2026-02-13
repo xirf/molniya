@@ -201,5 +201,8 @@ declare module "./core.ts" {
 				{ count: number; mean: number; std: number; min: number; max: number }
 			>
 		>;
+
+		// Plotting
+		plot(): Promise<import("../plot/plot.ts").PlotBuilder>;
 	}
 }

@@ -50,5 +50,12 @@ export const guideSidebar = [
             { text: 'Reading Parquet', link: '/guide/reading-parquet' },
             { text: 'Creating DataFrames', link: '/guide/creating-dfs' },
         ]
+    },
+    {
+        text: 'Visualization',
+        icon: 'i-solar:chart-2-outline',
+        items: [
+            { text: 'Plotting', link: '/guide/plotting' },
+        ]
     }
 ]

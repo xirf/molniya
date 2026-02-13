@@ -21,6 +21,7 @@ import { addProjectionMethods } from "./projection.ts";
 import { addSortingMethods } from "./sorting.ts";
 import { addStringMethods } from "./string-ops.ts";
 import { addTransformMethods } from "./transformation.ts";
+import { addPlottingMethods } from "./plotting.ts";
 
 /* ATTACH METHODS TO PROTOTYPE
 /*-----------------------------------------------------
@@ -40,6 +41,7 @@ addJoinMethods(DataFrame.prototype);
 addConcatMethods(DataFrame.prototype);
 addExecutionMethods(DataFrame.prototype);
 addInspectionMethods(DataFrame.prototype);
+addPlottingMethods(DataFrame.prototype);
 
 /* HELPER FUNCTIONS
 /*-----------------------------------------------------
@@ -100,7 +102,11 @@ export function fromRecords<T = Record<string, unknown>>(
 		const colName = colDef.name;
 
 		// Use adaptive encoding for string columns to optimize memory
-		if (kind === DTypeKind.String || kind === DTypeKind.StringView || kind === DTypeKind.StringDict) {
+		if (
+			kind === DTypeKind.String ||
+			kind === DTypeKind.StringView ||
+			kind === DTypeKind.StringDict
+		) {
 			const adaptive = new AdaptiveStringColumn(rowCount, colDef.dtype, {
 				sharedDict: dictionary,
 			});
@@ -124,7 +130,10 @@ export function fromRecords<T = Record<string, unknown>>(
 			if (storage.indices && storage.dictionary) {
 				// Ensure schema reflects dictionary encoding
 				if (s.columns[colIdx]) {
-					s.columns[colIdx]!.dtype = { ...colDef.dtype, kind: DTypeKind.String };
+					s.columns[colIdx]!.dtype = {
+						...colDef.dtype,
+						kind: DTypeKind.String,
+					};
 					s.columns[colIdx]!.kind = DTypeKind.String;
 				}
 				const buffer = new ColumnBuffer(DTypeKind.String, rowCount, nullable);
@@ -139,7 +148,9 @@ export function fromRecords<T = Record<string, unknown>>(
 				buffer.setLength(rowCount);
 				columnBuffers.push(buffer);
 			} else {
-				throw new Error("AdaptiveStringColumn returned invalid storage after conversion");
+				throw new Error(
+					"AdaptiveStringColumn returned invalid storage after conversion",
+				);
 			}
 		} else {
 			// Non-string columns: existing logic
@@ -246,7 +257,11 @@ export async function readCsv<T = Record<string, unknown>>(
 		}
 
 		// Write unfiltered chunks to MBF cache
-		const bgDf = DataFrame.fromChunks(chunks, source.getSchema(), source.getDictionary());
+		const bgDf = DataFrame.fromChunks(
+			chunks,
+			source.getSchema(),
+			source.getDictionary(),
+		);
 		await writeToMbf(bgDf as DataFrame, cachePath);
 
 		// Register for cleanup if temp
@@ -331,16 +346,12 @@ export async function readParquet<T = Record<string, unknown>>(
 			// Fallback: try reading as MBF (supports renamed/test files)
 			try {
 				const mbfSrc = unwrap(await readMbf(path));
-				df = DataFrame.fromStream<T>(
-					mbfSrc,
-					mbfSrc.getSchema(),
-					null,
-				);
+				df = DataFrame.fromStream<T>(mbfSrc, mbfSrc.getSchema(), null);
 			} catch {
 				throw parquetErr; // Re-throw original if MBF also fails
 			}
 		}
-		
+
 		// Apply projection and filter if specified
 		const projected = options?.projection?.length
 			? df.select(...(options.projection as (keyof T & string)[]))
@@ -443,7 +454,11 @@ export function fromColumns<T = Record<string, unknown>>(
 		const nullable = colDef.dtype.nullable;
 
 		// Use adaptive encoding for string columns to optimize memory
-		if (kind === DTypeKind.String || kind === DTypeKind.StringView || kind === DTypeKind.StringDict) {
+		if (
+			kind === DTypeKind.String ||
+			kind === DTypeKind.StringView ||
+			kind === DTypeKind.StringDict
+		) {
 			const adaptive = new AdaptiveStringColumn(rowCount, colDef.dtype, {
 				sharedDict: dictionary,
 			});
@@ -467,7 +482,10 @@ export function fromColumns<T = Record<string, unknown>>(
 			if (storage.indices && storage.dictionary) {
 				// Ensure schema reflects dictionary encoding
 				if (s.columns[colIdx]) {
-					s.columns[colIdx]!.dtype = { ...colDef.dtype, kind: DTypeKind.String };
+					s.columns[colIdx]!.dtype = {
+						...colDef.dtype,
+						kind: DTypeKind.String,
+					};
 					s.columns[colIdx]!.kind = DTypeKind.String;
 				}
 				const buffer = new ColumnBuffer(DTypeKind.String, rowCount, nullable);
@@ -482,7 +500,9 @@ export function fromColumns<T = Record<string, unknown>>(
 				buffer.setLength(rowCount);
 				columnBuffers.push(buffer);
 			} else {
-				throw new Error("AdaptiveStringColumn returned invalid storage after conversion");
+				throw new Error(
+					"AdaptiveStringColumn returned invalid storage after conversion",
+				);
 			}
 		} else {
 			// Non-string columns: existing logic

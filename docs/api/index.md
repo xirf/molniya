@@ -6,13 +6,14 @@ Complete reference for Molniya's public API.
 
 Molniya's API is organized into several modules:
 
-| Module | Description |
-|--------|-------------|
-| **DataFrame** | Core data structure and transformation methods |
-| **Expressions** | Building blocks for filters, calculations, and aggregations |
-| **Data Types** | Type system for schema definitions |
-| **I/O** | Reading and writing data files |
-| **Operators** | Low-level streaming operations |
+| Module            | Description                                                 |
+| ----------------- | ----------------------------------------------------------- |
+| **DataFrame**     | Core data structure and transformation methods              |
+| **Expressions**   | Building blocks for filters, calculations, and aggregations |
+| **Data Types**    | Type system for schema definitions                          |
+| **I/O**           | Reading and writing data files                              |
+| **Operators**     | Low-level streaming operations                              |
+| **Visualization** | Chart generation from DataFrames                            |
 
 ## Import Patterns
 
@@ -71,6 +72,10 @@ import { createSchema, DTypeKind } from "molniya";
 
 - [CSV](./csv) - CSV reading options and functions
 - [Parquet](./parquet) - Parquet file support
+
+### Visualization
+
+- [Plotting](./plotting) - Bar, line, scatter, and histogram charts
 
 ## TypeScript Types
 

@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 350" width="600" height="350" font-family="system-ui, -apple-system, sans-serif">
+<text x="300" y="20" text-anchor="middle" font-size="16" font-weight="600" fill="#333">Price vs Units</text>
+<g transform="translate(70,40)">
+<line x1="0" y1="250" x2="500" y2="250" stroke="#e0e0e0" stroke-width="1"/>
+<line x1="0" y1="200" x2="500" y2="200" stroke="#e0e0e0" stroke-width="1"/>
+<line x1="0" y1="150" x2="500" y2="150" stroke="#e0e0e0" stroke-width="1"/>
+<line x1="0" y1="100" x2="500" y2="100" stroke="#e0e0e0" stroke-width="1"/>
+<line x1="0" y1="50" x2="500" y2="50" stroke="#e0e0e0" stroke-width="1"/>
+<line x1="0" y1="0" x2="500" y2="0" stroke="#e0e0e0" stroke-width="1"/>
+<circle cx="0" cy="200" r="4" fill="#4e79a7" opacity="0.7"/>
+<circle cx="150" cy="137.5" r="4" fill="#4e79a7" opacity="0.7"/>
+<circle cx="50" cy="180" r="4" fill="#4e79a7" opacity="0.7"/>
+<circle cx="300" cy="75" r="4" fill="#4e79a7" opacity="0.7"/>
+<circle cx="200" cy="112.5" r="4" fill="#4e79a7" opacity="0.7"/>
+<circle cx="400" cy="37.5" r="4" fill="#4e79a7" opacity="0.7"/>
+<circle cx="100" cy="162.5" r="4" fill="#4e79a7" opacity="0.7"/>
+<circle cx="250" cy="100" r="4" fill="#4e79a7" opacity="0.7"/>
+<circle cx="350" cy="62.5" r="4" fill="#4e79a7" opacity="0.7"/>
+<circle cx="450" cy="25" r="4" fill="#4e79a7" opacity="0.7"/>
+<line x1="0" y1="250" x2="500" y2="250" stroke="#333" stroke-width="1"/>
+<line x1="0" y1="250" x2="0" y2="255" stroke="#333"/>
+<text x="0" y="268" text-anchor="middle" font-size="10" fill="#333">10</text>
+<line x1="100" y1="250" x2="100" y2="255" stroke="#333"/>
+<text x="100" y="268" text-anchor="middle" font-size="10" fill="#333">20</text>
+<line x1="200" y1="250" x2="200" y2="255" stroke="#333"/>
+<text x="200" y="268" text-anchor="middle" font-size="10" fill="#333">30</text>
+<line x1="300" y1="250" x2="300" y2="255" stroke="#333"/>
+<text x="300" y="268" text-anchor="middle" font-size="10" fill="#333">40</text>
+<line x1="400" y1="250" x2="400" y2="255" stroke="#333"/>
+<text x="400" y="268" text-anchor="middle" font-size="10" fill="#333">50</text>
+<line x1="500" y1="250" x2="500" y2="255" stroke="#333"/>
+<text x="500" y="268" text-anchor="middle" font-size="10" fill="#333">60</text>
+<line x1="0" y1="0" x2="0" y2="250" stroke="#333" stroke-width="1"/>
+<line x1="-5" y1="250" x2="0" y2="250" stroke="#333"/>
+<text x="-10" y="254" text-anchor="end" font-size="10" fill="#333">0</text>
+<line x1="-5" y1="200" x2="0" y2="200" stroke="#333"/>
+<text x="-10" y="204" text-anchor="end" font-size="10" fill="#333">200</text>
+<line x1="-5" y1="150" x2="0" y2="150" stroke="#333"/>
+<text x="-10" y="154" text-anchor="end" font-size="10" fill="#333">400</text>
+<line x1="-5" y1="100" x2="0" y2="100" stroke="#333"/>
+<text x="-10" y="104" text-anchor="end" font-size="10" fill="#333">600</text>
+<line x1="-5" y1="50" x2="0" y2="50" stroke="#333"/>
+<text x="-10" y="54" text-anchor="end" font-size="10" fill="#333">800</text>
+<line x1="-5" y1="0" x2="0" y2="0" stroke="#333"/>
+<text x="-10" y="4" text-anchor="end" font-size="10" fill="#333">1.0k</text>
+</g>
+</svg>

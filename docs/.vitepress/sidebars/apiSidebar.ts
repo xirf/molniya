@@ -60,5 +60,12 @@ export const apiSidebar = [
             { text: 'CSV', link: '/api/csv' },
             { text: 'Parquet', link: '/api/parquet' },
         ]
+    },
+    {
+        text: 'Visualization',
+        icon: 'i-solar:chart-2-outline',
+        items: [
+            { text: 'Plotting', link: '/api/plotting' },
+        ]
     }
 ]

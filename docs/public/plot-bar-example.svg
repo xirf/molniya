@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 350" width="600" height="350" font-family="system-ui, -apple-system, sans-serif">
+<text x="300" y="20" text-anchor="middle" font-size="16" font-weight="600" fill="#333">Monthly Revenue</text>
+<g transform="translate(70,40)">
+<line x1="0" y1="250" x2="500" y2="250" stroke="#e0e0e0" stroke-width="1"/>
+<line x1="0" y1="200" x2="500" y2="200" stroke="#e0e0e0" stroke-width="1"/>
+<line x1="0" y1="150" x2="500" y2="150" stroke="#e0e0e0" stroke-width="1"/>
+<line x1="0" y1="100" x2="500" y2="100" stroke="#e0e0e0" stroke-width="1"/>
+<line x1="0" y1="50" x2="500" y2="50" stroke="#e0e0e0" stroke-width="1"/>
+<line x1="0" y1="0" x2="500" y2="0" stroke="#e0e0e0" stroke-width="1"/>
+<rect x="12.5" y="130" width="58.33333333333333" height="120" fill="#4e79a7" rx="2"/>
+<rect x="95.83333333333334" y="70" width="58.33333333333333" height="180" fill="#4e79a7" rx="2"/>
+<rect x="179.16666666666666" y="160" width="58.33333333333333" height="90" fill="#4e79a7" rx="2"/>
+<rect x="262.5" y="40" width="58.33333333333333" height="210" fill="#4e79a7" rx="2"/>
+<rect x="345.8333333333333" y="100" width="58.33333333333333" height="150" fill="#4e79a7" rx="2"/>
+<rect x="429.16666666666663" y="80" width="58.33333333333333" height="170" fill="#4e79a7" rx="2"/>
+<line x1="0" y1="250" x2="500" y2="250" stroke="#333" stroke-width="1"/>
+<text x="41.666666666666664" y="270" text-anchor="middle" font-size="10" fill="#333">Jan</text>
+<text x="125" y="270" text-anchor="middle" font-size="10" fill="#333">Feb</text>
+<text x="208.33333333333331" y="270" text-anchor="middle" font-size="10" fill="#333">Mar</text>
+<text x="291.6666666666667" y="270" text-anchor="middle" font-size="10" fill="#333">Apr</text>
+<text x="375" y="270" text-anchor="middle" font-size="10" fill="#333">May</text>
+<text x="458.3333333333333" y="270" text-anchor="middle" font-size="10" fill="#333">Jun</text>
+<line x1="0" y1="0" x2="0" y2="250" stroke="#333" stroke-width="1"/>
+<line x1="-5" y1="250" x2="0" y2="250" stroke="#333"/>
+<text x="-10" y="254" text-anchor="end" font-size="10" fill="#333">0</text>
+<line x1="-5" y1="200" x2="0" y2="200" stroke="#333"/>
+<text x="-10" y="204" text-anchor="end" font-size="10" fill="#333">50</text>
+<line x1="-5" y1="150" x2="0" y2="150" stroke="#333"/>
+<text x="-10" y="154" text-anchor="end" font-size="10" fill="#333">100</text>
+<line x1="-5" y1="100" x2="0" y2="100" stroke="#333"/>
+<text x="-10" y="104" text-anchor="end" font-size="10" fill="#333">150</text>
+<line x1="-5" y1="50" x2="0" y2="50" stroke="#333"/>
+<text x="-10" y="54" text-anchor="end" font-size="10" fill="#333">200</text>
+<line x1="-5" y1="0" x2="0" y2="0" stroke="#333"/>
+<text x="-10" y="4" text-anchor="end" font-size="10" fill="#333">250</text>
+</g>
+</svg>

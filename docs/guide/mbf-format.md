@@ -531,4 +531,4 @@ for (const file of files) {
 
 - [Reading CSV](./reading-csv.md) - CSV parsing options
 - [Reading Parquet](./reading-parquet.md) - Parquet streaming
-- [Join Operations](../api/join.md) - Using cached build tables in joins
+- [Join Operations](../api/joins.md) - Using cached build tables in joins

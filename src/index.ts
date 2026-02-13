@@ -182,3 +182,22 @@ export {
 	unwrap,
 	unwrapOr,
 } from "./types/index.ts";
+// Re-export plot
+export {
+	PlotBuilder,
+	PlotResult,
+	renderSvg,
+	type PlotSpec,
+	type ChartType,
+	type DataPoint,
+	type SeriesData,
+	type AxisSpec,
+	type ChartOptions,
+	type BarOptions,
+	type LineOptions,
+	type ScatterOptions,
+	type HistogramOptions,
+	toVegaLiteSpec,
+	renderVegaLite,
+	type VegaLiteSpec,
+} from "./plot/index.ts";

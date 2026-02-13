@@ -63,16 +63,16 @@ const df = await readParquet("users.parquet", schema);
 
 Parquet types are mapped to Molniya types:
 
-| Parquet Type | Molniya Type | Notes |
-|--------------|--------------|-------|
-| `INT32` | `int32` | 32-bit signed integer |
-| `INT64` | `int64` | 64-bit signed integer |
-| `FLOAT` | `float32` | Single precision float |
-| `DOUBLE` | `float64` | Double precision float |
-| `BYTE_ARRAY` | `string` | Dictionary-encoded |
-| `BOOLEAN` | `boolean` | True/false values |
-| `INT96` | `timestamp` | Legacy timestamp format |
-| `INT64 (timestamp)` | `timestamp` | Modern timestamp format |
+| Parquet Type        | Molniya Type | Notes                   |
+| ------------------- | ------------ | ----------------------- |
+| `INT32`             | `int32`      | 32-bit signed integer   |
+| `INT64`             | `int64`      | 64-bit signed integer   |
+| `FLOAT`             | `float32`    | Single precision float  |
+| `DOUBLE`            | `float64`    | Double precision float  |
+| `BYTE_ARRAY`        | `string`     | Dictionary-encoded      |
+| `BOOLEAN`           | `boolean`    | True/false values       |
+| `INT96`             | `timestamp`  | Legacy timestamp format |
+| `INT64 (timestamp)` | `timestamp`  | Modern timestamp format |
 
 ## Reading Options
 
@@ -252,14 +252,14 @@ try {
 
 When to use Parquet over CSV:
 
-| Aspect | Parquet | CSV |
-|--------|---------|-----|
-| **Size** | 50-75% smaller | Raw text |
-| **Speed** | Much faster reads | Slower parsing |
-| **Types** | Preserved | Inferred |
-| **Compression** | Built-in | None (unless zipped) |
-| **Query perf** | Column pruning | Full scan |
-| **Human readable** | No | Yes |
+| Aspect             | Parquet           | CSV                  |
+| ------------------ | ----------------- | -------------------- |
+| **Size**           | 50-75% smaller    | Raw text             |
+| **Speed**          | Much faster reads | Slower parsing       |
+| **Types**          | Preserved         | Inferred             |
+| **Compression**    | Built-in          | None (unless zipped) |
+| **Query perf**     | Column pruning    | Full scan            |
+| **Human readable** | No                | Yes                  |
 
 ## Performance Characteristics
 
@@ -330,7 +330,7 @@ Break-even: 3-5 reads depending on file size
 ```
 
 ::: tip Future Feature
-Automatic .mbf caching is planned but not yet implemented. See [PARQUET_STREAMING_ANALYSIS.md](../PARQUET_STREAMING_ANALYSIS.md) for detailed analysis.
+Automatic .mbf caching is planned but not yet implemented.
 :::
 
 ## Best Practices
