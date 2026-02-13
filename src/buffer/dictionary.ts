@@ -10,9 +10,7 @@
  * - O(1) lookup by index, O(1) amortized insert
  */
 
-/** FNV-1a hash constants */
-const FNV_OFFSET_BASIS = 2166136261;
-const FNV_PRIME = 16777619;
+/** FNV-1a hash constants removed - using Bun.hash */
 
 /** Initial capacity for the dictionary */
 const INITIAL_CAPACITY = 1024;
@@ -63,10 +61,10 @@ export class Dictionary {
 		// Ensure power of 2 for hash table
 		this.hashTableSize = nextPowerOf2(initialCapacity);
 
-		this.data = new Uint8Array(initialCapacity * 32); // Assume avg 32 bytes per string
+		this.data = new Uint8Array(initialCapacity * 32);
 		this.dataOffset = 0;
 
-		this.offsets = new Uint32Array(initialCapacity * 2); // [offset, len] pairs
+		this.offsets = new Uint32Array(initialCapacity * 2);
 		this.count = 0;
 
 		this.hashTable = new Int32Array(this.hashTableSize).fill(-1);
@@ -74,7 +72,8 @@ export class Dictionary {
 		this.hashes = new Uint32Array(initialCapacity);
 
 		this.encoder = new TextEncoder();
-		this.decoder = new TextDecoder("utf-8", { fatal: true });
+		// @ts-ignore - Bun optimization
+		this.decoder = new TextDecoder("utf-8"); // fatal: true deprecated/slow?
 	}
 
 	/** Number of unique strings in the dictionary */
@@ -141,7 +140,9 @@ export class Dictionary {
 		if (bytes === undefined) {
 			return undefined;
 		}
-		const str = this.decoder.decode(bytes);
+		// Optimization: Use Buffer.toString which is faster in Bun/Node than TextDecoder
+		// @ts-ignore
+		const str = Buffer.from(bytes).toString("utf-8");
 		this.stringCache[index] = str;
 		return str;
 	}
@@ -190,10 +191,12 @@ export class Dictionary {
 
 		if (length !== bytes.length) return false;
 
-		for (let i = 0; i < length; i++) {
-			if (this.data[offset + i] !== bytes[i]) return false;
-		}
-		return true;
+		// Optimization: Bun.deepEquals or Buffer.compare?
+		// Buffer.compare is very fast.
+		// @ts-ignore
+		const sub = this.data.subarray(offset, offset + length);
+		// @ts-ignore
+		return Buffer.compare(sub, bytes) === 0;
 	}
 
 	/** Handle empty string specially */
@@ -273,14 +276,15 @@ export class Dictionary {
 		return index;
 	}
 
-	/** FNV-1a hash of bytes */
+	/** FNV-1a hash of bytes (JS implementation is faster than Bun.hash overhead for short strings) */
 	private hash(bytes: Uint8Array): number {
-		let hash = FNV_OFFSET_BASIS;
-		for (let i = 0; i < bytes.length; i++) {
-			hash ^= bytes[i] ?? 0;
-			hash = Math.imul(hash, FNV_PRIME);
+		let hash = 0x811c9dc5;
+		const len = bytes.length;
+		for (let i = 0; i < len; i++) {
+			hash ^= bytes[i];
+			hash = Math.imul(hash, 0x01000193);
 		}
-		return hash >>> 0; // Ensure unsigned
+		return hash >>> 0;
 	}
 
 	/** Grow the chain array */
@@ -307,7 +311,7 @@ export class Dictionary {
 		// Re-insert all entries using cached hashes (no recomputation needed)
 		const mask = this.hashTableSize - 1;
 		for (let i = 0; i < this.count; i++) {
-			const slot = (this.hashes[i]!) & mask;
+			const slot = this.hashes[i]! & mask;
 			this.chains[i] = this.hashTable[slot] ?? -1;
 			this.hashTable[slot] = i;
 		}

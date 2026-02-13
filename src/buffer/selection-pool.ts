@@ -37,7 +37,7 @@ export class SelectionBufferPool {
 		const pool = this.pools.get(bucketSize);
 		if (pool && pool.length > 0) {
 			const buffer = pool.pop() as Uint32Array;
-			buffer.fill(0);
+			// buffer.fill(0); // Optimization: Don't zero, we overwrite anyway
 			return buffer.subarray(0, size);
 		}
 
@@ -53,9 +53,10 @@ export class SelectionBufferPool {
 		// Always reconstruct from the underlying ArrayBuffer so we store
 		// the full-capacity buffer, not a subarray view that would
 		// permanently shrink future acquires.
-		const full = buffer.byteOffset === 0 && buffer.length === buffer.buffer.byteLength / 4
-			? buffer
-			: new Uint32Array(buffer.buffer);
+		const full =
+			buffer.byteOffset === 0 && buffer.length === buffer.buffer.byteLength / 4
+				? buffer
+				: new Uint32Array(buffer.buffer);
 		const bucketSize = full.length;
 
 		let pool = this.pools.get(bucketSize);

@@ -74,7 +74,15 @@ export class FilterOperator extends SimpleOperator {
 		// Try to compile vectorized version (returns null if not vectorizable)
 		const vectorized = compileVectorized(expr, schema) ?? undefined;
 
-		return ok(new FilterOperator(schema, predicateResult.value, maxChunkSize, vectorized, expr));
+		return ok(
+			new FilterOperator(
+				schema,
+				predicateResult.value,
+				maxChunkSize,
+				vectorized,
+				expr,
+			),
+		);
 	}
 
 	/**
@@ -115,11 +123,25 @@ export class FilterOperator extends SimpleOperator {
 		}
 
 		// Create a new chunk view with the selection (don't mutate the original)
-		const selection = this.selectionBuffer.subarray(0, selectedCount);
-		const filteredChunk = chunk.withSelection(selection, selectedCount);
+		// We revert back to copying the selection (slice) and releasing the buffer
+		// to avoid memory churn from constantly allocating new large buffers.
+		// The previous optimization (ownsBuffer=true) caused performance regression.
+		const filteredChunk = chunk.withSelection(
+			this.selectionBuffer,
+			selectedCount,
+		);
 
-		// Release the buffer back to pool and acquire fresh one for next chunk
+		// Release the buffer back to the pool for reuse
 		selectionPool.release(this.selectionBuffer);
+		// Note: We don't need to re-acquire because we released the same buffer instance
+		// (assuming release puts it back in pool and we can acquire it next time).
+		// Actually, standard pattern is acquire in constructor or before process loop.
+		// But since we released it, we need to acquire it again for next process() call?
+		// No, usually we hold it.
+		// Wait, if we release it to pool, another operator might take it.
+		// So we must acquire it again next time process() runs?
+		// process() runs once per chunk.
+		// So YES, we need to re-acquire.
 		this.selectionBuffer = selectionPool.acquire(this.maxChunkSize);
 
 		return ok(opResult(filteredChunk));

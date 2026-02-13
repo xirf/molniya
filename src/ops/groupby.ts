@@ -200,12 +200,15 @@ export class GroupByOperator implements Operator {
 				this._keyBuffer[k] = val;
 			}
 
-			let gid = this.groups.get(this._keyBuffer);
-			if (gid === -1) {
-				gid = this.nextGroupId++;
-				this.groups.insert(this._keyBuffer, gid);
+			const { id, isNew } = this.groups.getOrInsert(
+				this._keyBuffer,
+				this.nextGroupId,
+			);
+			if (isNew) {
+				this.nextGroupId++;
 				this.groupKeys.push(this._keyBuffer.slice());
 			}
+			const gid = id;
 
 			chunkGroupIds[row] = gid;
 		}

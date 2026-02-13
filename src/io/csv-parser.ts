@@ -336,7 +336,8 @@ export class CsvParser {
 
 		if (this.currentFieldPrefix !== null || this.columns !== null) {
 			if (this.currentFieldPrefix !== null) {
-				let val = this.decoder.decode(this.currentFieldPrefix).trim();
+				// @ts-ignore
+				let val = Buffer.from(this.currentFieldPrefix).toString().trim();
 				if (this.state === ParseState.QuoteInQuotedField) {
 					if (val.endsWith(this.options.quote)) {
 						val = val.slice(0, -1);
@@ -411,7 +412,8 @@ export class CsvParser {
 			fullField = data.subarray(this.fieldStart, end);
 		}
 
-		let val = this.decoder.decode(fullField);
+		// @ts-ignore
+		let val = Buffer.from(fullField).toString();
 
 		if (
 			this.state === ParseState.QuoteInQuotedField ||
@@ -672,18 +674,20 @@ export class CsvParser {
 									hasDigits = true;
 									idx++;
 								} else {
-									hasDigits = false;
 									break;
 								}
 							}
 						}
+
 						if (hasDigits) f = sign * val;
 					}
 				}
 
 				if (Number.isNaN(f)) {
-					// Fallback to string decode for scientific notation
-					const str = this.decoder.decode(data.subarray(s, e));
+					// Fallback to string decode for odd formats
+					// Optimization: Buffer.from().toString() is faster than TextDecoder in Bun
+					// @ts-ignore
+					const str = Buffer.from(data.subarray(s, e)).toString();
 					const f2 = parseFloat(str);
 					if (Number.isNaN(f2)) col.appendNull();
 					else col.append(f2 as never);
@@ -702,7 +706,8 @@ export class CsvParser {
 				// BigInt handles whitespace but we already trimmed.
 				// Still need to decode to string for BigInt constructor
 				try {
-					const str = this.decoder.decode(data.subarray(s, e));
+					// @ts-ignore
+					const str = Buffer.from(data.subarray(s, e)).toString();
 					col.append(BigInt(str) as never);
 				} catch {
 					col.append(0n as never);
@@ -721,7 +726,8 @@ export class CsvParser {
 			}
 			case DTypeKind.Timestamp: {
 				try {
-					const str = this.decoder.decode(data.subarray(s, e));
+					// @ts-ignore
+					const str = Buffer.from(data.subarray(s, e)).toString();
 					const ts = BigInt(Date.parse(str));
 					col.append(ts);
 				} catch {
@@ -797,8 +803,6 @@ export class CsvParser {
 		}
 	}
 }
-
-
 
 export function createCsvParser(
 	schema: Schema,

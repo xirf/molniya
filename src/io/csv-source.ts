@@ -183,30 +183,58 @@ export class CsvSource {
 	/**
 	 * Stream chunks (async iterator).
 	 */
-	async *stream(_: number = 512 * 1024): AsyncGenerator<Chunk> {
+	async *stream(chunkSize: number = 64 * 1024): AsyncGenerator<Chunk> {
 		this.parser.reset();
 		if (this.isFile) {
+			const path = this.source as string;
+
+			// Optimization: Use Bun.mmap for zero-copy file access
+			// This avoids copying data from kernel to user space
+			// MMap returns a Uint8Array backed by the file content
+			let mmap: Uint8Array | null = null;
+			try {
+				// @ts-ignore
+				mmap = Bun.mmap(path);
+			} catch (e) {
+				// Fallback if mmap fails (e.g. empty file or not supported)
+				console.warn("mmap failed, falling back to stream", e);
+			}
+
+			if (mmap) {
+				const len = mmap.length;
+				let offset = 0;
+				// Process in chunks to avoid blocking event loop for too long
+				// and to respect parser chunking
+				while (offset < len) {
+					const end = Math.min(offset + chunkSize, len);
+					const slice = mmap.subarray(offset, end);
+					const chunks = this.parser.parse(slice);
+					for (const chunk of chunks) {
+						yield chunk;
+					}
+					offset = end;
+					// Yield to event loop occasionally?
+					// Async generator yields automatically so we are good.
+				}
+				const final = this.parser.finish();
+				if (final) yield final;
+				return;
+			}
+
+			// Fallback to stream
 			const file = Bun.file(this.source as string);
 			const stream = file.stream();
-			// Use raw reader
 			const reader = stream.getReader();
 
 			try {
 				while (true) {
 					const { done, value } = await reader.read();
 					if (done) break;
-
-					// value is Uint8Array
 					const chunks = this.parser.parse(value);
-					for (const chunk of chunks) {
-						yield chunk;
-					}
+					for (const chunk of chunks) yield chunk;
 				}
-
 				const final = this.parser.finish();
-				if (final) {
-					yield final;
-				}
+				if (final) yield final;
 			} finally {
 				reader.releaseLock();
 			}
