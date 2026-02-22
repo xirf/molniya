@@ -24,13 +24,13 @@ export class Chunk {
 	readonly schema: Schema;
 
 	/** Column data indexed by column position */
-	private readonly columns: ColumnBuffer[];
+	readonly columns: ColumnBuffer[];
 
 	/** Dictionary for string columns (shared across chunk) */
 	readonly dictionary: Dictionary | null;
 
 	/** Selection vector (indices of valid rows). Null means all rows are valid. */
-	private selection: Uint32Array | null;
+	selection: Uint32Array | null;
 
 	/** Number of selected rows */
 	private selectedCount: number;
@@ -121,8 +121,16 @@ export class Chunk {
 	 * Create a new Chunk view with the given selection applied.
 	 * Shares the same underlying column data (zero-copy) but has its own selection.
 	 * This is the non-mutating alternative to applySelection.
+	 *
+	 * @param selection The selection vector
+	 * @param count Number of valid rows
+	 * @param ownsBuffer If true, the chunk takes ownership of the selection buffer (no copy)
 	 */
-	withSelection(selection: Uint32Array, count: number): Chunk {
+	withSelection(
+		selection: Uint32Array,
+		count: number,
+		ownsBuffer: boolean = false,
+	): Chunk {
 		const view = new Chunk(this.schema, this.columns, this.dictionary);
 		if (this.selection !== null) {
 			// Compose: map new selection through existing selection
@@ -133,7 +141,13 @@ export class Chunk {
 			}
 			view.selection = composed;
 		} else {
-			view.selection = selection.slice(0, count);
+			if (ownsBuffer) {
+				// Zero-copy taking of ownership
+				// Note: buffer might be larger than count, which is fine
+				view.selection = selection;
+			} else {
+				view.selection = selection.slice(0, count);
+			}
 		}
 		view.selectedCount = count;
 		view.physicalRowCount = this.physicalRowCount;

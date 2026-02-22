@@ -23,14 +23,14 @@ import {
 	type CoalesceExpr,
 	type ColumnExpr,
 	type ComparisonExpr,
+	type DateAddExpr,
 	type DateExtractExpr,
 	type DateParseExpr,
+	type DiffDaysExpr,
 	type Expr,
 	ExprType,
 	type FormatDateExpr,
-		type DateAddExpr,
 	type IsInExpr,
-		type DiffDaysExpr,
 	type LiteralExpr,
 	type LogicalExpr,
 	type NotExpr,
@@ -41,21 +41,26 @@ import {
 	type RoundExpr,
 	type StringLengthExpr,
 	type StringOpExpr,
-		type DateParseExpr,
-		type FormatDateExpr,
-		type ParseJsonExpr,
 	type SubstringExpr,
 	type TrimExpr,
+	type TruncateDateExpr,
 	type UnaryMathExpr,
 	type WhenExpr,
-		type TruncateDateExpr,
 } from "./ast.ts";
-import type { CompiledPredicate, CompiledValue, VectorizedPredicate } from "./compile-types.ts";
+import type {
+	CompiledPredicate,
+	CompiledValue,
+	VectorizedPredicate,
+} from "./compile-types.ts";
 
 // Re-export apply functions
 export { applyPredicate, applyValue, countMatching } from "./apply.ts";
 // Re-export types
-export type { CompiledPredicate, CompiledValue, VectorizedPredicate } from "./compile-types.ts";
+export type {
+	CompiledPredicate,
+	CompiledValue,
+	VectorizedPredicate,
+} from "./compile-types.ts";
 
 /**
  * Compilation context containing schema and column indices.
@@ -186,11 +191,17 @@ function tryVectorizeComparison(
 	let literalValue: number | bigint | string | boolean | null = null;
 	let colOnLeft = true;
 
-	if (expr.left.type === ExprType.Column && expr.right.type === ExprType.Literal) {
+	if (
+		expr.left.type === ExprType.Column &&
+		expr.right.type === ExprType.Literal
+	) {
 		colIdx = ctx.columnIndices.get((expr.left as ColumnExpr).name);
 		literalValue = (expr.right as LiteralExpr).value;
 		colOnLeft = true;
-	} else if (expr.right.type === ExprType.Column && expr.left.type === ExprType.Literal) {
+	} else if (
+		expr.right.type === ExprType.Column &&
+		expr.left.type === ExprType.Literal
+	) {
 		colIdx = ctx.columnIndices.get((expr.right as ColumnExpr).name);
 		literalValue = (expr.left as LiteralExpr).value;
 		colOnLeft = false;
@@ -209,9 +220,11 @@ function tryVectorizeComparison(
 	}
 
 	// Numeric path
-	if (typeof literalValue !== "number" && typeof literalValue !== "bigint") return null;
+	if (typeof literalValue !== "number" && typeof literalValue !== "bigint")
+		return null;
 
-	const threshold = typeof literalValue === "bigint" ? Number(literalValue) : literalValue;
+	const threshold =
+		typeof literalValue === "bigint" ? Number(literalValue) : literalValue;
 	const nullable = colDef.dtype.nullable;
 	const ci = colIdx;
 
@@ -220,10 +233,18 @@ function tryVectorizeComparison(
 	let effectiveType = expr.type;
 	if (!colOnLeft) {
 		switch (expr.type) {
-			case ExprType.Lt: effectiveType = ExprType.Gt; break;
-			case ExprType.Lte: effectiveType = ExprType.Gte; break;
-			case ExprType.Gt: effectiveType = ExprType.Lt; break;
-			case ExprType.Gte: effectiveType = ExprType.Lte; break;
+			case ExprType.Lt:
+				effectiveType = ExprType.Gt;
+				break;
+			case ExprType.Lte:
+				effectiveType = ExprType.Gte;
+				break;
+			case ExprType.Gt:
+				effectiveType = ExprType.Lt;
+				break;
+			case ExprType.Gte:
+				effectiveType = ExprType.Lte;
+				break;
 		}
 	}
 
@@ -240,32 +261,72 @@ function tryVectorizeComparison(
 			if (nullable) {
 				switch (effectiveType) {
 					case ExprType.Gt:
-						for (let i = 0; i < len; i++) { if (!col.isNull(i) && (data[i] as number) > threshold) selOut[count++] = i; } break;
+						for (let i = 0; i < len; i++) {
+							if (!col.isNull(i) && (data[i] as number) > threshold)
+								selOut[count++] = i;
+						}
+						break;
 					case ExprType.Gte:
-						for (let i = 0; i < len; i++) { if (!col.isNull(i) && (data[i] as number) >= threshold) selOut[count++] = i; } break;
+						for (let i = 0; i < len; i++) {
+							if (!col.isNull(i) && (data[i] as number) >= threshold)
+								selOut[count++] = i;
+						}
+						break;
 					case ExprType.Lt:
-						for (let i = 0; i < len; i++) { if (!col.isNull(i) && (data[i] as number) < threshold) selOut[count++] = i; } break;
+						for (let i = 0; i < len; i++) {
+							if (!col.isNull(i) && (data[i] as number) < threshold)
+								selOut[count++] = i;
+						}
+						break;
 					case ExprType.Lte:
-						for (let i = 0; i < len; i++) { if (!col.isNull(i) && (data[i] as number) <= threshold) selOut[count++] = i; } break;
+						for (let i = 0; i < len; i++) {
+							if (!col.isNull(i) && (data[i] as number) <= threshold)
+								selOut[count++] = i;
+						}
+						break;
 					case ExprType.Eq:
-						for (let i = 0; i < len; i++) { if (!col.isNull(i) && data[i] === threshold) selOut[count++] = i; } break;
+						for (let i = 0; i < len; i++) {
+							if (!col.isNull(i) && data[i] === threshold) selOut[count++] = i;
+						}
+						break;
 					case ExprType.Neq:
-						for (let i = 0; i < len; i++) { if (!col.isNull(i) && data[i] !== threshold) selOut[count++] = i; } break;
+						for (let i = 0; i < len; i++) {
+							if (!col.isNull(i) && data[i] !== threshold) selOut[count++] = i;
+						}
+						break;
 				}
 			} else {
 				switch (effectiveType) {
 					case ExprType.Gt:
-						for (let i = 0; i < len; i++) { if ((data[i] as number) > threshold) selOut[count++] = i; } break;
+						for (let i = 0; i < len; i++) {
+							if ((data[i] as number) > threshold) selOut[count++] = i;
+						}
+						break;
 					case ExprType.Gte:
-						for (let i = 0; i < len; i++) { if ((data[i] as number) >= threshold) selOut[count++] = i; } break;
+						for (let i = 0; i < len; i++) {
+							if ((data[i] as number) >= threshold) selOut[count++] = i;
+						}
+						break;
 					case ExprType.Lt:
-						for (let i = 0; i < len; i++) { if ((data[i] as number) < threshold) selOut[count++] = i; } break;
+						for (let i = 0; i < len; i++) {
+							if ((data[i] as number) < threshold) selOut[count++] = i;
+						}
+						break;
 					case ExprType.Lte:
-						for (let i = 0; i < len; i++) { if ((data[i] as number) <= threshold) selOut[count++] = i; } break;
+						for (let i = 0; i < len; i++) {
+							if ((data[i] as number) <= threshold) selOut[count++] = i;
+						}
+						break;
 					case ExprType.Eq:
-						for (let i = 0; i < len; i++) { if (data[i] === threshold) selOut[count++] = i; } break;
+						for (let i = 0; i < len; i++) {
+							if (data[i] === threshold) selOut[count++] = i;
+						}
+						break;
 					case ExprType.Neq:
-						for (let i = 0; i < len; i++) { if (data[i] !== threshold) selOut[count++] = i; } break;
+						for (let i = 0; i < len; i++) {
+							if (data[i] !== threshold) selOut[count++] = i;
+						}
+						break;
 				}
 			}
 		} else {
@@ -274,32 +335,84 @@ function tryVectorizeComparison(
 			if (nullable) {
 				switch (effectiveType) {
 					case ExprType.Gt:
-						for (let i = 0; i < len; i++) { const p = selection[i]!; if (!col.isNull(p) && (data[p] as number) > threshold) selOut[count++] = p; } break;
+						for (let i = 0; i < len; i++) {
+							const p = selection[i]!;
+							if (!col.isNull(p) && (data[p] as number) > threshold)
+								selOut[count++] = p;
+						}
+						break;
 					case ExprType.Gte:
-						for (let i = 0; i < len; i++) { const p = selection[i]!; if (!col.isNull(p) && (data[p] as number) >= threshold) selOut[count++] = p; } break;
+						for (let i = 0; i < len; i++) {
+							const p = selection[i]!;
+							if (!col.isNull(p) && (data[p] as number) >= threshold)
+								selOut[count++] = p;
+						}
+						break;
 					case ExprType.Lt:
-						for (let i = 0; i < len; i++) { const p = selection[i]!; if (!col.isNull(p) && (data[p] as number) < threshold) selOut[count++] = p; } break;
+						for (let i = 0; i < len; i++) {
+							const p = selection[i]!;
+							if (!col.isNull(p) && (data[p] as number) < threshold)
+								selOut[count++] = p;
+						}
+						break;
 					case ExprType.Lte:
-						for (let i = 0; i < len; i++) { const p = selection[i]!; if (!col.isNull(p) && (data[p] as number) <= threshold) selOut[count++] = p; } break;
+						for (let i = 0; i < len; i++) {
+							const p = selection[i]!;
+							if (!col.isNull(p) && (data[p] as number) <= threshold)
+								selOut[count++] = p;
+						}
+						break;
 					case ExprType.Eq:
-						for (let i = 0; i < len; i++) { const p = selection[i]!; if (!col.isNull(p) && data[p] === threshold) selOut[count++] = p; } break;
+						for (let i = 0; i < len; i++) {
+							const p = selection[i]!;
+							if (!col.isNull(p) && data[p] === threshold) selOut[count++] = p;
+						}
+						break;
 					case ExprType.Neq:
-						for (let i = 0; i < len; i++) { const p = selection[i]!; if (!col.isNull(p) && data[p] !== threshold) selOut[count++] = p; } break;
+						for (let i = 0; i < len; i++) {
+							const p = selection[i]!;
+							if (!col.isNull(p) && data[p] !== threshold) selOut[count++] = p;
+						}
+						break;
 				}
 			} else {
 				switch (effectiveType) {
 					case ExprType.Gt:
-						for (let i = 0; i < len; i++) { const p = selection[i]!; if ((data[p] as number) > threshold) selOut[count++] = p; } break;
+						for (let i = 0; i < len; i++) {
+							const p = selection[i]!;
+							if ((data[p] as number) > threshold) selOut[count++] = p;
+						}
+						break;
 					case ExprType.Gte:
-						for (let i = 0; i < len; i++) { const p = selection[i]!; if ((data[p] as number) >= threshold) selOut[count++] = p; } break;
+						for (let i = 0; i < len; i++) {
+							const p = selection[i]!;
+							if ((data[p] as number) >= threshold) selOut[count++] = p;
+						}
+						break;
 					case ExprType.Lt:
-						for (let i = 0; i < len; i++) { const p = selection[i]!; if ((data[p] as number) < threshold) selOut[count++] = p; } break;
+						for (let i = 0; i < len; i++) {
+							const p = selection[i]!;
+							if ((data[p] as number) < threshold) selOut[count++] = p;
+						}
+						break;
 					case ExprType.Lte:
-						for (let i = 0; i < len; i++) { const p = selection[i]!; if ((data[p] as number) <= threshold) selOut[count++] = p; } break;
+						for (let i = 0; i < len; i++) {
+							const p = selection[i]!;
+							if ((data[p] as number) <= threshold) selOut[count++] = p;
+						}
+						break;
 					case ExprType.Eq:
-						for (let i = 0; i < len; i++) { const p = selection[i]!; if (data[p] === threshold) selOut[count++] = p; } break;
+						for (let i = 0; i < len; i++) {
+							const p = selection[i]!;
+							if (data[p] === threshold) selOut[count++] = p;
+						}
+						break;
 					case ExprType.Neq:
-						for (let i = 0; i < len; i++) { const p = selection[i]!; if (data[p] !== threshold) selOut[count++] = p; } break;
+						for (let i = 0; i < len; i++) {
+							const p = selection[i]!;
+							if (data[p] !== threshold) selOut[count++] = p;
+						}
+						break;
 				}
 			}
 		}
@@ -337,16 +450,26 @@ function vectorizeDictEqNeq(
 		if (selection === null) {
 			const len = chunk.getPhysicalRowCount();
 			if (isEq) {
-				for (let i = 0; i < len; i++) { if (data[i] === target) selOut[count++] = i; }
+				for (let i = 0; i < len; i++) {
+					if (data[i] === target) selOut[count++] = i;
+				}
 			} else {
-				for (let i = 0; i < len; i++) { if (data[i] !== target) selOut[count++] = i; }
+				for (let i = 0; i < len; i++) {
+					if (data[i] !== target) selOut[count++] = i;
+				}
 			}
 		} else {
 			const len = selection.length;
 			if (isEq) {
-				for (let i = 0; i < len; i++) { const p = selection[i]!; if (data[p] === target) selOut[count++] = p; }
+				for (let i = 0; i < len; i++) {
+					const p = selection[i]!;
+					if (data[p] === target) selOut[count++] = p;
+				}
 			} else {
-				for (let i = 0; i < len; i++) { const p = selection[i]!; if (data[p] !== target) selOut[count++] = p; }
+				for (let i = 0; i < len; i++) {
+					const p = selection[i]!;
+					if (data[p] !== target) selOut[count++] = p;
+				}
 			}
 		}
 		return count;
@@ -434,7 +557,9 @@ function tryVectorizeIsIn(
 
 	if (kind === DTypeKind.String) {
 		// Dictionary string isIn: cache interned indices per dictionary
-		const literalStrings = expr.values.filter((v): v is string => typeof v === "string");
+		const literalStrings = expr.values.filter(
+			(v): v is string => typeof v === "string",
+		);
 		if (literalStrings.length !== expr.values.length) return null;
 
 		let cachedIndexSet: Set<number> | null = null;
@@ -461,10 +586,15 @@ function tryVectorizeIsIn(
 
 			if (selection === null) {
 				const len = chunk.getPhysicalRowCount();
-				for (let i = 0; i < len; i++) { if (indexSet.has(data[i] as number)) selOut[count++] = i; }
+				for (let i = 0; i < len; i++) {
+					if (indexSet.has(data[i] as number)) selOut[count++] = i;
+				}
 			} else {
 				const slen = selection.length;
-				for (let i = 0; i < slen; i++) { const p = selection[i]!; if (indexSet.has(data[p] as number)) selOut[count++] = p; }
+				for (let i = 0; i < slen; i++) {
+					const p = selection[i]!;
+					if (indexSet.has(data[p] as number)) selOut[count++] = p;
+				}
 			}
 			return count;
 		};
@@ -483,10 +613,15 @@ function tryVectorizeIsIn(
 
 			if (selection === null) {
 				const len = chunk.getPhysicalRowCount();
-				for (let i = 0; i < len; i++) { if (numSet.has(data[i] as number)) selOut[count++] = i; }
+				for (let i = 0; i < len; i++) {
+					if (numSet.has(data[i] as number)) selOut[count++] = i;
+				}
 			} else {
 				const slen = selection.length;
-				for (let i = 0; i < slen; i++) { const p = selection[i]!; if (numSet.has(data[p] as number)) selOut[count++] = p; }
+				for (let i = 0; i < slen; i++) {
+					const p = selection[i]!;
+					if (numSet.has(data[p] as number)) selOut[count++] = p;
+				}
 			}
 			return count;
 		};
@@ -512,33 +647,49 @@ function tryVectorizeAnd(
 	if (vecPreds.length === 0) return null;
 	if (vecPreds.length === 1) return vecPreds[0]!;
 
+	// Optimization: Pre-allocate scratch buffers
+	// Since we are in a closure, we can reuse these buffers across chunks.
+	// But we need to handle size growth.
+	let tempSelStratch: Uint32Array | null = null;
+	let innerOutScratch: Uint32Array | null = null;
+
 	return (chunk, selOut) => {
+		// Ensure scratch buffers are large enough
+		const requiredSize = chunk.rowCount;
+		if (!tempSelStratch || tempSelStratch.length < requiredSize) {
+			tempSelStratch = new Uint32Array(Math.max(requiredSize, 1024));
+		}
+		if (!innerOutScratch || innerOutScratch.length < requiredSize) {
+			innerOutScratch = new Uint32Array(Math.max(requiredSize, 1024));
+		}
+
 		// Apply first predicate to get initial selection
 		let count = vecPreds[0]!(chunk, selOut);
 		if (count === 0) return 0;
 
-		// For subsequent predicates, create a temporary chunk view with the selection
-		// and re-filter. We reuse the selOut buffer.
-		const tempSel = new Uint32Array(count);
+		// For subsequent predicates
 		for (let p = 1; p < vecPreds.length; p++) {
 			// Copy current selection to temp
-			tempSel.set(selOut.subarray(0, count));
+			tempSelStratch.set(selOut.subarray(0, count));
 
-			// Create a virtual view by passing selection through
-			// We need to filter tempSel[0..count] and output matching to selOut
 			let newCount = 0;
 			const predFn = vecPreds[p]!;
 
-			// Use a scratch buffer for the inner predicate results
-			const innerOut = new Uint32Array(count);
-			// Temporarily apply selection via a view chunk
-			const view = chunk.withSelection(tempSel.subarray(0, count), count);
-			newCount = predFn(view, innerOut);
+			// Create a virtual view by passing selection through
+			// We pass ownership=true but it's our scratch buffer so we keep using it
+			// Chunk "taking ownership" just means it holds a ref. We control the lifecycle.
+			const view = chunk.withSelection(
+				tempSelStratch.subarray(0, count),
+				count,
+				true,
+			);
+
+			// Evaluate inner predicate into scratch output
+			newCount = predFn(view, innerOutScratch);
 
 			// Copy results back to selOut
-			for (let i = 0; i < newCount; i++) {
-				selOut[i] = innerOut[i]!;
-			}
+			selOut.set(innerOutScratch.subarray(0, newCount));
+
 			count = newCount;
 			if (count === 0) return 0;
 		}
@@ -577,19 +728,29 @@ function tryVectorizeNot(
 		}
 
 		// Build a set of matched physical indices for fast lookup
-		const matched = new Set<number>();
-		for (let i = 0; i < matchCount; i++) matched.add(selOut[i]!);
+		// Optimization: Use Uint8Array bitmap instead of Set<number>
+		// Allocating Uint8Array(65536) is very cheap and cache friendly
+		const totalPhys = chunk.getPhysicalRowCount();
+
+		// Note: We allocate this inside the loop which is not ideal, but
+		// it's much faster than Set.
+		// TODO: Could cache this buffer in closure too if we knew max physical rows
+		const matchedParams = new Uint8Array(totalPhys);
+
+		for (let i = 0; i < matchCount; i++) {
+			matchedParams[selOut[i]!] = 1;
+		}
 
 		let count = 0;
 		if (selection === null) {
 			const len = chunk.getPhysicalRowCount();
 			for (let i = 0; i < len; i++) {
-				if (!matched.has(i)) selOut[count++] = i;
+				if (matchedParams[i] === 0) selOut[count++] = i;
 			}
 		} else {
 			for (let i = 0; i < total; i++) {
 				const p = selection[i]!;
-				if (!matched.has(p)) selOut[count++] = p;
+				if (matchedParams[p] === 0) selOut[count++] = p;
 			}
 		}
 		return count;
@@ -604,7 +765,8 @@ function tryVectorizeBetween(
 	ctx: CompileContext,
 ): VectorizedPredicate | null {
 	if (expr.expr.type !== ExprType.Column) return null;
-	if (expr.low.type !== ExprType.Literal || expr.high.type !== ExprType.Literal) return null;
+	if (expr.low.type !== ExprType.Literal || expr.high.type !== ExprType.Literal)
+		return null;
 
 	const colIdx = ctx.columnIndices.get(expr.expr.name);
 	if (colIdx === undefined) return null;
@@ -786,17 +948,29 @@ function tryDictStringComparison(
 	let literalStr: string | null = null;
 
 	// Detect: Column(String) == Literal(string) or Literal(string) == Column(String)
-	if (expr.left.type === ExprType.Column && expr.right.type === ExprType.Literal) {
+	if (
+		expr.left.type === ExprType.Column &&
+		expr.right.type === ExprType.Literal
+	) {
 		const ci = ctx.columnIndices.get(expr.left.name);
 		const colDef = ci !== undefined ? ctx.schema.columns[ci] : undefined;
-		if (colDef?.dtype.kind === DTypeKind.String && typeof (expr.right as LiteralExpr).value === "string") {
+		if (
+			colDef?.dtype.kind === DTypeKind.String &&
+			typeof (expr.right as LiteralExpr).value === "string"
+		) {
 			colIdx = ci;
 			literalStr = (expr.right as LiteralExpr).value as string;
 		}
-	} else if (expr.right.type === ExprType.Column && expr.left.type === ExprType.Literal) {
+	} else if (
+		expr.right.type === ExprType.Column &&
+		expr.left.type === ExprType.Literal
+	) {
 		const ci = ctx.columnIndices.get(expr.right.name);
 		const colDef = ci !== undefined ? ctx.schema.columns[ci] : undefined;
-		if (colDef?.dtype.kind === DTypeKind.String && typeof (expr.left as LiteralExpr).value === "string") {
+		if (
+			colDef?.dtype.kind === DTypeKind.String &&
+			typeof (expr.left as LiteralExpr).value === "string"
+		) {
 			colIdx = ci;
 			literalStr = (expr.left as LiteralExpr).value as string;
 		}
@@ -1383,7 +1557,9 @@ function compileSubstring(
 		const v = inner(chunk, row);
 		if (v === null) return null;
 		if (typeof v === "string") {
-			return length !== undefined ? v.substring(start, start + length) : v.substring(start);
+			return length !== undefined
+				? v.substring(start, start + length)
+				: v.substring(start);
 		}
 		return null;
 	};
@@ -1513,7 +1689,10 @@ function compileDateAdd(expr: DateAddExpr, ctx: CompileContext): CompiledValue {
 }
 
 /** Compile diffDays expression. */
-function compileDiffDays(expr: DiffDaysExpr, ctx: CompileContext): CompiledValue {
+function compileDiffDays(
+	expr: DiffDaysExpr,
+	ctx: CompileContext,
+): CompiledValue {
 	const left = compileValueInternal(expr.left, ctx);
 	const right = compileValueInternal(expr.right, ctx);
 
@@ -1524,9 +1703,7 @@ function compileDiffDays(expr: DiffDaysExpr, ctx: CompileContext): CompiledValue
 		const leftDate = coerceToDate(l);
 		const rightDate = coerceToDate(r);
 		if (!leftDate || !rightDate) return null;
-		return Math.floor(
-			(leftDate.getTime() - rightDate.getTime()) / 86400000,
-		);
+		return Math.floor((leftDate.getTime() - rightDate.getTime()) / 86400000);
 	};
 }
 
@@ -1564,9 +1741,7 @@ function compileTruncateDate(
 				const dayOfWeek = date.getUTCDay();
 				// ISO week starts on Monday (1). Adjust Sunday (0) to 6.
 				const offset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-				const monday = new Date(
-					Date.UTC(y, m, d - offset, 0, 0, 0, 0),
-				);
+				const monday = new Date(Date.UTC(y, m, d - offset, 0, 0, 0, 0));
 				return Math.floor(monday.getTime() / 86400000);
 			}
 			case "day":
@@ -1838,7 +2013,8 @@ function compileIsIn(expr: IsInExpr, ctx: CompileContext): CompiledPredicate {
 	// Compares dictionary indices instead of decoding strings per row
 	if (expr.expr.type === ExprType.Column) {
 		const colIdx = ctx.columnIndices.get(expr.expr.name);
-		const colDef = colIdx !== undefined ? ctx.schema.columns[colIdx] : undefined;
+		const colDef =
+			colIdx !== undefined ? ctx.schema.columns[colIdx] : undefined;
 		if (
 			colDef?.dtype.kind === DTypeKind.String &&
 			expr.values.every((v) => typeof v === "string")
