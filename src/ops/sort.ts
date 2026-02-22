@@ -13,7 +13,6 @@ import * as path from "node:path";
 import { Chunk } from "../buffer/chunk.ts";
 import { ColumnBuffer } from "../buffer/column-buffer.ts";
 import { StringViewColumnBuffer } from "../buffer/string-view-column.ts";
-import { Dictionary } from "../buffer/dictionary.ts";
 import { recycleChunk } from "../buffer/pool.ts";
 import { DTypeKind } from "../types/dtypes.ts";
 import { ErrorCode, err, ok, type Result } from "../types/error.ts";
@@ -155,7 +154,6 @@ export class SortOperator implements Operator {
 			this._mergeGenerator = this.mergeSpilledRuns();
 		}
 
-<<<<<<< HEAD
 		try {
 			const next = await this._mergeGenerator.next();
 			if (next.done) {
@@ -167,149 +165,10 @@ export class SortOperator implements Operator {
 			this._mergeGenerator = null;
 			return err(ErrorCode.ExecutionFailed);
 		}
-	}		for (let k = 0; k < this.sortKeys.length; k++) {
-			const keyRule = this.sortKeys[k]!;
-			const colIdx = this.columnIndices[k]!;
-			const dtype = this.outputSchema.columns[colIdx]!.dtype;
-			const isString = dtype.kind === DTypeKind.String;
-
-			let keyData: Float64Array | Int32Array | Uint32Array | BigInt64Array;
-			let nulls: Uint8Array | null = null;
-
-			if (dtype.nullable) {
-				nulls = new Uint8Array(totalRows);
-			}
-
-			if (isString) {
-				keyData = new Uint32Array(totalRows);
-			} else if (
-				dtype.kind === DTypeKind.Int64 ||
-				dtype.kind === DTypeKind.UInt64 ||
-				dtype.kind === DTypeKind.Timestamp
-			) {
-				keyData = new BigInt64Array(totalRows);
-			} else {
-				keyData = new Float64Array(totalRows);
-			}
-
-			// Extract data
-			let offset = 0;
-			for (const chunk of this.bufferedChunks) {
-				const col = chunk.columns[colIdx]!;
-				const count = chunk.rowCount;
-				const srcData = col.data;
-				const sel = chunk.selection;
-
-				// @ts-ignore
-				const nullBitmap = col.nullBitmap; // Direct access if possible, or use isNull
-
-				if (sel) {
-					for (let i = 0; i < count; i++) {
-						const row = sel[i]!;
-						const globalIdx = offset + i;
-
-						if (dtype.nullable && col.isNull(row)) {
-							nulls![globalIdx] = 1;
-						} else {
-							if (isString) {
-								keyData[globalIdx] = (srcData as Uint32Array)[row]! as number;
-							} else if (keyData instanceof BigInt64Array) {
-								keyData[globalIdx] = (srcData as BigInt64Array)[row]!;
-							} else {
-								keyData[globalIdx] = Number((srcData as any)[row]!);
-							}
-						}
-					}
-				} else {
-					for (let i = 0; i < count; i++) {
-						const globalIdx = offset + i;
-						if (dtype.nullable && col.isNull(i)) {
-							nulls![globalIdx] = 1;
-						} else {
-							if (isString) {
-								keyData[globalIdx] = (srcData as Uint32Array)[i]! as number;
-							} else if (keyData instanceof BigInt64Array) {
-								keyData[globalIdx] = (srcData as BigInt64Array)[i]!;
-							} else {
-								keyData[globalIdx] = Number((srcData as any)[i]!);
-							}
-						}
-					}
-				}
-				offset += count;
-			}
-
-			flatKeys.push({
-				data: keyData,
-				nulls,
-				isString,
-				descending: keyRule.descending ?? false,
-				nullsFirst: keyRule.nullsFirst ?? false,
-			});
-		}
-
-		// 3. Sort permutation array
-		const perm = new Uint32Array(totalRows);
-		for (let i = 0; i < totalRows; i++) perm[i] = i;
-
-		perm.sort((a, b) => {
-			for (let k = 0; k < flatKeys.length; k++) {
-				const key = flatKeys[k]!;
-
-				const nullA = key.nulls ? key.nulls[a]! : 0;
-				const nullB = key.nulls ? key.nulls[b]! : 0;
-
-				if (nullA && nullB) continue;
-				if (nullA) return key.nullsFirst ? -1 : 1;
-				if (nullB) return key.nullsFirst ? 1 : -1;
-
-				let diff = 0;
-				if (key.isString) {
-					const idA = (key.data as Uint32Array)[a]!;
-					const idB = (key.data as Uint32Array)[b]!;
-					if (useSharedDict && firstDict) {
-						diff = firstDict.compare(idA, idB);
-					} else {
-						// Fallback: This path assumes chunks might have different dictionaries
-						// but we already extracted IDs into keyData.
-						// If dictionaries differ, ID comparison is invalid!
-						// We should have extracted strings if dicts differ.
-						// But for now we assume shared dict.
-						// If not shared, behavior is undefined/wrong.
-						// But CsvSource guarantees shared dict.
-						diff = idA - idB;
-					}
-				} else if (key.data instanceof BigInt64Array) {
-					const va = key.data[a]!;
-					const vb = key.data[b]!;
-					diff = va < vb ? -1 : va > vb ? 1 : 0;
-				} else {
-					const va = (key.data as Float64Array)[a]!;
-					const vb = (key.data as Float64Array)[b]!;
-					diff = va - vb;
-				}
-
-				if (diff !== 0) {
-					return key.descending ? -diff : diff;
-				}
-			}
-			return 0;
-		});
-
-		// 4. Build output chunk from sorted permutation (Optimization #13)
-		const outputChunk = this.buildSortedChunk(perm, chunkIndices, rowIndices);
-
-		this.bufferedChunks = []; // Clear buffer
-		return ok({
-			chunk: outputChunk,
-			done: true,
-			hasMore: false,
-		});
->>>>>>> 08074da10e8c47a09130ef4d696c31cd133eaf30
 	}
 
 	reset(): void {
-		for (const chunk of this.bufferedChunks) {
+		for(const chunk of this.bufferedChunks) {
 			recycleChunk(chunk);
 		}
 		this.bufferedChunks = [];
@@ -319,7 +178,7 @@ export class SortOperator implements Operator {
 
 	/** Clean up spill files */
 	async cleanup(): Promise<void> {
-		for (const file of this.spillFiles) {
+		for(const file of this.spillFiles) {
 			try {
 				await fs.unlink(file);
 			} catch {
@@ -338,104 +197,104 @@ export class SortOperator implements Operator {
 	}
 
 	private buildSortedChunk(
-		perm: Uint32Array,
-		chunkIndices: Uint32Array,
-		rowIndices: Uint32Array,
-	): Chunk {
-		const schema = this.outputSchema;
-		const dictionary = this.bufferedChunks[0]!.dictionary;
+	perm: Uint32Array,
+	chunkIndices: Uint16Array | Uint32Array,
+	rowIndices: Uint32Array,
+): Chunk {
+	const schema = this.outputSchema;
+	const dictionary = this.bufferedChunks[0]!.dictionary;
 
-		// Create new column buffers
-		const columns: ColumnBuffer[] = [];
-		for (const col of schema.columns) {
-			if (col.dtype.kind === DTypeKind.StringView) {
-				columns.push(new StringViewColumnBuffer(perm.length, col.dtype.nullable) as unknown as ColumnBuffer);
-			} else {
-				columns.push(new ColumnBuffer(col.dtype.kind, perm.length, col.dtype.nullable));
-			}
+	// Create new column buffers
+	const columns: ColumnBuffer[] = [];
+	for (const col of schema.columns) {
+		if (col.dtype.kind === DTypeKind.StringView) {
+			columns.push(new StringViewColumnBuffer(perm.length, col.dtype.nullable) as unknown as ColumnBuffer);
+		} else {
+			columns.push(new ColumnBuffer(col.dtype.kind, perm.length, col.dtype.nullable));
 		}
+	}
 
-		// Optimization #13: Column-First Gather
-		// processing column-by-column improves write locality and cache utilization
-		for (let c = 0; c < schema.columnCount; c++) {
-			const destCol = columns[c]!;
-			const isNullable = schema.columns[c]!.dtype.nullable;
+	// Optimization #13: Column-First Gather
+	// processing column-by-column improves write locality and cache utilization
+	for (let c = 0; c < schema.columnCount; c++) {
+		const destCol = columns[c]!;
+		const isNullable = schema.columns[c]!.dtype.nullable;
 
-			for (let i = 0; i < perm.length; i++) {
-				const p = perm[i]!;
-				const chunkIdx = chunkIndices[p]!;
-				const rowIdx = rowIndices[p]!;
+		for (let i = 0; i < perm.length; i++) {
+			const p = perm[i]!;
+			const chunkIdx = chunkIndices[p]!;
+			const rowIdx = rowIndices[p]!;
 
-				const srcChunk = this.bufferedChunks[chunkIdx]!;
-				const srcCol = srcChunk.columns[c]!;
-				const physRow = srcChunk.selection
-					? srcChunk.selection[rowIdx]!
-					: rowIdx;
+			const srcChunk = this.bufferedChunks[chunkIdx]!;
+			const srcCol = srcChunk.columns[c]!;
+			const physRow = srcChunk.selection
+				? srcChunk.selection[rowIdx]!
+				: rowIdx;
 
-				if (isNullable && srcCol.isNull(physRow)) {
-					destCol.appendNull();
+			if (isNullable && srcCol.isNull(physRow)) {
+				destCol.appendNull();
+			} else {
+
+				if (schema.columns[c]!.dtype.kind === DTypeKind.StringView) {
+					const bytes = srcChunk.getBytesValue(c, physRow);
+					(destCol as unknown as StringViewColumnBuffer).appendBytes(bytes!, 0, bytes!.length);
 				} else {
-<<<<<<< HEAD
-					if (schema.columns[c]!.dtype.kind === DTypeKind.StringView) {
-						const bytes = srcChunk.getBytesValue(c, srcRow);
-						(destCol as unknown as StringViewColumnBuffer).appendBytes(bytes!, 0, bytes!.length);
-					} else {
-						const value = srcChunk.getValue(c, srcRow);
-						destCol.append(value!);
-					}
+					const value = srcChunk.getValue(c, physRow);
+					destCol.append(value!);
 				}
 			}
 		}
-
-		return new Chunk(schema, columns, dictionary);
 	}
+
+	return new Chunk(schema, columns, dictionary);
+}
 
 	/** Sort buffered chunks in memory and return the result */
 	private sortInMemory(): OperatorResult {
-		const totalRows = this.bufferedChunks.reduce(
-			(sum, c) => sum + c.rowCount,
-			0,
-		);
+	const totalRows = this.bufferedChunks.reduce(
+		(sum, c) => sum + c.rowCount,
+		0,
+	);
 
-		if (totalRows === 0) {
-			return opEmpty();
-		}
-
-		const chunkIndices = new Uint16Array(totalRows);
-		const rowIndices = new Uint32Array(totalRows);
-		let idx = 0;
-		for (let c = 0; c < this.bufferedChunks.length; c++) {
-			const chunk = this.bufferedChunks[c]!;
-			for (let r = 0; r < chunk.rowCount; r++) {
-				chunkIndices[idx] = c;
-				rowIndices[idx] = r;
-				idx++;
-			}
-		}
-
-		const perm = new Uint32Array(totalRows);
-		for (let i = 0; i < totalRows; i++) perm[i] = i;
-
-		perm.sort((ai, bi) => this.compareRows(
-			this.bufferedChunks[chunkIndices[ai]!]!,
-			rowIndices[ai]!,
-			this.bufferedChunks[chunkIndices[bi]!]!,
-			rowIndices[bi]!,
-		));
-
-		const outputChunk = this.buildSortedChunk(perm, chunkIndices, rowIndices);
-		for (const chunk of this.bufferedChunks) {
-			recycleChunk(chunk);
-		}
-		this.bufferedChunks = [];
-		this.bufferedRowCount = 0;
-
-		return {
-			chunk: outputChunk,
-			done: true,
-			hasMore: false,
-		};
+	if (totalRows === 0) {
+		return opEmpty();
 	}
+
+	const chunkIndices = new Uint16Array(totalRows);
+	const rowIndices = new Uint32Array(totalRows);
+	let idx = 0;
+	for (let c = 0; c < this.bufferedChunks.length; c++) {
+		const chunk = this.bufferedChunks[c]!;
+		for (let r = 0; r < chunk.rowCount; r++) {
+			chunkIndices[idx] = c;
+			rowIndices[idx] = r;
+			idx++;
+		}
+	}
+
+	const perm = new Uint32Array(totalRows);
+	for (let i = 0; i < totalRows; i++) perm[i] = i;
+
+	perm.sort((ai, bi) => this.compareRows(
+		this.bufferedChunks[chunkIndices[ai]!]!,
+		rowIndices[ai]!,
+		this.bufferedChunks[chunkIndices[bi]!]!,
+		rowIndices[bi]!,
+	));
+
+	const outputChunk = this.buildSortedChunk(perm, chunkIndices, rowIndices);
+	for (const chunk of this.bufferedChunks) {
+		recycleChunk(chunk);
+	}
+	this.bufferedChunks = [];
+	this.bufferedRowCount = 0;
+
+	return {
+		chunk: outputChunk,
+		done: true,
+		hasMore: false,
+	};
+}
 
 	/**
 	 * Compare two rows from (possibly different) chunks.
@@ -443,241 +302,241 @@ export class SortOperator implements Operator {
 	 * Uses byte-level comparison for string columns to avoid TextDecoder allocation.
 	 */
 	private compareRows(
-		chunkA: Chunk,
-		rowA: number,
-		chunkB: Chunk,
-		rowB: number,
-	): number {
-		for (let k = 0; k < this.sortKeys.length; k++) {
-			const key = this.sortKeys[k]!;
-			const colIdx = this.columnIndices[k]!;
-			const dtype = this.outputSchema.columns[colIdx]!.dtype;
+	chunkA: Chunk,
+	rowA: number,
+	chunkB: Chunk,
+	rowB: number,
+): number {
+	for (let k = 0; k < this.sortKeys.length; k++) {
+		const key = this.sortKeys[k]!;
+		const colIdx = this.columnIndices[k]!;
+		const dtype = this.outputSchema.columns[colIdx]!.dtype;
 
-			const nullA = chunkA.isNull(colIdx, rowA);
-			const nullB = chunkB.isNull(colIdx, rowB);
+		const nullA = chunkA.isNull(colIdx, rowA);
+		const nullB = chunkB.isNull(colIdx, rowB);
 
-			if (nullA && nullB) continue;
-			if (nullA) return key.nullsFirst ? -1 : 1;
-			if (nullB) return key.nullsFirst ? 1 : -1;
+		if (nullA && nullB) continue;
+		if (nullA) return key.nullsFirst ? -1 : 1;
+		if (nullB) return key.nullsFirst ? 1 : -1;
 
-			let cmp: number;
-			if (dtype.kind === DTypeKind.String) {
-				// Use dictionary index comparison first (dict indices are interned per-chunk,
-				// so only valid if both chunks share the same dictionary object).
-				// Fall back to byte-level UTF-8 compare for cross-chunk comparisons.
-				const dictA = chunkA.dictionary;
-				const dictB = chunkB.dictionary;
+		let cmp: number;
+		if (dtype.kind === DTypeKind.String) {
+			// Use dictionary index comparison first (dict indices are interned per-chunk,
+			// so only valid if both chunks share the same dictionary object).
+			// Fall back to byte-level UTF-8 compare for cross-chunk comparisons.
+			const dictA = chunkA.dictionary;
+			const dictB = chunkB.dictionary;
 
-				if (dictA !== null && dictB !== null && dictA === dictB) {
-					// Same dictionary — compare dictionary indices directly is ambiguous
-					// (index ordering ≠ lexicographic ordering). We must do byte comparison.
-					const idxA = chunkA.getValue(colIdx, rowA) as number;
-					const idxB = chunkB.getValue(colIdx, rowB) as number;
-					cmp = dictA.compare(idxA, idxB);
-				} else if (dictA !== null && dictB !== null) {
-					// Different dictionaries: get bytes from each and compare
-					const idxA = chunkA.getValue(colIdx, rowA) as number;
-					const idxB = chunkB.getValue(colIdx, rowB) as number;
-					const bytesA = dictA.getBytes(idxA);
-					const bytesB = dictB.getBytes(idxB);
-					cmp = compareBytesLex(bytesA, bytesB);
-				} else {
-					// StringView or fallback path: materialize strings
-					const strA = chunkA.getStringValue(colIdx, rowA) ?? "";
-					const strB = chunkB.getStringValue(colIdx, rowB) ?? "";
-					cmp = strA < strB ? -1 : strA > strB ? 1 : 0;
-				}
+			if (dictA !== null && dictB !== null && dictA === dictB) {
+				// Same dictionary — compare dictionary indices directly is ambiguous
+				// (index ordering ≠ lexicographic ordering). We must do byte comparison.
+				const idxA = chunkA.getValue(colIdx, rowA) as number;
+				const idxB = chunkB.getValue(colIdx, rowB) as number;
+				cmp = dictA.compare(idxA, idxB);
+			} else if (dictA !== null && dictB !== null) {
+				// Different dictionaries: get bytes from each and compare
+				const idxA = chunkA.getValue(colIdx, rowA) as number;
+				const idxB = chunkB.getValue(colIdx, rowB) as number;
+				const bytesA = dictA.getBytes(idxA);
+				const bytesB = dictB.getBytes(idxB);
+				cmp = compareBytesLex(bytesA, bytesB);
 			} else {
-				const valA = chunkA.getValue(colIdx, rowA);
-				const valB = chunkB.getValue(colIdx, rowB);
-				if (typeof valA === "bigint" && typeof valB === "bigint") {
-					cmp = valA < valB ? -1 : valA > valB ? 1 : 0;
-				} else {
-					cmp = (valA as number) - (valB as number);
-				}
+				// StringView or fallback path: materialize strings
+				const strA = chunkA.getStringValue(colIdx, rowA) ?? "";
+				const strB = chunkB.getStringValue(colIdx, rowB) ?? "";
+				cmp = strA < strB ? -1 : strA > strB ? 1 : 0;
 			}
-
-			if (cmp !== 0) {
-				return key.descending ? -cmp : cmp;
+		} else {
+			const valA = chunkA.getValue(colIdx, rowA);
+			const valB = chunkB.getValue(colIdx, rowB);
+			if (typeof valA === "bigint" && typeof valB === "bigint") {
+				cmp = valA < valB ? -1 : valA > valB ? 1 : 0;
+			} else {
+				cmp = (valA as number) - (valB as number);
 			}
 		}
-		return 0;
+
+		if (cmp !== 0) {
+			return key.descending ? -cmp : cmp;
+		}
 	}
+	return 0;
+}
 
 	/** Sort buffered chunks and write them to a temp MBF file */
-	private async spillToDisk(): Promise<void> {
-		if (this.bufferedChunks.length === 0) return;
+	private async spillToDisk(): Promise < void> {
+	if(this.bufferedChunks.length === 0) return;
 
-		// Create temp dir on first spill
-		if (!this.spillDir) {
-			this.spillDir = await fs.mkdtemp(
-				path.join(os.tmpdir(), "molniya-sort-"),
-			);
-		}
+	// Create temp dir on first spill
+	if(!this.spillDir) {
+	this.spillDir = await fs.mkdtemp(
+		path.join(os.tmpdir(), "molniya-sort-"),
+	);
+}
 
-		// Sort in memory first
-		const sorted = this.sortInMemory();
-		if (!sorted.chunk) return;
+// Sort in memory first
+const sorted = this.sortInMemory();
+if (!sorted.chunk) return;
 
-		// Write sorted run to MBF file
-		const spillPath = path.join(
-			this.spillDir,
-			`run-${this.spillFiles.length}.mbf`,
-		);
-		const writer = new BinaryWriter(spillPath, this.outputSchema);
-		await writer.open();
+// Write sorted run to MBF file
+const spillPath = path.join(
+	this.spillDir,
+	`run-${this.spillFiles.length}.mbf`,
+);
+const writer = new BinaryWriter(spillPath, this.outputSchema);
+await writer.open();
 
-		try {
-			await writer.writeChunk(sorted.chunk);
-		} finally {
-			await writer.close();
-		}
+try {
+	await writer.writeChunk(sorted.chunk);
+} finally {
+	await writer.close();
+}
 
-		this.spillFiles.push(spillPath);
-		this.bufferedChunks = [];
-		this.bufferedRowCount = 0;
+this.spillFiles.push(spillPath);
+this.bufferedChunks = [];
+this.bufferedRowCount = 0;
 	}
 
 	/**
 	 * Perform K-way merge of all spill files.
 	 * Yields chunk outputs up to an imposed BATCH_SIZE so pipelines limit memory overhead.
 	 */
-	private async *mergeSpilledRuns(): AsyncGenerator<OperatorResult> {
-		const readers: BinaryReader[] = [];
-		const iterators: AsyncGenerator<Chunk>[] = [];
-		let currentChunks: (Chunk | null)[] = [];
+	private async * mergeSpilledRuns(): AsyncGenerator < OperatorResult > {
+	const readers: BinaryReader[] = [];
+	const iterators: AsyncGenerator<Chunk>[] = [];
+	let currentChunks: (Chunk | null)[] = [];
 
-		try {
-			for (const file of this.spillFiles) {
-				const reader = new BinaryReader(file);
-				await reader.open();
-				readers.push(reader);
-				iterators.push(reader.scan());
+	try {
+		for(const file of this.spillFiles) {
+	const reader = new BinaryReader(file);
+	await reader.open();
+	readers.push(reader);
+	iterators.push(reader.scan());
+}
+
+// Build a min-heap of { runIdx, rowIdx, chunk } entries.
+// We seed the heap with the first row of each run's first chunk.
+const heap: MergeEntry[] = [];
+// currentChunks[i] = the currently buffered chunk from run i
+currentChunks = new Array(iterators.length).fill(null);
+// currentRowOf[i] = next unprocessed row index in currentChunks[i]
+const currentRowOf: number[] = new Array(iterators.length).fill(0);
+
+// Seed: advance each run to its first chunk
+for (let runIdx = 0; runIdx < iterators.length; runIdx++) {
+	const first = await iterators[runIdx]!.next();
+	if (!first.done && first.value) {
+		currentChunks[runIdx] = first.value;
+		currentRowOf[runIdx] = 0;
+		heapPush(heap, {
+			runIdx,
+			rowIdx: 0,
+			chunk: first.value,
+		}, (a, b) => this.compareRows(a.chunk, a.rowIdx, b.chunk, b.rowIdx));
+	}
+}
+
+// Output: collect into bounded chunks per "batch".
+const schema = this.outputSchema;
+const BATCH_SIZE = 8192;
+let outColumns: ColumnBuffer[] = schema.columns.map((col) => {
+	if (col.dtype.kind === DTypeKind.StringView) {
+		return new StringViewColumnBuffer(BATCH_SIZE, col.dtype.nullable) as unknown as ColumnBuffer;
+	}
+	return new ColumnBuffer(col.dtype.kind, BATCH_SIZE, col.dtype.nullable);
+});
+// Use the dictionary from the first available chunk
+const outDictionary = currentChunks.find((c) => c !== null)?.dictionary ?? null;
+let outRowCount = 0;
+
+const compareEntries = (a: MergeEntry, b: MergeEntry) =>
+	this.compareRows(a.chunk, a.rowIdx, b.chunk, b.rowIdx);
+
+while (heap.length > 0) {
+	const min = heapPop(heap, compareEntries)!;
+	const { runIdx, rowIdx, chunk } = min;
+
+	// Append this row to the output columns
+	for (let c = 0; c < schema.columnCount; c++) {
+		const destCol = outColumns[c]!;
+		if (chunk.isNull(c, rowIdx)) {
+			destCol.appendNull();
+		} else {
+			if (schema.columns[c]!.dtype.kind === DTypeKind.StringView) {
+				const bytes = chunk.getBytesValue(c, rowIdx);
+				(outColumns[c] as unknown as StringViewColumnBuffer).appendBytes(bytes!, 0, bytes!.length);
+			} else {
+				const value = chunk.getValue(c, rowIdx);
+				outColumns[c]!.append(value!);
 			}
-
-			// Build a min-heap of { runIdx, rowIdx, chunk } entries.
-			// We seed the heap with the first row of each run's first chunk.
-			const heap: MergeEntry[] = [];
-			// currentChunks[i] = the currently buffered chunk from run i
-			currentChunks = new Array(iterators.length).fill(null);
-			// currentRowOf[i] = next unprocessed row index in currentChunks[i]
-			const currentRowOf: number[] = new Array(iterators.length).fill(0);
-
-			// Seed: advance each run to its first chunk
-			for (let runIdx = 0; runIdx < iterators.length; runIdx++) {
-				const first = await iterators[runIdx]!.next();
-				if (!first.done && first.value) {
-					currentChunks[runIdx] = first.value;
-					currentRowOf[runIdx] = 0;
-					heapPush(heap, {
-						runIdx,
-						rowIdx: 0,
-						chunk: first.value,
-					}, (a, b) => this.compareRows(a.chunk, a.rowIdx, b.chunk, b.rowIdx));
-				}
-			}
-
-			// Output: collect into bounded chunks per "batch".
-			const schema = this.outputSchema;
-			const BATCH_SIZE = 8192;
-			let outColumns: ColumnBuffer[] = schema.columns.map((col) => {
-				if (col.dtype.kind === DTypeKind.StringView) {
-					return new StringViewColumnBuffer(BATCH_SIZE, col.dtype.nullable) as unknown as ColumnBuffer;
-				}
-				return new ColumnBuffer(col.dtype.kind, BATCH_SIZE, col.dtype.nullable);
-			});
-			// Use the dictionary from the first available chunk
-			const outDictionary = currentChunks.find((c) => c !== null)?.dictionary ?? null;
-			let outRowCount = 0;
-
-			const compareEntries = (a: MergeEntry, b: MergeEntry) =>
-				this.compareRows(a.chunk, a.rowIdx, b.chunk, b.rowIdx);
-
-			while (heap.length > 0) {
-				const min = heapPop(heap, compareEntries)!;
-				const { runIdx, rowIdx, chunk } = min;
-
-				// Append this row to the output columns
-				for (let c = 0; c < schema.columnCount; c++) {
-					const destCol = outColumns[c]!;
-					if (chunk.isNull(c, rowIdx)) {
-						destCol.appendNull();
-					} else {
-						if (schema.columns[c]!.dtype.kind === DTypeKind.StringView) {
-							const bytes = chunk.getBytesValue(c, rowIdx);
-							(outColumns[c] as unknown as StringViewColumnBuffer).appendBytes(bytes!, 0, bytes!.length);
-						} else {
-							const value = chunk.getValue(c, rowIdx);
-							outColumns[c]!.append(value!);
-						}
-					}
-				}
-				outRowCount++;
-
-				if (outRowCount === BATCH_SIZE) {
-					for (let c = 0; c < schema.columnCount; c++) {
-						(outColumns[c] as unknown as { _length: number })._length = outRowCount;
-					}
-					yield { chunk: new Chunk(schema, outColumns, outDictionary), done: false, hasMore: true };
-					outColumns = schema.columns.map((col) => {
-						if (col.dtype.kind === DTypeKind.StringView) {
-							return new StringViewColumnBuffer(BATCH_SIZE, col.dtype.nullable) as unknown as ColumnBuffer;
-						}
-						return new ColumnBuffer(col.dtype.kind, BATCH_SIZE, col.dtype.nullable);
-					});
-					outRowCount = 0;
-				}
-
-				// Advance this run: try next row in same chunk, then next chunk
-				const nextRow = rowIdx + 1;
-				if (nextRow < chunk.rowCount) {
-					heapPush(heap, { runIdx, rowIdx: nextRow, chunk }, compareEntries);
-				} else {
-					// This chunk is exhausted — load next chunk from this run
-					recycleChunk(chunk);
-					const next = await iterators[runIdx]!.next();
-					if (!next.done && next.value) {
-						const nextChunk = next.value;
-						currentChunks[runIdx] = nextChunk;
-						currentRowOf[runIdx] = 0;
-						heapPush(heap, { runIdx, rowIdx: 0, chunk: nextChunk }, compareEntries);
-					} else {
-						// Run exhausted
-						currentChunks[runIdx] = null;
-					}
-				}
-			}
-
-			// Close readers
-			for (const chunk of currentChunks) {
-				if (chunk) recycleChunk(chunk);
-			}
-			for (const reader of readers) {
-				await reader.close();
-			}
-
-			await this.cleanup();
-
-			if (outRowCount === 0) {
-				return ok(opEmpty());
-			}
-
-			const resultChunk = new Chunk(schema, outColumns, outDictionary);
-			return ok({ chunk: resultChunk, done: true, hasMore: false });
-		} catch (e) {
-			for (const chunk of currentChunks) {
-				if (chunk) recycleChunk(chunk);
-			}
-			for (const reader of readers) {
-				try {
-					await reader.close();
-				} catch {
-					// Ignore
-				}
-			}
-			await this.cleanup();
-			throw e;
 		}
+	}
+	outRowCount++;
+
+	if (outRowCount === BATCH_SIZE) {
+		for (let c = 0; c < schema.columnCount; c++) {
+			(outColumns[c] as unknown as { _length: number })._length = outRowCount;
+		}
+					yield { chunk: new Chunk(schema, outColumns, outDictionary), done: false, hasMore: true };
+		outColumns = schema.columns.map((col) => {
+			if (col.dtype.kind === DTypeKind.StringView) {
+				return new StringViewColumnBuffer(BATCH_SIZE, col.dtype.nullable) as unknown as ColumnBuffer;
+			}
+			return new ColumnBuffer(col.dtype.kind, BATCH_SIZE, col.dtype.nullable);
+		});
+		outRowCount = 0;
+	}
+
+	// Advance this run: try next row in same chunk, then next chunk
+	const nextRow = rowIdx + 1;
+	if (nextRow < chunk.rowCount) {
+		heapPush(heap, { runIdx, rowIdx: nextRow, chunk }, compareEntries);
+	} else {
+		// This chunk is exhausted — load next chunk from this run
+		recycleChunk(chunk);
+		const next = await iterators[runIdx]!.next();
+		if (!next.done && next.value) {
+			const nextChunk = next.value;
+			currentChunks[runIdx] = nextChunk;
+			currentRowOf[runIdx] = 0;
+			heapPush(heap, { runIdx, rowIdx: 0, chunk: nextChunk }, compareEntries);
+		} else {
+			// Run exhausted
+			currentChunks[runIdx] = null;
+		}
+	}
+}
+
+// Close readers
+for (const chunk of currentChunks) {
+	if (chunk) recycleChunk(chunk);
+}
+for (const reader of readers) {
+	await reader.close();
+}
+
+await this.cleanup();
+
+if (outRowCount === 0) {
+	return ok(opEmpty());
+}
+
+const resultChunk = new Chunk(schema, outColumns, outDictionary);
+return ok({ chunk: resultChunk, done: true, hasMore: false });
+		} catch (e) {
+	for (const chunk of currentChunks) {
+		if (chunk) recycleChunk(chunk);
+	}
+	for (const reader of readers) {
+		try {
+			await reader.close();
+		} catch {
+			// Ignore
+		}
+	}
+	await this.cleanup();
+	throw e;
+}
 	}
 }
 

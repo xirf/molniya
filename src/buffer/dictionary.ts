@@ -356,7 +356,6 @@ export class Dictionary {
 		return index;
 	}
 
-<<<<<<< HEAD
 	/**
 	 * Two-clock eviction: O(capacity) worst case — evicts ~10% of maxEntries.
 	 *
@@ -404,7 +403,7 @@ export class Dictionary {
 		let hash = 0x811c9dc5;
 		const len = bytes.length;
 		for (let i = 0; i < len; i++) {
-			hash ^= bytes[i];
+			hash ^= bytes[i]!;
 			hash = Math.imul(hash, 0x01000193);
 		}
 		return hash >>> 0;
