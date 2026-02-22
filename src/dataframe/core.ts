@@ -9,9 +9,9 @@ import {
 	type ComputedColumn,
 	type Operator,
 	Pipeline,
-	type PipelineResult,
 } from "../ops/index.ts";
-import { unwrap } from "../types/error.ts";
+import { FilterOperator } from "../ops/filter.ts";
+import { compilePushdownFilter } from "../ops/pushdown.ts";
 import { getColumnNames, type Schema } from "../types/schema.ts";
 
 /**
@@ -96,6 +96,51 @@ export class DataFrame<T = Record<string, unknown>> {
 		// This should not happen due to length check above, but for type safety:
 		if (!lastOp) throw new Error("Invariant failed: Operator missing");
 		return lastOp.outputSchema;
+	}
+
+	/**
+	 * @internal Attempt to push filter predicates down to the CSV source.
+	 * Returns the operators that remain after pushdown (may remove the first FilterOperator).
+	 * Only works when the source has a setFilter method (CsvSource/CsvParser).
+	 */
+	private tryPushdownFilter(): {
+		remainingOps: Operator[];
+		clearPushdown: () => void;
+	} {
+		const noPushdown = {
+			remainingOps: this.operators,
+			clearPushdown: () => { },
+		};
+
+		if (this.operators.length === 0) return noPushdown;
+
+		const firstOp = this.operators[0];
+		if (!(firstOp instanceof FilterOperator) || firstOp.expr === null) {
+			return noPushdown;
+		}
+
+		// Check if source supports setFilter (CsvSource exposes parser)
+		const source = this.source as any;
+		const parser = source?.parser ?? source;
+		if (typeof parser?.setFilter !== "function") {
+			return noPushdown;
+		}
+
+		// Attempt to compile the expression as a pushdown predicate
+		const predicate = compilePushdownFilter(firstOp.expr, this._schema);
+		if (predicate === null) {
+			return noPushdown;
+		}
+
+		// Apply pushdown to the parser
+		parser.setFilter(predicate);
+
+		return {
+			remainingOps: this.operators.slice(1),
+			clearPushdown: () => {
+				parser.setFilter(null);
+			},
+		};
 	}
 
 	/** @internal Add operator to chain */
@@ -289,21 +334,44 @@ export class DataFrame<T = Record<string, unknown>> {
 			return;
 		}
 
-		const pipeline = new Pipeline(this.operators);
-		
-		if (Symbol.asyncIterator in this.source) {
-			yield* pipeline.streamAsync(this.source as AsyncIterable<Chunk>);
-		} else {
-			// Wrap sync iterator in async generator or just yield from sync stream?
-			// Pipeline.stream returns Generator (sync). We need AsyncGenerator.
-			const syncStream = pipeline.stream(this.source as Iterable<Chunk>);
-			for (const chunk of syncStream) {
-				yield chunk;
+		const pushdown = this.tryPushdownFilter();
+		const remainingOps = pushdown.remainingOps;
+
+		if (remainingOps.length === 0) {
+			// All operators were pushed down
+			try {
+				if (Symbol.asyncIterator in this.source) {
+					for await (const chunk of this.source as AsyncIterable<Chunk>) {
+						yield chunk;
+					}
+				} else {
+					for (const chunk of this.source as Iterable<Chunk>) {
+						yield chunk;
+					}
+				}
+			} finally {
+				pushdown.clearPushdown();
 			}
+			return;
+		}
+
+		const pipeline = new Pipeline(remainingOps);
+
+		try {
+			if (Symbol.asyncIterator in this.source) {
+				yield* pipeline.streamAsync(this.source as AsyncIterable<Chunk>);
+			} else {
+				// pipeline.stream() returns AsyncGenerator (supports operators that may spill)
+				for await (const chunk of pipeline.stream(this.source as Iterable<Chunk>)) {
+					yield chunk;
+				}
+			}
+		} finally {
+			pushdown.clearPushdown();
 		}
 	}
 
-	/** @internal Execute pipeline */
+	/** @internal Execute pipeline using streaming to avoid double-buffering */
 	async collect(): Promise<DataFrame<T>> {
 		if (this.operators.length === 0) {
 			// If source is already materialized (array), return this
@@ -318,27 +386,63 @@ export class DataFrame<T = Record<string, unknown>> {
 			return new DataFrame<T>(chunks, this._schema, this._dictionary);
 		}
 
-		const pipeline = new Pipeline(this.operators);
-		let result: PipelineResult;
+		const pushdown = this.tryPushdownFilter();
+		const remainingOps = pushdown.remainingOps;
 
-		if (Symbol.asyncIterator in this.source) {
-			result = unwrap(
-				await pipeline.executeAsync(this.source as AsyncIterable<Chunk>),
-			);
-		} else {
-			result = unwrap(pipeline.execute(this.source as Iterable<Chunk>));
+		if (remainingOps.length === 0) {
+			// All operators pushed down, just materialize source
+			const chunks: Chunk[] = [];
+			try {
+				if (Symbol.asyncIterator in this.source) {
+					for await (const chunk of this.source as AsyncIterable<Chunk>) {
+						chunks.push(chunk);
+					}
+				} else {
+					for (const chunk of this.source as Iterable<Chunk>) {
+						chunks.push(chunk);
+					}
+				}
+			} finally {
+				pushdown.clearPushdown();
+			}
+			let newDictionary = this._dictionary;
+			const firstChunk = chunks[0];
+			if (firstChunk?.dictionary) {
+				newDictionary = firstChunk.dictionary;
+			}
+			return new DataFrame<T>(chunks, this.currentSchema(), newDictionary, []);
+		}
+
+		// Use streaming generators instead of accumulating execute()/executeAsync()
+		// This avoids the PipelineResult double-buffer overhead
+		const pipeline = new Pipeline(remainingOps);
+		const chunks: Chunk[] = [];
+
+		try {
+			if (Symbol.asyncIterator in this.source) {
+				for await (const chunk of pipeline.streamAsync(this.source as AsyncIterable<Chunk>)) {
+					chunks.push(chunk);
+				}
+			} else {
+				// pipeline.stream() is AsyncGenerator (operators may be async during spill)
+				for await (const chunk of pipeline.stream(this.source as Iterable<Chunk>)) {
+					chunks.push(chunk);
+				}
+			}
+		} finally {
+			pushdown.clearPushdown();
 		}
 
 		// Use dictionary from result chunks if available (e.g. from GroupBy)
 		// Otherwise fall back to current dictionary
 		let newDictionary = this._dictionary;
-		const firstChunk = result.chunks[0];
+		const firstChunk = chunks[0];
 		if (firstChunk?.dictionary) {
 			newDictionary = firstChunk.dictionary;
 		}
 
 		return new DataFrame<T>(
-			result.chunks,
+			chunks,
 			this.currentSchema(),
 			newDictionary,
 			[],

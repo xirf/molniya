@@ -7,6 +7,7 @@
 
 import type { Chunk } from "../buffer/chunk.ts";
 import { selectionPool } from "../buffer/selection-pool.ts";
+import { recycleChunk } from "../buffer/pool.ts";
 import { ok, type Result } from "../types/error.ts";
 import type { Schema } from "../types/schema.ts";
 import {
@@ -37,12 +38,14 @@ export class LimitOperator implements Operator {
 	process(inputChunk: Chunk): Result<OperatorResult> {
 		// Already reached limit
 		if (this.rowsPassed >= this.limit) {
+			recycleChunk(inputChunk);
 			return ok(opDone());
 		}
 
 		let chunk = inputChunk;
 		const rowCount = chunk.rowCount;
 		if (rowCount === 0) {
+			recycleChunk(chunk);
 			return ok(opEmpty());
 		}
 
@@ -53,6 +56,7 @@ export class LimitOperator implements Operator {
 
 			if (toSkip === rowCount) {
 				// Skip entire chunk
+				recycleChunk(chunk);
 				return ok(opEmpty());
 			}
 

@@ -29,10 +29,12 @@ export function addExecutionMethods(df: typeof DataFrame.prototype) {
 			if (Symbol.asyncIterator in this.source) {
 				for await (const chunk of this.source as AsyncIterable<Chunk>) {
 					total += chunk.rowCount;
+					recycleChunk(chunk);
 				}
 			} else {
 				for (const chunk of this.source as Iterable<Chunk>) {
 					total += chunk.rowCount;
+					chunk.releaseTransientResources();
 				}
 			}
 		} else {
@@ -41,10 +43,12 @@ export function addExecutionMethods(df: typeof DataFrame.prototype) {
 			if (Symbol.asyncIterator in this.source) {
 				for await (const chunk of pipe.streamAsync(this.source as AsyncIterable<Chunk>)) {
 					total += chunk.rowCount;
+					recycleChunk(chunk);
 				}
 			} else {
-				for (const chunk of pipe.stream(this.source as Iterable<Chunk>)) {
+				for await (const chunk of pipe.stream(this.source as Iterable<Chunk>)) {
 					total += chunk.rowCount;
+					chunk.releaseTransientResources();
 				}
 			}
 		}
@@ -261,16 +265,28 @@ export function addExecutionMethods(df: typeof DataFrame.prototype) {
 
 		if (this.operators.length === 0) {
 			if (Symbol.asyncIterator in this.source) {
-				for await (const chunk of this.source as AsyncIterable<Chunk>) processChunk(chunk);
+				for await (const chunk of this.source as AsyncIterable<Chunk>) {
+					processChunk(chunk);
+					recycleChunk(chunk);
+				}
 			} else {
-				for (const chunk of this.source as Iterable<Chunk>) processChunk(chunk);
+				for (const chunk of this.source as Iterable<Chunk>) {
+					processChunk(chunk);
+					chunk.releaseTransientResources();
+				}
 			}
 		} else {
 			const pipe = new Pipeline(this.operators);
 			if (Symbol.asyncIterator in this.source) {
-				for await (const chunk of pipe.streamAsync(this.source as AsyncIterable<Chunk>)) processChunk(chunk);
+				for await (const chunk of pipe.streamAsync(this.source as AsyncIterable<Chunk>)) {
+					processChunk(chunk);
+					recycleChunk(chunk);
+				}
 			} else {
-				for (const chunk of pipe.stream(this.source as Iterable<Chunk>)) processChunk(chunk);
+				for await (const chunk of pipe.stream(this.source as Iterable<Chunk>)) {
+					processChunk(chunk);
+					chunk.releaseTransientResources();
+				}
 			}
 		}
 	};
@@ -314,16 +330,28 @@ export function addExecutionMethods(df: typeof DataFrame.prototype) {
 
 		if (this.operators.length === 0) {
 			if (Symbol.asyncIterator in this.source) {
-				for await (const chunk of this.source as AsyncIterable<Chunk>) processChunk(chunk);
+				for await (const chunk of this.source as AsyncIterable<Chunk>) {
+					processChunk(chunk);
+					recycleChunk(chunk);
+				}
 			} else {
-				for (const chunk of this.source as Iterable<Chunk>) processChunk(chunk);
+				for (const chunk of this.source as Iterable<Chunk>) {
+					processChunk(chunk);
+					chunk.releaseTransientResources();
+				}
 			}
 		} else {
 			const pipe = new Pipeline(this.operators);
 			if (Symbol.asyncIterator in this.source) {
-				for await (const chunk of pipe.streamAsync(this.source as AsyncIterable<Chunk>)) processChunk(chunk);
+				for await (const chunk of pipe.streamAsync(this.source as AsyncIterable<Chunk>)) {
+					processChunk(chunk);
+					recycleChunk(chunk);
+				}
 			} else {
-				for (const chunk of pipe.stream(this.source as Iterable<Chunk>)) processChunk(chunk);
+				for await (const chunk of pipe.stream(this.source as Iterable<Chunk>)) {
+					processChunk(chunk);
+					chunk.releaseTransientResources();
+				}
 			}
 		}
 		return acc;
@@ -364,8 +392,6 @@ export function addExecutionMethods(df: typeof DataFrame.prototype) {
 						} else if (
 							(dtype.kind === DTypeKind.String || dtype.kind === DTypeKind.StringDict)
 						) {
-							// Use chunk's dictionary first (correct for cross-chunk MBF data),
-							// fall back to DataFrame-level dictionary
 							const dict = chunk.dictionary ?? this._dictionary;
 							const dictIndex = chunk.getValue(c, r) as number;
 							row[colName] = dict?.getString(dictIndex);
@@ -381,15 +407,56 @@ export function addExecutionMethods(df: typeof DataFrame.prototype) {
 				if (count >= maxRows) break;
 			}
 		} else {
-			// Fallback to collect
-			const _limited = this.limit(maxRows); // Helper that might support streaming?
-			// But limit() returns DataFrame with Limit operator.
-			// And collect() on that will buffer.
-			// For show(), we just want N rows.
+			// Streaming path: use pipeline to stream only needed rows
+			const limited = this.limit(maxRows);
+			const schema = limited.currentSchema();
+			const pipe = new Pipeline(limited.operators);
 
-			// Let's just use toArray() which uses collect()
-			const allRows = await this.limit(maxRows).toArray();
-			rows.push(...allRows);
+			const processShowChunk = (chunk: Chunk) => {
+				const dictionary = chunk.dictionary ?? this._dictionary;
+				const enhancedChunk = (chunk as any)._enhancedChunk;
+				const take = Math.min(maxRows - count, chunk.rowCount);
+				for (let r = 0; r < take; r++) {
+					const row: Record<string, unknown> = {};
+					for (let c = 0; c < schema.columnCount; c++) {
+						const col = schema.columns[c];
+						if (!col) continue;
+						const colName = col.name;
+						const dtype = col.dtype;
+
+						if (chunk.isNull(c, r)) {
+							row[colName] = null;
+						} else if (dtype.kind === DTypeKind.StringView && enhancedChunk) {
+							const adapter = enhancedChunk.getColumnAdapter(c);
+							row[colName] = adapter?.getStringValue(r) ?? null;
+						} else if (
+							(dtype.kind === DTypeKind.String || dtype.kind === DTypeKind.StringDict)
+						) {
+							const dict = chunk.dictionary ?? this._dictionary;
+							const dictIndex = chunk.getValue(c, r) as number;
+							row[colName] = dict?.getString(dictIndex);
+						} else {
+							row[colName] = chunk.getValue(c, r);
+						}
+					}
+					rows.push(row);
+				}
+				count += take;
+				chunk.releaseTransientResources();
+			};
+
+			if (Symbol.asyncIterator in this.source) {
+				for await (const chunk of pipe.streamAsync(this.source as AsyncIterable<Chunk>)) {
+					processShowChunk(chunk);
+					recycleChunk(chunk);
+					if (count >= maxRows) break;
+				}
+			} else {
+				for await (const chunk of pipe.stream(this.source as Iterable<Chunk>)) {
+					processShowChunk(chunk);
+					if (count >= maxRows) break;
+				}
+			}
 		}
 
 		if (rows.length === 0) {

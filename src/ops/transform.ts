@@ -7,6 +7,7 @@
 
 import { Chunk } from "../buffer/chunk.ts";
 import { ColumnBuffer } from "../buffer/column-buffer.ts";
+import { recycleChunk } from "../buffer/pool.ts";
 import type { Expr } from "../expr/ast.ts";
 import { type CompiledValue, compileValue } from "../expr/compiler.ts";
 import { inferExprType } from "../expr/types.ts";
@@ -107,6 +108,7 @@ export class TransformOperator extends SimpleOperator {
 
 	process(chunk: Chunk): Result<OperatorResult> {
 		if (chunk.rowCount === 0) {
+			recycleChunk(chunk);
 			return ok(opEmpty());
 		}
 

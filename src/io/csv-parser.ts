@@ -43,7 +43,7 @@ const DEFAULT_OPTIONS = {
 	delimiter: ",",
 	quote: '"',
 	hasHeader: true,
-	chunkSize: 16384,
+	chunkSize: 32768,
 	skipRows: 0,
 	maxRows: Infinity,
 };
@@ -79,6 +79,13 @@ export class CsvParser {
 
 	// Mapping from CSV column index to Schema column index
 	private csvToSchema: Int32Array | null = null;
+
+	/**
+	 * Predicate pushdown filter. When set, rows that don't match the predicate
+	 * are discarded at parse time by rewinding column buffer lengths.
+	 * The predicate receives column values by schema index and returns true to keep the row.
+	 */
+	private rowFilter: ((getColumnValue: (schemaIdx: number) => unknown) => boolean) | null = null;
 
 	constructor(schema: Schema, options?: CsvOptions) {
 		this.schema = schema;
@@ -139,6 +146,10 @@ export class CsvParser {
 		return { totalRowCount: this.totalRowCount };
 	}
 
+	isFinished(): boolean {
+		return this.maxRemaining <= 0;
+	}
+
 	getDictionary(): Dictionary {
 		return this.dictionary;
 	}
@@ -147,11 +158,32 @@ export class CsvParser {
 		return this.schema;
 	}
 
+	/**
+	 * Set a predicate pushdown filter.
+	 * When set, rows that don't match are discarded at parse time,
+	 * avoiding downstream processing entirely.
+	 * 
+	 * The filter receives a function to get column values by schema index.
+	 * Returns true to keep the row, false to discard.
+	 * 
+	 * @example
+	 * parser.setFilter((getValue) => {
+	 *   const age = getValue(1) as number;  // schema column index 1
+	 *   return age > 30;
+	 * });
+	 */
+	setFilter(filter: ((getColumnValue: (schemaIdx: number) => unknown) => boolean) | null): void {
+		this.rowFilter = filter;
+	}
+
 	// Helper for skipping non-nullable columns
 	private appendDefault(col: ColumnBuffer, dtype: DType) {
 		switch (dtype.kind) {
 			case DTypeKind.String:
 				col.append(this.dictionary.internString("") as never);
+				break;
+			case DTypeKind.StringView:
+				(col as any).append("");
 				break;
 			case DTypeKind.Int8:
 			case DTypeKind.Int16:
@@ -185,6 +217,8 @@ export class CsvParser {
 
 		let i = 0;
 		while (i < len) {
+			if (this.maxRemaining <= 0) break;
+
 			// Fast Path for Field state (common case)
 			if (
 				this.state === ParseState.Field ||
@@ -332,9 +366,24 @@ export class CsvParser {
 	}
 
 	finish(): Chunk | null {
-		const chunks: Chunk[] = [];
+		// When maxRemaining <= 0, the maxRows quota was already satisfied. We must
+		// still flush any complete rows already accumulated in the column buffers
+		// (chunkRowCount > 0), but we must NOT complete any partial last row that was
+		// started in the final I/O buffer after the limit was reached.
+		if (this.maxRemaining <= 0) {
+			// Flush buffered complete rows only — skip any partial row in progress
+			if (this.columns && this.chunkRowCount > 0) {
+				const chunk = new Chunk(this.schema, this.columns, this.dictionary);
+				this.columns = null;
+				this.chunkRowCount = 0;
+				this.dictionary = createDictionary();
+				return chunk;
+			}
+			return null;
+		}
 
-		if (this.currentFieldPrefix !== null || this.columns !== null) {
+		const chunks: Chunk[] = [];
+		if (this.currentFieldPrefix !== null || this.chunkRowCount > 0) {
 			if (this.currentFieldPrefix !== null) {
 				let val = this.decoder.decode(this.currentFieldPrefix).trim();
 				if (this.state === ParseState.QuoteInQuotedField) {
@@ -362,6 +411,7 @@ export class CsvParser {
 			}
 			this.finishRow(chunks, true);
 		}
+
 
 		if (chunks.length > 0) {
 			return chunks[0]!;
@@ -471,19 +521,56 @@ export class CsvParser {
 			}
 		}
 
+		// Predicate pushdown: evaluate filter and rewind if row doesn't match
+		if (this.rowFilter && this.columns && !force) {
+			const columns = this.columns;
+			const dictionary = this.dictionary;
+			const schema = this.schema;
+			const matches = this.rowFilter((schemaIdx: number) => {
+				const col = columns[schemaIdx];
+				if (!col) return null;
+				const rowIdx = col.length - 1;
+				if (rowIdx < 0) return null;
+				if (col.isNull(rowIdx)) return null;
+				const dtype = schema.columns[schemaIdx]?.dtype;
+				if (dtype && (dtype.kind === DTypeKind.String || dtype.kind === DTypeKind.StringDict)) {
+					const dictIdx = col.get(rowIdx) as number;
+					return dictionary.getString(dictIdx);
+				}
+				if (dtype && dtype.kind === DTypeKind.Boolean) {
+					return col.get(rowIdx) === 1;
+				}
+				return col.get(rowIdx);
+			});
+
+			if (!matches) {
+				// Rewind: undo the row by decrementing column lengths
+				for (let i = 0; i < this.schema.columnCount; i++) {
+					const col = this.columns[i];
+					if (col && col.length > 0) {
+						col.setLength(col.length - 1);
+					}
+				}
+				this.chunkRowCount--;
+				this.totalRowCount--;
+				this.currentColumnIndex = 0;
+				return;
+			}
+		}
+
 		this.currentColumnIndex = 0;
 
 		if (this.chunkRowCount >= this.options.chunkSize || force) {
 			if (this.columns) {
-				// Create chunk with shared dictionary.
-				// All chunks share the same dictionary so that dictionary indices
-				// are consistent across chunks. The dictionary only grows by the
-				// number of UNIQUE strings, not by row count, so it doesn't
-				// accumulate unbounded memory for typical datasets.
+				// Create chunk with an isolated dictionary per chunk.
+				// Now that pipeline operators resolve strings instead of indices,
+				// we don't need a single global dictionary that accumulates memory
+				// over the entire stream of the file.
 				const chunk = new Chunk(this.schema, this.columns, this.dictionary);
 				chunks.push(chunk);
 				this.columns = null;
 				this.chunkRowCount = 0;
+				this.dictionary = createDictionary();
 			}
 		}
 	}
@@ -697,6 +784,10 @@ export class CsvParser {
 				col.append(id as never);
 				break;
 			}
+			case DTypeKind.StringView: {
+				(col as unknown as import("../buffer/string-view-column.ts").StringViewColumnBuffer).appendBytes(data, s, e);
+				break;
+			}
 			case DTypeKind.Int64:
 			case DTypeKind.UInt64:
 				// BigInt handles whitespace but we already trimmed.
@@ -753,6 +844,9 @@ export class CsvParser {
 					// based on cardinality. For high-cardinality strings (e.g., URLs, IDs),
 					// StringView would be more memory-efficient than dictionary encoding.
 					col.append(this.dictionary.internString(trimmed) as never);
+					break;
+				case DTypeKind.StringView:
+					(col as any).append(trimmed);
 					break;
 				case DTypeKind.Int32:
 				case DTypeKind.Int16:

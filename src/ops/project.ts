@@ -8,6 +8,7 @@
 import { Chunk } from "../buffer/chunk.ts";
 import type { ColumnBuffer } from "../buffer/column-buffer.ts";
 import { EnhancedChunk } from "../buffer/chunk-ext.ts";
+import { bufferPool, recycleChunk } from "../buffer/pool.ts";
 import { ErrorCode, err, ok, type Result } from "../types/error.ts";
 import {
 	createSchema,
@@ -109,11 +110,13 @@ export class ProjectOperator extends SimpleOperator {
 
 	process(chunk: Chunk): Result<OperatorResult> {
 		if (chunk.rowCount === 0) {
+			recycleChunk(chunk);
 			return ok(opEmpty());
 		}
 
 		// Create new column array with selected columns in new order
 		const newColumns: ColumnBuffer[] = [];
+		const retainedIndices = new Set(this.columnMapping);
 
 		for (const sourceIdx of this.columnMapping) {
 			const col = chunk.getColumn(sourceIdx);
@@ -121,6 +124,14 @@ export class ProjectOperator extends SimpleOperator {
 				return err(ErrorCode.InvalidOffset);
 			}
 			newColumns.push(col);
+		}
+
+		// Release dropped columns back to the pool immediately
+		for (let i = 0; i < chunk.columnCount; i++) {
+			if (!retainedIndices.has(i)) {
+				const col = chunk.getColumn(i);
+				if (col) bufferPool.release(col);
+			}
 		}
 
 		// Create new chunk with projected columns
@@ -144,7 +155,7 @@ export class ProjectOperator extends SimpleOperator {
 					remappedStringViews.set(newIdx, storage);
 				}
 			}
-			
+
 			// Create new EnhancedChunk with remapped columns
 			if (remappedStringViews.size > 0) {
 				const newEnhanced = new EnhancedChunk(

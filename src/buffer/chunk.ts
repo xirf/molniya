@@ -38,6 +38,9 @@ export class Chunk {
 	/** Actual number of rows in the underlying buffers */
 	private physicalRowCount: number;
 
+	/** Callback to release a borrowed selection buffer (for zero-copy filtering) */
+	private _selectionReleaseCallback: (() => void) | null = null;
+
 	constructor(
 		schema: Schema,
 		columns: ColumnBuffer[],
@@ -137,10 +140,55 @@ export class Chunk {
 		return view;
 	}
 
+	/**
+	 * Create a new Chunk view that borrows the selection buffer (zero-copy).
+	 * Instead of copying the selection array, it directly references the provided buffer.
+	 * When the chunk is no longer needed, call the releaseCallback to return the buffer.
+	 * 
+	 * This avoids per-chunk allocation for filtering hot paths.
+	 * The caller MUST NOT modify the selection buffer while this chunk is alive.
+	 */
+	withSelectionBorrowed(
+		selection: Uint32Array,
+		count: number,
+		releaseCallback: () => void,
+	): Chunk {
+		const view = new Chunk(this.schema, this.columns, this.dictionary);
+		if (this.selection !== null) {
+			// Must compose — can't borrow when composing with an existing selection
+			const composed = new Uint32Array(count);
+			for (let i = 0; i < count; i++) {
+				const idx = selection[i] ?? 0;
+				composed[i] = this.selection[idx] ?? 0;
+			}
+			view.selection = composed;
+			// Release borrowed buffer immediately since we didn't use it
+			releaseCallback();
+		} else {
+			// Zero-copy: directly borrow the buffer subarray
+			view.selection = selection.subarray(0, count);
+			view._selectionReleaseCallback = releaseCallback;
+		}
+		view.selectedCount = count;
+		view.physicalRowCount = this.physicalRowCount;
+		return view;
+	}
+
 	/** Clear selection (all rows become valid again) */
 	clearSelection(): void {
 		this.selection = null;
 		this.selectedCount = this.physicalRowCount;
+	}
+
+	/**
+	 * Release transient resources (e.g., borrowed selection buffers)
+	 * without disposing column buffers.
+	 */
+	releaseTransientResources(): void {
+		if (this._selectionReleaseCallback) {
+			this._selectionReleaseCallback();
+			this._selectionReleaseCallback = null;
+		}
 	}
 
 	/**
@@ -186,9 +234,14 @@ export class Chunk {
 	getStringValue(columnIndex: number, rowIndex: number): string | undefined {
 		const column = this.columns[columnIndex];
 		if (column === undefined) return undefined;
-		if (column.kind !== DTypeKind.String) return undefined;
 
 		const physIdx = this.physicalIndex(rowIndex);
+
+		if (column.kind === DTypeKind.StringView) {
+			return (column as unknown as import("./string-view-column.ts").StringViewColumnBuffer).getString(physIdx);
+		}
+
+		if (column.kind !== DTypeKind.String) return undefined;
 		const value = column.get(physIdx);
 
 		// If dictionary exists, dereference index
@@ -198,6 +251,19 @@ export class Chunk {
 
 		// Direct string value (e.g., from parquet)
 		return value as unknown as string;
+	}
+
+	/**
+	 * Get raw bytes value for zero-copy binary comparisons (only valid for StringView).
+	 */
+	getBytesValue(columnIndex: number, rowIndex: number): Uint8Array | undefined {
+		const column = this.columns[columnIndex];
+		if (column === undefined) return undefined;
+		if (column.kind === DTypeKind.StringView) {
+			const physIdx = this.physicalIndex(rowIndex);
+			return (column as unknown as import("./string-view-column.ts").StringViewColumnBuffer).getBytes(physIdx);
+		}
+		return undefined;
 	}
 
 	/**
@@ -319,6 +385,8 @@ export class Chunk {
 	 * Release columns for recycling and clear this chunk.
 	 */
 	dispose(): ColumnBuffer[] {
+		// Release borrowed selection buffer if present
+		this.releaseTransientResources();
 		const cols = this.columns;
 		// Clear references
 		(this as unknown as { columns: ColumnBuffer[] }).columns = [];

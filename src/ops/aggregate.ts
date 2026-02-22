@@ -9,6 +9,7 @@
 import { Chunk } from "../buffer/chunk.ts";
 import { ColumnBuffer } from "../buffer/column-buffer.ts";
 import { createDictionary, type Dictionary } from "../buffer/dictionary.ts";
+import { recycleChunk } from "../buffer/pool.ts";
 import { type Expr, ExprType } from "../expr/ast.ts";
 import { type CompiledValue, compileValue } from "../expr/compiler.ts";
 import { inferExprType } from "../expr/types.ts";
@@ -109,10 +110,15 @@ export class AggregateOperator implements Operator {
 
 	process(chunk: Chunk): Result<OperatorResult> {
 		if (this.finished) {
+			recycleChunk(chunk);
 			return ok(opDone());
 		}
 
 		const rowCount = chunk.rowCount;
+		if (rowCount === 0) {
+			recycleChunk(chunk);
+			return ok(opEmpty());
+		}
 
 		for (const agg of this.aggs) {
 			if (agg.isCountAll) {
@@ -128,6 +134,7 @@ export class AggregateOperator implements Operator {
 		}
 
 		// Don't emit until finish()
+		recycleChunk(chunk);
 		return ok(opEmpty());
 	}
 

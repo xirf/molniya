@@ -8,6 +8,7 @@
 
 import type { Chunk } from "../buffer/chunk.ts";
 import { selectionPool } from "../buffer/selection-pool.ts";
+import { recycleChunk } from "../buffer/pool.ts";
 import type { Expr } from "../expr/ast.ts";
 import {
 	applyPredicate,
@@ -35,7 +36,7 @@ export class FilterOperator extends SimpleOperator {
 
 	private readonly predicate: CompiledPredicate;
 	private readonly vectorized: VectorizedPredicate | undefined;
-	private selectionBuffer: Uint32Array;
+	private selectionBuffer: Uint32Array | null = null;
 	private readonly maxChunkSize: number;
 	/** Original expression AST (used by optimizer for filter fusion) */
 	readonly expr: Expr | null;
@@ -53,8 +54,6 @@ export class FilterOperator extends SimpleOperator {
 		this.vectorized = vectorized;
 		this.maxChunkSize = maxChunkSize;
 		this.expr = expr ?? null;
-		// Acquire buffer from pool instead of allocating
-		this.selectionBuffer = selectionPool.acquire(maxChunkSize);
 	}
 
 	/**
@@ -64,7 +63,7 @@ export class FilterOperator extends SimpleOperator {
 	static create(
 		schema: Schema,
 		expr: Expr,
-		maxChunkSize: number = 65536,
+		maxChunkSize: number = 32768,
 	): Result<FilterOperator> {
 		const predicateResult = compilePredicate(expr, schema);
 		if (predicateResult.error !== ErrorCode.None) {
@@ -83,7 +82,7 @@ export class FilterOperator extends SimpleOperator {
 	static fromPredicate(
 		schema: Schema,
 		predicate: CompiledPredicate,
-		maxChunkSize: number = 65536,
+		maxChunkSize: number = 32768,
 	): FilterOperator {
 		return new FilterOperator(schema, predicate, maxChunkSize);
 	}
@@ -93,6 +92,13 @@ export class FilterOperator extends SimpleOperator {
 
 		if (rowCount === 0) {
 			return ok(opEmpty());
+		}
+
+		// Lazily acquire buffer only when this operator actually processes data.
+		// This prevents large transient allocations when many short-lived filter
+		// operators are created in benchmark loops.
+		if (this.selectionBuffer === null || this.selectionBuffer.length < this.maxChunkSize) {
+			this.selectionBuffer = selectionPool.acquire(this.maxChunkSize);
 		}
 
 		// Apply predicate to generate selection vector
@@ -106,6 +112,7 @@ export class FilterOperator extends SimpleOperator {
 
 		if (selectedCount === 0) {
 			// No rows matched
+			recycleChunk(chunk);
 			return ok(opEmpty());
 		}
 
@@ -114,15 +121,29 @@ export class FilterOperator extends SimpleOperator {
 			return ok(opResult(chunk));
 		}
 
-		// Create a new chunk view with the selection (don't mutate the original)
-		const selection = this.selectionBuffer.subarray(0, selectedCount);
-		const filteredChunk = chunk.withSelection(selection, selectedCount);
+		// Zero-copy: borrow the selection buffer instead of copying it.
+		// The release callback returns the buffer to the pool and acquires
+		// a fresh one for the next chunk only when needed.
+		const currentBuffer = this.selectionBuffer;
+		const filteredChunk = chunk.withSelectionBorrowed(
+			currentBuffer,
+			selectedCount,
+			() => {
+				selectionPool.release(currentBuffer);
+			},
+		);
 
-		// Release the buffer back to pool and acquire fresh one for next chunk
-		selectionPool.release(this.selectionBuffer);
+		// Acquire a new buffer for the next chunk processing
 		this.selectionBuffer = selectionPool.acquire(this.maxChunkSize);
 
 		return ok(opResult(filteredChunk));
+	}
+
+	override reset(): void {
+		if (this.selectionBuffer !== null) {
+			selectionPool.release(this.selectionBuffer);
+			this.selectionBuffer = null;
+		}
 	}
 }
 

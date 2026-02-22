@@ -7,6 +7,7 @@
 
 import type { Chunk } from "../buffer/chunk.ts";
 import type { Dictionary } from "../buffer/dictionary.ts";
+import { computeChunkSize } from "../ops/chunk-sizing.ts";
 import type { DType } from "../types/dtypes.ts";
 import { ErrorCode, err, ok, type Result } from "../types/error.ts";
 import { createSchema, type Schema } from "../types/schema.ts";
@@ -70,7 +71,12 @@ export class CsvSource {
 			return err(schemaResult.error);
 		}
 
-		const parser = createCsvParser(schemaResult.value, options);
+		// Compute adaptive chunk size from schema if not explicitly set
+		const effectiveOptions = options?.chunkSize
+			? options
+			: { ...options, chunkSize: computeChunkSize(schemaResult.value) };
+
+		const parser = createCsvParser(schemaResult.value, effectiveOptions);
 		return ok(new CsvSource(path, parser, true));
 	}
 
@@ -105,7 +111,12 @@ export class CsvSource {
 			return err(schemaResult.error);
 		}
 
-		const parser = createCsvParser(schemaResult.value, options);
+		// Compute adaptive chunk size from schema if not explicitly set
+		const effectiveOptions = options?.chunkSize
+			? options
+			: { ...options, chunkSize: computeChunkSize(schemaResult.value) };
+
+		const parser = createCsvParser(schemaResult.value, effectiveOptions);
 		return ok(new CsvSource(content, parser, false));
 	}
 
@@ -201,6 +212,10 @@ export class CsvSource {
 					for (const chunk of chunks) {
 						yield chunk;
 					}
+					if (this.parser.isFinished()) {
+						await reader.cancel();
+						break;
+					}
 				}
 
 				const final = this.parser.finish();
@@ -218,6 +233,8 @@ export class CsvSource {
 			for (const chunk of chunks) {
 				yield chunk;
 			}
+			// Skip finish if already finished via parse
+			if (this.parser.isFinished()) return;
 
 			const final = this.parser.finish();
 			if (final) {

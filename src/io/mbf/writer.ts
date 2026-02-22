@@ -17,21 +17,21 @@ export class BinaryWriter {
     constructor(
         private path: string,
         private schema: Schema
-    ) {}
+    ) { }
 
     async open(): Promise<void> {
         this.handle = await fs.open(this.path, "w");
-        
+
         // Write File Header
         const header = new Uint8Array(16);
         const view = new DataView(header.buffer);
         view.setUint32(0, MBF_MAGIC, true); // Magic
         view.setUint32(4, MBF_VERSION, true); // Version
         // Placeholder for Total Rows (will update on close)
-        view.setUint32(8, 0, true); 
+        view.setUint32(8, 0, true);
         // Col Count
         view.setUint32(12, this.schema.columns.length, true);
-        
+
         await this.handle.write(header);
 
         // Write Column Directory/Schema
@@ -41,12 +41,12 @@ export class BinaryWriter {
             const entrySize = 2 + nameBytes.length + 1 + 1; // len(2) + name + kind(1) + nullable(1)
             const entryBuf = new Uint8Array(entrySize);
             const entryView = new DataView(entryBuf.buffer);
-            
+
             entryView.setUint16(0, nameBytes.length, true);
             entryBuf.set(nameBytes, 2);
             entryView.setUint8(2 + nameBytes.length, col.dtype.kind);
             entryView.setUint8(2 + nameBytes.length + 1, col.dtype.nullable ? 1 : 0);
-            
+
             await this.handle.write(entryBuf);
         }
     }
@@ -79,7 +79,7 @@ export class BinaryWriter {
             const colBuffer = writeChunk.getColumn(i);
             if (!colBuffer) throw new Error(`Missing column ${i}`);
             const serialized = this.serializeColumn(colBuffer, dictionary);
-            
+
             // For simplicity, concat parts
             const totalLen = serialized.reduce((sum, buf) => sum + buf.byteLength, 0);
             const merged = new Uint8Array(totalLen);
@@ -88,7 +88,7 @@ export class BinaryWriter {
                 merged.set(new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength), offset);
                 offset += buf.byteLength;
             }
-            
+
             columnBuffers.push(merged);
             columnLengths.push(totalLen);
         }
@@ -100,10 +100,10 @@ export class BinaryWriter {
         const view = new DataView(header.buffer);
 
         view.setUint32(0, rowCount, true);
-        
+
         let currentOffset = BigInt(0);
         let dataTotalSize = 0;
-        
+
         // Write offsets relative to Data Start (after header)
         for (let i = 0; i < colCount; i++) {
             view.setBigUint64(12 + (i * 8), currentOffset, true);
@@ -111,7 +111,7 @@ export class BinaryWriter {
             currentOffset += BigInt(len);
             dataTotalSize += len;
         }
-        
+
         view.setBigUint64(4, BigInt(dataTotalSize), true);
 
         // Write Group Header + Data in a single write to reduce syscalls
@@ -135,7 +135,7 @@ export class BinaryWriter {
         const buffer = new Uint8Array(4);
         const view = new DataView(buffer.buffer);
         view.setUint32(0, this.totalRows, true);
-        
+
         // Offset 8 is rowCount
         await this.handle.write(buffer, 0, 4, 8);
 
@@ -148,17 +148,17 @@ export class BinaryWriter {
 
         // 1. Null Bitmap (if nullable)
         if (col.isNullable) {
-             const byteLen = Math.ceil(col.length / 8);
-             // Assume we can access internal buffer or copy
-             // Since this is private/internal, for now create new if not accessible easily
-             // Real implementation should expose nullBitmap
-             const bitmap = new Uint8Array(byteLen);
-             for(let i=0; i<col.length; i++) {
-                 if (col.isNull(i)) {
-                     bitmap[i >>> 3] |= (1 << (i & 7));
-                 }
-             }
-             parts.push(bitmap);
+            const byteLen = Math.ceil(col.length / 8);
+            // Assume we can access internal buffer or copy
+            // Since this is private/internal, for now create new if not accessible easily
+            // Real implementation should expose nullBitmap
+            const bitmap = new Uint8Array(byteLen);
+            for (let i = 0; i < col.length; i++) {
+                if (col.isNull(i)) {
+                    bitmap[i >>> 3] |= (1 << (i & 7));
+                }
+            }
+            parts.push(bitmap);
         }
 
         // 2. Data
@@ -170,13 +170,13 @@ export class BinaryWriter {
             const textEncoder = new TextEncoder();
             const stringBytes: Uint8Array[] = [];
             let currentOffset = 0;
-            
+
             for (let i = 0; i < count; i++) {
                 offsets[i] = currentOffset;
                 if (col.isNull(i)) {
                     continue;
                 }
-                
+
                 const dictIdx = col.get(i) as number;
                 const str = dictionary.getString(dictIdx);
                 const bytes = textEncoder.encode(str);
@@ -187,8 +187,35 @@ export class BinaryWriter {
 
             // Push Offsets
             parts.push(new Uint8Array(offsets.buffer));
-            // Push Strings
-            parts.push(...stringBytes);
+            // Push Strings safely without exceeding call stack limits
+            for (let j = 0; j < stringBytes.length; j++) {
+                parts.push(stringBytes[j]!);
+            }
+        } else if (col.kind === DTypeKind.StringView) {
+            const svCol = col as any as import("../../buffer/string-view-column.ts").StringViewColumnBuffer;
+            const count = col.length;
+            const offsets = new Uint32Array(count + 1);
+            const stringBytes: Uint8Array[] = [];
+            let currentOffset = 0;
+
+            for (let i = 0; i < count; i++) {
+                offsets[i] = currentOffset;
+                if (col.isNull(i)) {
+                    continue;
+                }
+
+                const bytes = svCol.getBytes(i);
+                if (bytes) {
+                    stringBytes.push(bytes);
+                    currentOffset += bytes.length;
+                }
+            }
+            offsets[count] = currentOffset; // Final offset
+
+            parts.push(new Uint8Array(offsets.buffer));
+            for (let j = 0; j < stringBytes.length; j++) {
+                parts.push(stringBytes[j]!);
+            }
         } else {
             // Fixed width
             const byteSize = DTYPE_SIZES[col.kind];
@@ -196,7 +223,7 @@ export class BinaryWriter {
             // Need a view over correct length, not capacity
             // col.data is typed array of capacity
             const dataArr = col.data.subarray(0, col.length);
-            
+
             parts.push(new Uint8Array(dataArr.buffer, dataArr.byteOffset, dataBytes));
         }
 

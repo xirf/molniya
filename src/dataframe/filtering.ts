@@ -6,13 +6,16 @@
 import type { Expr } from "../expr/ast.ts";
 import { ExprType } from "../expr/ast.ts";
 import { ColumnRef } from "../expr/builders.ts";
-import { FilterOperator, filter } from "../ops/index.ts";
+import { FilterOperator, filter, computeChunkSize } from "../ops/index.ts";
 import { ErrorCode } from "../types/error.ts";
 import type { DataFrame } from "./core.ts";
 
 export function addFilteringMethods(df: typeof DataFrame.prototype) {
 	df.filter = function (expr: Expr | ColumnRef): DataFrame {
 		const condition = expr instanceof ColumnRef ? expr.toExpr() : expr;
+
+		// Compute adaptive chunk size from schema
+		const chunkSize = computeChunkSize(this.currentSchema());
 
 		// Filter fusion: if the last operator is also a Filter with a known Expr,
 		// fuse them into a single AND filter for better vectorization.
@@ -23,7 +26,7 @@ export function addFilteringMethods(df: typeof DataFrame.prototype) {
 					type: ExprType.And,
 					exprs: [lastOp.expr, condition],
 				};
-				const fusedResult = filter(lastOp.outputSchema, fusedExpr);
+				const fusedResult = filter(lastOp.outputSchema, fusedExpr, chunkSize);
 				if (fusedResult.error === ErrorCode.None) {
 					// Replace last filter with fused filter
 					const newOps = this.operators.slice(0, -1);
@@ -32,7 +35,7 @@ export function addFilteringMethods(df: typeof DataFrame.prototype) {
 			}
 		}
 
-		const result = filter(this.currentSchema(), condition);
+		const result = filter(this.currentSchema(), condition, chunkSize);
 		if (result.error !== ErrorCode.None) {
 			throw new Error(`Filter error: ${result.error}`);
 		}

@@ -17,8 +17,8 @@ import { ErrorCode, err, ok, type Result } from "../types/error.ts";
 
 /** Initial capacity constants */
 const INITIAL_DATA_SIZE = 64 * 1024;  // 64KB initial data buffer
-const INITIAL_CAPACITY = 1000;        // Initial number of strings
-const GROWTH_FACTOR = 1.5;            // Growth factor for arrays
+const INITIAL_CAPACITY = 1000;         // Initial number of strings
+const GROWTH_FACTOR = 1.5;             // Growth factor for arrays
 
 /** UTF-8 text encoder/decoder (shared instances) */
 const encoder = new TextEncoder();
@@ -31,12 +31,13 @@ const decoder = new TextDecoder("utf-8", { fatal: true });
  */
 export class SharedStringBuffer {
 	private data: Uint8Array;
-	private offset: number;
+	/** Current write position (package-visible for resetForReuse) */
+	_offset: number;
 	private readonly growthFactor: number;
 
 	constructor(initialSize: number = INITIAL_DATA_SIZE, growthFactor: number = GROWTH_FACTOR) {
 		this.data = new Uint8Array(initialSize);
-		this.offset = 0;
+		this._offset = 0;
 		this.growthFactor = growthFactor;
 	}
 
@@ -45,15 +46,15 @@ export class SharedStringBuffer {
 	 * Returns the byte offset where data was written.
 	 */
 	append(bytes: Uint8Array): number {
-		const startOffset = this.offset;
-		
+		const startOffset = this._offset;
+
 		// Grow if needed
-		if (this.offset + bytes.length > this.data.length) {
+		if (this._offset + bytes.length > this.data.length) {
 			this.grow(bytes.length);
 		}
 
-		this.data.set(bytes, this.offset);
-		this.offset += bytes.length;
+		this.data.set(bytes, this._offset);
+		this._offset += bytes.length;
 		return startOffset;
 	}
 
@@ -66,10 +67,19 @@ export class SharedStringBuffer {
 	}
 
 	/**
+	 * Reset the write pointer to 0, logically clearing the buffer.
+	 * The backing Uint8Array is retained and will be overwritten on next use.
+	 * Call this only when all consumers of previous views are done.
+	 */
+	resetForReuse(): void {
+		this._offset = 0;
+	}
+
+	/**
 	 * Get total bytes used.
 	 */
 	get size(): number {
-		return this.offset;
+		return this._offset;
 	}
 
 	/**
@@ -84,22 +94,22 @@ export class SharedStringBuffer {
 	 * Call this periodically to reclaim memory.
 	 */
 	compact(): void {
-		if (this.offset < this.data.length) {
-			const newData = new Uint8Array(this.offset);
-			newData.set(this.data.subarray(0, this.offset));
+		if (this._offset < this.data.length) {
+			const newData = new Uint8Array(this._offset);
+			newData.set(this.data.subarray(0, this._offset));
 			this.data = newData;
 		}
 	}
 
 	private grow(needed: number): void {
-		const minSize = this.offset + needed;
+		const minSize = this._offset + needed;
 		const newSize = Math.max(
 			Math.ceil(this.data.length * this.growthFactor),
 			minSize
 		);
-		
+
 		const newData = new Uint8Array(newSize);
-		newData.set(this.data);
+		newData.set(this.data.subarray(0, this._offset));
 		this.data = newData;
 	}
 }
@@ -116,14 +126,18 @@ export class SharedStringBuffer {
 export class StringView {
 	/** String data buffer (can be shared across columns) */
 	private readonly dataBuffer: SharedStringBuffer;
-	/** Byte offsets into data buffer */
-	private offsets: BigUint64Array;
+	/**
+	 * Byte offsets into data buffer.
+	 * Using Uint32Array instead of BigUint64Array: eliminates BigInt()/Number()
+	 * boxing on every hot-path read/write. Supports buffers up to 4GB.
+	 */
+	private offsets: Uint32Array;
 	/** Byte lengths of strings */
 	private lengths: Uint32Array;
 	/** Number of strings stored */
 	private count: number;
 	/** Maximum capacity */
-	private readonly capacity: number;
+	private _capacity: number;
 	/** Null bitmap (optional) */
 	private nullBitmap: Uint8Array | null;
 
@@ -132,58 +146,60 @@ export class StringView {
 		nullable: boolean = false,
 		sharedBuffer?: SharedStringBuffer
 	) {
-		this.capacity = capacity;
+		this._capacity = capacity;
 		this.count = 0;
-		
+
 		// Use provided shared buffer or create private one
 		this.dataBuffer = sharedBuffer ?? new SharedStringBuffer();
-		
-		this.offsets = new BigUint64Array(capacity);
+
+		// Uint32Array: avoids BigInt boxing; supports offsets up to 4GB
+		this.offsets = new Uint32Array(capacity);
 		this.lengths = new Uint32Array(capacity);
 		this.nullBitmap = nullable ? new Uint8Array(Math.ceil(capacity / 8)) : null;
 	}
 
-	/**
-	 * Append a string to the view.
-	 * Returns the index of the appended string.
-	 */
+	/** Append a string to the view. */
 	append(str: string): Result<number> {
-		if (this.count >= this.capacity) {
+		if (this.count >= this._capacity) {
 			return err(ErrorCode.BufferFull);
 		}
-
 		const bytes = encoder.encode(str);
+		return this.appendBytes(bytes);
+	}
+
+	/** Append UTF-8 bytes directly to the view. */
+	appendBytes(bytes: Uint8Array): Result<number> {
+		if (this.count >= this._capacity) {
+			return err(ErrorCode.BufferFull);
+		}
 		const offset = this.dataBuffer.append(bytes);
-		
-		this.offsets[this.count] = BigInt(offset);
+
+		// Direct number assignment — no BigInt() boxing needed
+		this.offsets[this.count] = offset;
 		this.lengths[this.count] = bytes.length;
-		
+
 		if (this.nullBitmap) {
 			this.setNull(this.count, false);
 		}
-		
+
 		return ok(this.count++);
 	}
 
-	/**
-	 * Append a null value.
-	 * Returns the index of the appended null.
-	 */
+	/** Append a null value. */
 	appendNull(): Result<number> {
-		if (this.count >= this.capacity) {
+		if (this.count >= this._capacity) {
 			return err(ErrorCode.BufferFull);
 		}
-
 		if (!this.nullBitmap) {
-			return err(ErrorCode.InvalidArgument, "Column is not nullable");
+			return err(ErrorCode.InvalidArgument);
 		}
 
-		// Zero out offset/length for null
-		this.offsets[this.count] = BigInt(0);
+		// Zero out offset/length for null (0 as Uint32)
+		this.offsets[this.count] = 0;
 		this.lengths[this.count] = 0;
-		
+
 		this.setNull(this.count, true);
-		
+
 		return ok(this.count++);
 	}
 
@@ -192,14 +208,14 @@ export class StringView {
 	 */
 	setNull(index: number, isNull: boolean): void {
 		if (!this.nullBitmap) return;
-		
+
 		const byteIdx = Math.floor(index / 8);
 		const bitIdx = index % 8;
-		
+
 		if (isNull) {
-			this.nullBitmap[byteIdx] |= (1 << bitIdx);
+			this.nullBitmap[byteIdx]! |= (1 << bitIdx);
 		} else {
-			this.nullBitmap[byteIdx] &= ~(1 << bitIdx);
+			this.nullBitmap[byteIdx]! &= ~(1 << bitIdx);
 		}
 	}
 
@@ -208,10 +224,10 @@ export class StringView {
 	 */
 	isNull(index: number): boolean {
 		if (!this.nullBitmap) return false;
-		
+
 		const byteIdx = Math.floor(index / 8);
 		const bitIdx = index % 8;
-		return (this.nullBitmap[byteIdx] & (1 << bitIdx)) !== 0;
+		return (this.nullBitmap[byteIdx]! & (1 << bitIdx)) !== 0;
 	}
 
 	/**
@@ -223,10 +239,11 @@ export class StringView {
 			return undefined;
 		}
 
-		const offset = Number(this.offsets[index]);
-		const length = this.lengths[index];
+		// Uint32: no Number() conversion needed
+		const offset = this.offsets[index]!;
+		const length = this.lengths[index]!;
 		const bytes = this.dataBuffer.getView(offset, length);
-		
+
 		return decoder.decode(bytes);
 	}
 
@@ -239,8 +256,8 @@ export class StringView {
 			return undefined;
 		}
 
-		const offset = Number(this.offsets[index]);
-		const length = this.lengths[index];
+		const offset = this.offsets[index]!;
+		const length = this.lengths[index]!;
 		return this.dataBuffer.getView(offset, length);
 	}
 
@@ -261,11 +278,11 @@ export class StringView {
 	getCharLength(index: number): number | undefined {
 		const bytes = this.getBytes(index);
 		if (!bytes) return undefined;
-		
+
 		// Count UTF-8 codepoints (not bytes)
 		let charCount = 0;
-		for (let i = 0; i < bytes.length; ) {
-			const byte = bytes[i];
+		for (let i = 0; i < bytes.length;) {
+			const byte = bytes[i] ?? 0;
 			if ((byte & 0x80) === 0) {
 				// ASCII: 1 byte
 				i += 1;
@@ -273,7 +290,7 @@ export class StringView {
 				// 2-byte character
 				i += 2;
 			} else if ((byte & 0xF0) === 0xE0) {
-				// 3-byte character  
+				// 3-byte character
 				i += 3;
 			} else if ((byte & 0xF8) === 0xF0) {
 				// 4-byte character
@@ -295,17 +312,17 @@ export class StringView {
 	compareAt(index: number, target: string): number {
 		const bytes = this.getBytes(index);
 		if (!bytes) return -1; // null < any string
-		
+
 		const targetBytes = encoder.encode(target);
 		const minLen = Math.min(bytes.length, targetBytes.length);
-		
+
 		for (let i = 0; i < minLen; i++) {
-			const diff = bytes[i] - targetBytes[i];
+			const diff = (bytes[i] ?? 0) - (targetBytes[i] ?? 0);
 			if (diff !== 0) return diff < 0 ? -1 : 1;
 		}
-		
+
 		return bytes.length < targetBytes.length ? -1 :
-		       bytes.length > targetBytes.length ? 1 : 0;
+			bytes.length > targetBytes.length ? 1 : 0;
 	}
 
 	/**
@@ -315,10 +332,10 @@ export class StringView {
 	startsWithAt(index: number, prefix: string): boolean {
 		const bytes = this.getBytes(index);
 		if (!bytes) return false;
-		
+
 		const prefixBytes = encoder.encode(prefix);
 		if (prefixBytes.length > bytes.length) return false;
-		
+
 		for (let i = 0; i < prefixBytes.length; i++) {
 			if (bytes[i] !== prefixBytes[i]) return false;
 		}
@@ -339,6 +356,13 @@ export class StringView {
 	 */
 	get length(): number {
 		return this.count;
+	}
+
+	/**
+	 * Public capacity accessor.
+	 */
+	get capacity(): number {
+		return this._capacity;
 	}
 
 	/**
@@ -371,11 +395,48 @@ export class StringView {
 	}
 
 	/**
+	 * Reset for buffer pool reuse without reallocating internal arrays.
+	 * Zeroes count and resets the data buffer write pointer.
+	 * The backing Uint32Array capacity and SharedStringBuffer are retained.
+	 */
+	resetForReuse(): void {
+		this.count = 0;
+		this.dataBuffer.resetForReuse();
+		if (this.nullBitmap) this.nullBitmap.fill(0);
+	}
+
+	/**
 	 * Create a new StringView that shares the same data buffer.
 	 * Useful for columns with similar string patterns.
 	 */
 	createSibling(capacity: number = INITIAL_CAPACITY, nullable: boolean = false): StringView {
 		return new StringView(capacity, nullable, this.dataBuffer);
+	}
+
+	ensureCapacity(minCapacity: number): void {
+		if (this._capacity >= minCapacity) return;
+
+		let newCap = this._capacity === 0 ? 1000 : this._capacity;
+		while (newCap < minCapacity) {
+			newCap = Math.max(newCap * 1.5, minCapacity);
+		}
+		newCap = Math.ceil(newCap);
+
+		const newOffsets = new Uint32Array(newCap);
+		newOffsets.set(this.offsets.subarray(0, this.count));
+		this.offsets = newOffsets;
+
+		const newLengths = new Uint32Array(newCap);
+		newLengths.set(this.lengths.subarray(0, this.count));
+		this.lengths = newLengths;
+
+		this._capacity = newCap;
+
+		if (this.nullBitmap) {
+			const newBitmap = new Uint8Array(Math.ceil(newCap / 8));
+			newBitmap.set(this.nullBitmap);
+			this.nullBitmap = newBitmap;
+		}
 	}
 }
 

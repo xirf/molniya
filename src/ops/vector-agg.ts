@@ -7,7 +7,7 @@
 /** biome-ignore-all lint/style/noNonNullAssertion: Performance critical inner loops */
 
 import { ColumnBuffer, type TypedArray } from "../buffer/column-buffer.ts";
-import { type DType, DType as DTypeFactory } from "../types/dtypes.ts";
+import { type DType, DType as DTypeFactory, DTypeKind } from "../types/dtypes.ts";
 import { AggType } from "./agg-state.ts";
 
 /**
@@ -31,10 +31,17 @@ export interface BatchAggregator {
 		count: number,
 		_selection: Uint32Array | null,
 		_column: ColumnBuffer | null,
+		_dictionary?: import("../buffer/dictionary.ts").Dictionary | null,
 	): void;
 
 	/** Finalize and return results as a column buffer */
 	finish(): ColumnBuffer;
+
+	/**
+	 * Reset state for reuse without reallocating backing arrays.
+	 * Called between spill cycles in GroupBy to avoid GC churn.
+	 */
+	resetState(): void;
 
 	/** Get output dtype */
 	readonly outputDType: DType;
@@ -86,8 +93,6 @@ abstract class BaseVectorAggregator implements BatchAggregator {
 		// Copy data
 		const count = this.size;
 
-		// We can iterate and set.
-		// Optimization: Batch copy if possible, but null handling requires loop for now.
 		for (let i = 0; i < count; i++) {
 			if (this.hasValue[i]) {
 				// @ts-expect-error - copying typed array elements
@@ -96,9 +101,26 @@ abstract class BaseVectorAggregator implements BatchAggregator {
 				col.setNull(i, true);
 			}
 		}
-		// Hack: manually set length
 		(col as unknown as { _length: number })._length = count;
 		return col;
+	}
+
+	/**
+	 * Reset state for reuse: zero the arrays, reset size counter.
+	 * Does NOT reallocate — preserves existing capacity.
+	 */
+	resetState(): void {
+		if (this.size > 0) {
+			// Can't use a single fill() because Float64Array and BigInt64Array have incompatible element types.
+			// Reset via subarray to handle both cases without casting to 'never'.
+			if (this.values instanceof BigInt64Array) {
+				(this.values as BigInt64Array).fill(BigInt(0), 0, this.size);
+			} else {
+				(this.values as Float64Array).fill(0, 0, this.size);
+			}
+			this.hasValue.fill(0, 0, this.size);
+		}
+		this.size = 0;
 	}
 }
 
@@ -172,11 +194,16 @@ export class VectorCount extends BaseVectorAggregator {
 
 	override resize(numGroups: number) {
 		super.resize(numGroups);
-		// Ensure "hasValue" is all set for counts (0 is a valid count)
-		// Actually per spec, Count returns 0 if empty? or Null?
-		// SQL says Count is 0 if no rows.
-		// But standard AggState implementation returns 0n.
+		// Count is never null — mark all slots as having a value
 		for (let i = 0; i < numGroups; i++) this.hasValue[i] = 1;
+	}
+
+	override resetState(): void {
+		if (this.size > 0) {
+			(this.values as BigInt64Array).fill(BigInt(0), 0, this.size);
+			this.hasValue.fill(1, 0, this.size); // counts always "have value"
+		}
+		this.size = 0;
 	}
 
 	protected grow(newSize: number) {
@@ -454,6 +481,15 @@ export class VectorAvg extends BaseVectorAggregator {
 		(col as unknown as { _length: number })._length = this.size;
 		return col;
 	}
+
+	override resetState(): void {
+		if (this.size > 0) {
+			this.values.fill(0, 0, this.size);
+			this.counts.fill(0, 0, this.size);
+			this.hasValue.fill(0, 0, this.size);
+		}
+		this.size = 0;
+	}
 }
 
 /** Vector Std (Welford's online algorithm) */
@@ -554,6 +590,16 @@ export class VectorStd extends BaseVectorAggregator {
 		(col as unknown as { _length: number })._length = this.size;
 		return col;
 	}
+
+	override resetState(): void {
+		if (this.size > 0) {
+			this.values.fill(0, 0, this.size);
+			this.means.fill(0, 0, this.size);
+			this.counts.fill(0, 0, this.size);
+			this.hasValue.fill(0, 0, this.size);
+		}
+		this.size = 0;
+	}
 }
 
 /** Vector Var (Welford's online algorithm) */
@@ -577,14 +623,48 @@ export class VectorVar extends VectorStd {
 	}
 }
 
-/** Vector Median (collects all values per group) */
+/**
+ * Vector Median.
+ *
+ * Uses contiguous Float64Array + Int32Array backing stores (values + group tags)
+ * to store all values in two TypedArray allocations instead of one JS array per group.
+ * At finish() time, values are scattered into per-group Float64Arrays for sorting.
+ */
 export class VectorMedian implements BatchAggregator {
-	private groupValues: Map<number, number[]> = new Map();
-	private size: number = 0;
+	/** Packed values: all groups interleaved */
+	private data: Float64Array = new Float64Array(4096);
+	/** Parallel group-id tag for each value slot */
+	private tags: Int32Array = new Int32Array(4096);
+	/** Next write index into data/tags */
+	private dataLen = 0;
+	/** Per-group: value count */
+	private groupCount: Int32Array = new Int32Array(256);
+	private size = 0;
 	readonly outputDType = DTypeFactory.float64;
 
 	resize(numGroups: number): void {
 		this.size = numGroups;
+		if (numGroups > this.groupCount.length) {
+			const newCount = new Int32Array(numGroups * 2);
+			newCount.set(this.groupCount);
+			this.groupCount = newCount;
+		}
+	}
+
+	private appendValue(gid: number, value: number): void {
+		if (this.dataLen >= this.data.length) {
+			const newData = new Float64Array(this.data.length * 2);
+			newData.set(this.data);
+			this.data = newData;
+			const newTags = new Int32Array(this.tags.length * 2);
+			newTags.set(this.tags);
+			this.tags = newTags;
+		}
+		this.data[this.dataLen] = value;
+		this.tags[this.dataLen] = gid;
+		this.dataLen++;
+		const curCount = this.groupCount[gid];
+		if (curCount !== undefined) this.groupCount[gid] = curCount + 1;
 	}
 
 	accumulateBatch(
@@ -600,61 +680,68 @@ export class VectorMedian implements BatchAggregator {
 			for (let i = 0; i < count; i++) {
 				const row = selection[i]!;
 				if (column?.isNull(row)) continue;
-
-				const gid = groupIds[i]!;
-				let arr = this.groupValues.get(gid);
-				if (!arr) {
-					arr = [];
-					this.groupValues.set(gid, arr);
-				}
-				arr.push(Number(data[row]));
+				this.appendValue(groupIds[i]!, Number(data[row]));
 			}
 		} else {
 			for (let i = 0; i < count; i++) {
 				if (column?.isNull(i)) continue;
-
-				const gid = groupIds[i]!;
-				let arr = this.groupValues.get(gid);
-				if (!arr) {
-					arr = [];
-					this.groupValues.set(gid, arr);
-				}
-				arr.push(Number(data[i]));
+				this.appendValue(groupIds[i]!, Number(data[i]));
 			}
 		}
 	}
 
 	finish(): ColumnBuffer {
-		const col = new ColumnBuffer(
-			this.outputDType.kind,
-			this.size,
-			this.outputDType.nullable,
-		);
+		const col = new ColumnBuffer(this.outputDType.kind, this.size, this.outputDType.nullable);
 
-		for (let gid = 0; gid < this.size; gid++) {
-			const values = this.groupValues.get(gid);
-			if (!values || values.length === 0) {
-				col.setNull(gid, true);
-			} else {
-				values.sort((a, b) => a - b);
-				const mid = Math.floor(values.length / 2);
-				if (values.length % 2 === 0) {
-					col.set(gid, (values[mid - 1]! + values[mid]!) / 2);
-				} else {
-					col.set(gid, values[mid]!);
-				}
+		// Allocate per-group Float64Arrays and fill-pointer array
+		const perGroup: Float64Array[] = new Array(this.size);
+		const filled: Int32Array = new Int32Array(this.size);
+		for (let g = 0; g < this.size; g++) {
+			perGroup[g] = new Float64Array(this.groupCount[g]!);
+		}
+
+		// Scatter values into per-group arrays using stored group tags
+		for (let i = 0; i < this.dataLen; i++) {
+			const gid = this.tags[i]!;
+			const arr = perGroup[gid];
+			if (arr) {
+				arr[filled[gid]!] = this.data[i]!;
+				(filled as Int32Array)[gid]!++;
 			}
 		}
 
+		// Compute median per group
+		for (let g = 0; g < this.size; g++) {
+			const cnt = this.groupCount[g]!;
+			if (cnt === 0) {
+				col.setNull(g, true);
+				continue;
+			}
+			const arr = perGroup[g]!;
+			arr.sort();
+			const mid = Math.floor(arr.length / 2);
+			const median = arr.length % 2 === 0
+				? (arr[mid - 1]! + arr[mid]!) / 2
+				: arr[mid]!;
+			col.set(g, median);
+		}
 		(col as unknown as { _length: number })._length = this.size;
 		return col;
 	}
+
+	resetState(): void {
+		this.dataLen = 0;
+		if (this.size > 0) {
+			this.groupCount.fill(0, 0, this.size);
+		}
+		this.size = 0;
+	}
 }
 
-/** Vector CountDistinct (tracks unique values per group) */
+/** Vector CountDistinct (tracks unique values per group). */
 export class VectorCountDistinct implements BatchAggregator {
-	private groupSets: Map<number, Set<number | bigint | string>> = new Map();
-	private size: number = 0;
+	private groupSets: Map<number, Set<number | string>> = new Map();
+	private size = 0;
 	readonly outputDType = DTypeFactory.int64;
 
 	resize(numGroups: number): void {
@@ -667,47 +754,59 @@ export class VectorCountDistinct implements BatchAggregator {
 		count: number,
 		selection: Uint32Array | null,
 		column: ColumnBuffer | null,
+		dictionary?: import("../buffer/dictionary.ts").Dictionary | null,
 	): void {
 		if (!data) return;
+
+		const isString = column && (column.kind === DTypeFactory.string.kind || column.kind === DTypeFactory.stringDict.kind);
+
+		const isStringView = column && column.kind === DTypeKind.StringView;
 
 		if (selection) {
 			for (let i = 0; i < count; i++) {
 				const row = selection[i]!;
 				if (column?.isNull(row)) continue;
-
 				const gid = groupIds[i]!;
 				let set = this.groupSets.get(gid);
-				if (!set) {
-					set = new Set();
-					this.groupSets.set(gid, set);
+				if (!set) { set = new Set(); this.groupSets.set(gid, set); }
+				if (isString && dictionary) {
+					set.add(dictionary.getString(data[row] as number)!);
+				} else if (isStringView) {
+					set.add((column as any as import("../buffer/string-view-column.ts").StringViewColumnBuffer).getString(row)!);
+				} else {
+					set.add(Number(data[row]));
 				}
-				set.add(data[row] as number | bigint);
 			}
 		} else {
 			for (let i = 0; i < count; i++) {
 				if (column?.isNull(i)) continue;
-
 				const gid = groupIds[i]!;
 				let set = this.groupSets.get(gid);
-				if (!set) {
-					set = new Set();
-					this.groupSets.set(gid, set);
+				if (!set) { set = new Set(); this.groupSets.set(gid, set); }
+				if (isString && dictionary) {
+					set.add(dictionary.getString(data[i] as number)!);
+				} else if (isStringView) {
+					set.add((column as any as import("../buffer/string-view-column.ts").StringViewColumnBuffer).getString(i)!);
+				} else {
+					set.add(Number(data[i]));
 				}
-				set.add(data[i] as number | bigint);
 			}
 		}
 	}
 
 	finish(): ColumnBuffer {
 		const col = new ColumnBuffer(this.outputDType.kind, this.size, false);
-
 		for (let gid = 0; gid < this.size; gid++) {
-			const set = this.groupSets.get(gid);
-			col.set(gid, BigInt(set?.size ?? 0));
+			col.set(gid, BigInt(this.groupSets.get(gid)?.size ?? 0));
 		}
-
 		(col as unknown as { _length: number })._length = this.size;
 		return col;
+	}
+
+	resetState(): void {
+		for (const set of this.groupSets.values()) set.clear();
+		this.groupSets.clear();
+		this.size = 0;
 	}
 }
 
@@ -769,6 +868,7 @@ export class VectorFirst extends BaseVectorAggregator {
 			}
 		}
 	}
+	// resetState() inherited from BaseVectorAggregator
 }
 
 /** Vector Last (stores last non-null value per group) */

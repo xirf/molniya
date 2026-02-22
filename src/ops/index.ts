@@ -49,7 +49,7 @@ export {
 // Filter
 export { FilterOperator, filter } from "./filter.ts";
 // GroupBy operator
-export { GroupByOperator, groupBy } from "./groupby.ts";
+export { GroupByOperator, type GroupByOptions, groupBy } from "./groupby.ts";
 // Join
 export {
 	hashJoin,
@@ -90,6 +90,7 @@ export {
 	asc,
 	desc,
 	type SortKey,
+	type SortOptions,
 	SortExpression,
 	SortOperator,
 	sort,
@@ -110,6 +111,10 @@ export {
 	transform,
 	withColumn,
 } from "./transform.ts";
+// Pushdown
+export { compilePushdownFilter } from "./pushdown.ts";
+// Chunk sizing
+export { computeChunkSize, type ChunkSizingOptions } from "./chunk-sizing.ts";
 // Unique/Deduplication
 export {
 	countUnique,

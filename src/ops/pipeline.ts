@@ -3,7 +3,8 @@
  * Pipeline executor.
  *
  * Executes a chain of operators on a stream of chunks.
- * Supports both pull-based and push-based execution.
+ * All pipeline execution paths are async to support operators whose
+ * process() method may return a Promise (e.g., GroupBy during disk spill).
  */
 
 import type { Chunk } from "../buffer/chunk.ts";
@@ -30,6 +31,8 @@ export interface PipelineResult {
 
 /**
  * Pipeline executor that chains operators.
+ * All execution methods are async to uniformly support operators that
+ * may perform I/O during process() (e.g., GroupBy disk spill).
  */
 export class Pipeline {
 	private readonly operators: Operator[];
@@ -40,8 +43,6 @@ export class Pipeline {
 			throw new Error("Pipeline must have at least one operator");
 		}
 		this.operators = operators;
-		// If no operators, use empty schema or throw (assuming input schema determines output if empty)
-		// For now, assert that we have at least one operator or handle effectively
 		const lastOp = operators[operators.length - 1];
 		if (!lastOp) {
 			throw new Error("Pipeline must have at least one operator");
@@ -58,26 +59,23 @@ export class Pipeline {
 
 	/**
 	 * Execute the pipeline on a single chunk.
-	 * Returns the output chunks and whether pipeline is done.
+	 * Always async to uniformly handle operators that may spill during process().
 	 */
-	executeChunk(chunk: Chunk): Result<{ chunks: Chunk[]; done: boolean }> {
+	async executeChunk(chunk: Chunk): Promise<Result<{ chunks: Chunk[]; done: boolean }>> {
 		const outputs: Chunk[] = [];
 		let current: Chunk | null = chunk;
 		let pipelineDone = false;
 
 		for (const op of this.operators) {
-			if (current === null) {
-				break;
-			}
+			if (current === null) break;
 
-			const result = op.process(current);
+			const result = await op.process(current);
 			if (result.error !== ErrorCode.None) {
 				return err(result.error);
 			}
 
 			current = result.value.chunk;
 
-			// If operator signals done, pipeline should stop after this chunk
 			if (result.value.done) {
 				pipelineDone = true;
 			}
@@ -91,11 +89,10 @@ export class Pipeline {
 	}
 
 	/**
-	 * Execute the pipeline on multiple chunks (streaming).
+	 * Execute the pipeline on multiple chunks.
+	 * Returns a Promise — use streamAsync() for lazy/streaming consumption.
 	 */
-	execute(chunks: Iterable<Chunk>): Result<PipelineResult> {
-		// Reset all operators before execution to prevent state leaks
-		// (e.g., LimitOperator.rowsPassed persisting between queries on reused DataFrames)
+	async execute(chunks: Iterable<Chunk>): Promise<Result<PipelineResult>> {
 		this.reset();
 
 		const startTime = performance.now();
@@ -104,13 +101,12 @@ export class Pipeline {
 		let rowsOut = 0;
 		let pipelineDone = false;
 
-		// Process all input chunks
 		for (const chunk of chunks) {
 			if (pipelineDone) break;
 
 			rowsIn += chunk.rowCount;
 
-			const result = this.executeChunk(chunk);
+			const result = await this.executeChunk(chunk);
 			if (result.error !== ErrorCode.None) {
 				return err(result.error);
 			}
@@ -124,33 +120,40 @@ export class Pipeline {
 		}
 
 		// Finish all operators (for buffering operators like aggregate, sort)
-		// When a buffering operator returns a chunk in finish(), we need to
-		// pass it through the remaining downstream operators.
 		for (let i = 0; i < this.operators.length; i++) {
 			const op = this.operators[i]!;
-			const result = op.finish();
-			if (result.error !== ErrorCode.None) {
-				return err(result.error);
-			}
 
-			if (result.value.chunk !== null) {
-				// Pass the finish output through remaining operators
-				let chunk: Chunk | null = result.value.chunk;
-				for (let j = i + 1; j < this.operators.length && chunk !== null; j++) {
-					const downstream = this.operators[j]!;
-					const downstreamResult = downstream.process(chunk);
-					if (downstreamResult.error !== ErrorCode.None) {
-						return err(downstreamResult.error);
+			let hasMore = true;
+			while (hasMore && !pipelineDone) {
+				const result = await op.finish();
+				if (result.error !== ErrorCode.None) {
+					return err(result.error);
+				}
+
+				hasMore = result.value.hasMore;
+
+				if (result.value.chunk !== null) {
+					let chunk: Chunk | null = result.value.chunk;
+					for (let j = i + 1; j < this.operators.length && chunk !== null; j++) {
+						const downstream = this.operators[j]!;
+						const downstreamResult = await downstream.process(chunk);
+						if (downstreamResult.error !== ErrorCode.None) {
+							return err(downstreamResult.error);
+						}
+						chunk = downstreamResult.value.chunk;
+						if (downstreamResult.value.done) {
+							pipelineDone = true;
+						}
 					}
-					chunk = downstreamResult.value.chunk;
-					if (downstreamResult.value.done) {
-						pipelineDone = true;
+
+					if (chunk !== null) {
+						rowsOut += chunk.rowCount;
+						outputChunks.push(chunk);
 					}
 				}
 
-				if (chunk !== null) {
-					rowsOut += chunk.rowCount;
-					outputChunks.push(chunk);
+				if (result.value.done) {
+					pipelineDone = true;
 				}
 			}
 		}
@@ -169,7 +172,6 @@ export class Pipeline {
 	async executeAsync(
 		chunks: AsyncIterable<Chunk>,
 	): Promise<Result<PipelineResult>> {
-		// Reset all operators before execution to prevent state leaks
 		this.reset();
 
 		const startTime = performance.now();
@@ -183,7 +185,7 @@ export class Pipeline {
 
 			rowsIn += chunk.rowCount;
 
-			const result = this.executeChunk(chunk);
+			const result = await this.executeChunk(chunk);
 			if (result.error !== ErrorCode.None) {
 				return err(result.error);
 			}
@@ -196,32 +198,41 @@ export class Pipeline {
 			pipelineDone = result.value.done;
 		}
 
-		// Finish all operators (for buffering operators like aggregate, sort)
+		// Finish all operators
 		for (let i = 0; i < this.operators.length; i++) {
 			const op = this.operators[i]!;
-			const result = op.finish();
-			if (result.error !== ErrorCode.None) {
-				return err(result.error);
-			}
 
-			if (result.value.chunk !== null) {
-				// Pass the finish output through remaining operators
-				let chunk: Chunk | null = result.value.chunk;
-				for (let j = i + 1; j < this.operators.length && chunk !== null; j++) {
-					const downstream = this.operators[j]!;
-					const downstreamResult = downstream.process(chunk);
-					if (downstreamResult.error !== ErrorCode.None) {
-						return err(downstreamResult.error);
+			let hasMore = true;
+			while (hasMore && !pipelineDone) {
+				const result = await op.finish();
+				if (result.error !== ErrorCode.None) {
+					return err(result.error);
+				}
+
+				hasMore = result.value.hasMore;
+
+				if (result.value.chunk !== null) {
+					let chunk: Chunk | null = result.value.chunk;
+					for (let j = i + 1; j < this.operators.length && chunk !== null; j++) {
+						const downstream = this.operators[j]!;
+						const downstreamResult = await downstream.process(chunk);
+						if (downstreamResult.error !== ErrorCode.None) {
+							return err(downstreamResult.error);
+						}
+						chunk = downstreamResult.value.chunk;
+						if (downstreamResult.value.done) {
+							pipelineDone = true;
+						}
 					}
-					chunk = downstreamResult.value.chunk;
-					if (downstreamResult.value.done) {
-						pipelineDone = true;
+
+					if (chunk !== null) {
+						rowsOut += chunk.rowCount;
+						outputChunks.push(chunk);
 					}
 				}
 
-				if (chunk !== null) {
-					rowsOut += chunk.rowCount;
-					outputChunks.push(chunk);
+				if (result.value.done) {
+					pipelineDone = true;
 				}
 			}
 		}
@@ -235,50 +246,61 @@ export class Pipeline {
 	}
 
 	/**
-	 * Execute pipeline and stream results (generator).
+	 * Execute pipeline and stream results lazily (async generator).
+	 * Preferred over execute() for large datasets — output is consumed
+	 * incrementally instead of being fully buffered in memory.
 	 */
-	*stream(chunks: Iterable<Chunk>): Generator<Chunk> {
-		// Reset all operators before streaming to prevent state leaks
+	async *stream(chunks: Iterable<Chunk>): AsyncGenerator<Chunk> {
 		this.reset();
 
 		for (const chunk of chunks) {
-			const result = this.executeChunk(chunk);
-			// If error, we should throw or handle? Generator can throw.
+			const result = await this.executeChunk(chunk);
 			if (result.error !== ErrorCode.None) {
 				throw new Error(`Pipeline error: ${result.error}`);
 			}
 
-			if (result.value.chunks.length > 0) {
-				for (const outChunk of result.value.chunks) {
-					yield outChunk;
-				}
+			for (const outChunk of result.value.chunks) {
+				yield outChunk;
 			}
 
 			if (result.value.done) break;
 		}
 
 		// Finish operators
+		let pipelineDone = false;
 		for (let i = 0; i < this.operators.length; i++) {
 			const op = this.operators[i]!;
-			const result = op.finish();
-			if (result.error !== ErrorCode.None) {
-				throw new Error(`Pipeline error: ${result.error}`);
-			}
 
-			if (result.value.chunk !== null) {
-				let chunk: Chunk | null = result.value.chunk;
-				// Pass through remaining operators
-				for (let j = i + 1; j < this.operators.length && chunk !== null; j++) {
-					const downstream = this.operators[j]!;
-					const downstreamResult = downstream.process(chunk);
-					if (downstreamResult.error !== ErrorCode.None) {
-						throw new Error(`Pipeline error: ${downstreamResult.error}`);
-					}
-					chunk = downstreamResult.value.chunk;
+			let hasMore = true;
+			while (hasMore && !pipelineDone) {
+				const result = await op.finish();
+				if (result.error !== ErrorCode.None) {
+					throw new Error(`Pipeline error: ${result.error}`);
 				}
 
-				if (chunk !== null) {
-					yield chunk;
+				hasMore = result.value.hasMore;
+
+				if (result.value.chunk !== null) {
+					let chunk: Chunk | null = result.value.chunk;
+					for (let j = i + 1; j < this.operators.length && chunk !== null; j++) {
+						const downstream = this.operators[j]!;
+						const downstreamResult = await downstream.process(chunk);
+						if (downstreamResult.error !== ErrorCode.None) {
+							throw new Error(`Pipeline error: ${downstreamResult.error}`);
+						}
+						chunk = downstreamResult.value.chunk;
+						if (downstreamResult.value.done) {
+							pipelineDone = true;
+						}
+					}
+
+					if (chunk !== null) {
+						yield chunk;
+					}
+				}
+
+				if (result.value.done) {
+					pipelineDone = true;
 				}
 			}
 		}
@@ -288,46 +310,56 @@ export class Pipeline {
 	 * Execute pipeline on async stream (async generator).
 	 */
 	async *streamAsync(chunks: AsyncIterable<Chunk>): AsyncGenerator<Chunk> {
-		// Reset all operators before streaming to prevent state leaks
 		this.reset();
 
 		for await (const chunk of chunks) {
-			const result = this.executeChunk(chunk);
+			const result = await this.executeChunk(chunk);
 			if (result.error !== ErrorCode.None) {
 				throw new Error(`Pipeline error: ${result.error}`);
 			}
 
-			if (result.value.chunks.length > 0) {
-				for (const outChunk of result.value.chunks) {
-					yield outChunk;
-				}
+			for (const outChunk of result.value.chunks) {
+				yield outChunk;
 			}
 
 			if (result.value.done) break;
 		}
 
-		// Finish operators
+		// Finish operators (await for async operators like external sort)
+		let pipelineStreamDone = false;
 		for (let i = 0; i < this.operators.length; i++) {
 			const op = this.operators[i]!;
-			const result = op.finish();
-			if (result.error !== ErrorCode.None) {
-				throw new Error(`Pipeline error: ${result.error}`);
-			}
 
-			if (result.value.chunk !== null) {
-				let chunk: Chunk | null = result.value.chunk;
-				// Pass through remaining operators
-				for (let j = i + 1; j < this.operators.length && chunk !== null; j++) {
-					const downstream = this.operators[j]!;
-					const downstreamResult = downstream.process(chunk);
-					if (downstreamResult.error !== ErrorCode.None) {
-						throw new Error(`Pipeline error: ${downstreamResult.error}`);
-					}
-					chunk = downstreamResult.value.chunk;
+			let hasMore = true;
+			while (hasMore && !pipelineStreamDone) {
+				const result = await op.finish();
+				if (result.error !== ErrorCode.None) {
+					throw new Error(`Pipeline error: ${result.error}`);
 				}
 
-				if (chunk !== null) {
-					yield chunk;
+				hasMore = result.value.hasMore;
+
+				if (result.value.chunk !== null) {
+					let chunk: Chunk | null = result.value.chunk;
+					for (let j = i + 1; j < this.operators.length && chunk !== null; j++) {
+						const downstream = this.operators[j]!;
+						const downstreamResult = await downstream.process(chunk);
+						if (downstreamResult.error !== ErrorCode.None) {
+							throw new Error(`Pipeline error: ${downstreamResult.error}`);
+						}
+						chunk = downstreamResult.value.chunk;
+						if (downstreamResult.value.done) {
+							pipelineStreamDone = true;
+						}
+					}
+
+					if (chunk !== null) {
+						yield chunk;
+					}
+				}
+
+				if (result.value.done) {
+					pipelineStreamDone = true;
 				}
 			}
 		}

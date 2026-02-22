@@ -111,13 +111,9 @@ export function isSchemaEqual(a: Schema, b: Schema): boolean {
 	return compareSchemas(a, b).error === ErrorCode.None;
 }
 
-/** Validate column name (non-empty, no special chars) */
+/** Validate column name (non-empty) */
 function isValidColumnName(name: string): boolean {
-	if (name.length === 0 || name.length > 256) {
-		return false;
-	}
-	// Allow alphanumeric, underscore, and common chars
-	return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);
+	return name.length > 0 && name.length <= 256;
 }
 
 /** Get column definition by name */
@@ -271,6 +267,8 @@ const DTYPE_KIND_NAMES: Record<DTypeKind, string> = {
 	[DTypeKind.Float64]: "Float64",
 	[DTypeKind.Boolean]: "Boolean",
 	[DTypeKind.String]: "String",
+	[DTypeKind.StringDict]: "StringDict",
+	[DTypeKind.StringView]: "StringView",
 	[DTypeKind.Date]: "Date",
 	[DTypeKind.Timestamp]: "Timestamp",
 };

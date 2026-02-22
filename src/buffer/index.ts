@@ -19,6 +19,7 @@ export {
 	createDictionary,
 	type DictIndex,
 	Dictionary,
+	type DictionaryOptions,
 	NULL_INDEX,
 } from "./dictionary.ts";
 
@@ -26,6 +27,14 @@ export {
 	SelectionBufferPool,
 	selectionPool,
 } from "./selection-pool.ts";
+
+export {
+	ColumnBufferPool,
+	bufferPool,
+	ChunkPool,
+	chunkPool,
+	recycleChunk,
+} from "./pool.ts";
 
 // Enhanced string handling
 export {

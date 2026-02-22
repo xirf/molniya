@@ -34,21 +34,23 @@ describe("Additional Features", () => {
 		});
 
 		it("should handle edge cases", async () => {
-			const df = fromColumns(
-				{ value: [1, 2, 3, 4, 5] },
-				{ value: DType.int32 },
-			);
+			function getDf() {
+				return fromColumns(
+					{ value: [1, 2, 3, 4, 5] },
+					{ value: DType.int32 },
+				);
+			}
 
 			// All values in range
-			const result1 = await df.filter(between("value", 1, 5)).toArray();
+			const result1 = await getDf().filter(between("value", 1, 5)).toArray();
 			expect(result1).toHaveLength(5);
 
 			// No values in range
-			const result2 = await df.filter(between("value", 10, 20)).toArray();
+			const result2 = await getDf().filter(between("value", 10, 20)).toArray();
 			expect(result2).toHaveLength(0);
 
 			// Single value in range
-			const result3 = await df.filter(between("value", 3, 3)).toArray();
+			const result3 = await getDf().filter(between("value", 3, 3)).toArray();
 			expect(result3).toHaveLength(1);
 			expect(result3[0].value).toBe(3);
 		});

@@ -145,6 +145,9 @@ export {
 	transform,
 	validateConcatSchemas,
 	withColumn,
+	// Chunk sizing
+	computeChunkSize,
+	type ChunkSizingOptions,
 } from "./ops/index.ts";
 // Re-export types
 export {

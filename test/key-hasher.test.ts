@@ -91,8 +91,38 @@ describe("KeyHasher", () => {
 	});
 
 	describe("KeyHashTable", () => {
+		// Helper to adapt old tests to new API
+		class TestKeyTable {
+			table = new KeyHashTable();
+			keys: any[][] = [];
+
+			insert(key: any[], id: number) {
+				const hash = hashKey(key);
+				this.keys[id] = key;
+				return this.table.getOrInsert(
+					hash,
+					(gid) => keysEqual(key, this.keys[gid]!),
+					true,
+					id
+				);
+			}
+
+			get(key: any[]) {
+				const hash = hashKey(key);
+				return this.table.getOrInsert(
+					hash,
+					(gid) => keysEqual(key, this.keys[gid]!),
+					false,
+					-1
+				);
+			}
+
+			getSize() { return this.table.getSize(); }
+			clear() { this.table.clear(); this.keys = []; }
+		}
+
 		it("should insert and retrieve keys", () => {
-			const table = new KeyHashTable();
+			const table = new TestKeyTable();
 
 			const key1 = [1, 2];
 			const key2 = [3, 4];
@@ -108,7 +138,7 @@ describe("KeyHasher", () => {
 		});
 
 		it("should return existing group ID for duplicate keys", () => {
-			const table = new KeyHashTable();
+			const table = new TestKeyTable();
 
 			const key = [1, 2];
 
@@ -120,7 +150,7 @@ describe("KeyHasher", () => {
 		});
 
 		it("should return -1 for non-existent keys", () => {
-			const table = new KeyHashTable();
+			const table = new TestKeyTable();
 
 			const key = [1, 2];
 
@@ -128,7 +158,7 @@ describe("KeyHasher", () => {
 		});
 
 		it("should handle many insertions and resizing", () => {
-			const table = new KeyHashTable(4); // Small initial capacity
+			const table = new TestKeyTable(); // Small initial capacity triggered dynamically
 
 			// Insert many keys to trigger resize
 			for (let i = 0; i < 100; i++) {
@@ -147,7 +177,7 @@ describe("KeyHasher", () => {
 		});
 
 		it("should handle null values in keys", () => {
-			const table = new KeyHashTable();
+			const table = new TestKeyTable();
 
 			const key1 = [1, null];
 			const key2 = [1, 2];
@@ -162,23 +192,10 @@ describe("KeyHasher", () => {
 			expect(table.get(key2)).toBe(1);
 		});
 
-		it("should return all entries sorted by groupId", () => {
-			const table = new KeyHashTable();
-
-			table.insert([3], 2);
-			table.insert([1], 0);
-			table.insert([2], 1);
-
-			const entries = table.entries();
-
-			expect(entries.length).toBe(3);
-			expect(entries[0]?.[0] ?? -1).toBe(0);
-			expect(entries[1]?.[0] ?? -1).toBe(1);
-			expect(entries[2]?.[0] ?? -1).toBe(2);
-		});
+		// "should return all entries sorted by groupId" test removed since entries() is gone.
 
 		it("should clear all entries", () => {
-			const table = new KeyHashTable();
+			const table = new TestKeyTable();
 
 			table.insert([1], 0);
 			table.insert([2], 1);
@@ -193,7 +210,7 @@ describe("KeyHasher", () => {
 		});
 
 		it("should handle collision scenarios", () => {
-			const table = new KeyHashTable();
+			const table = new TestKeyTable();
 
 			// Insert keys that might collide
 			const keys: number[][] = [];

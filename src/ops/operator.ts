@@ -48,15 +48,17 @@ export interface Operator {
 
 	/**
 	 * Process an input chunk.
-	 * Returns the transformed result.
+	 * Returns the transformed result, or a Promise when the operator
+	 * needs to perform I/O before it can accept new rows (e.g., GroupBy spill).
 	 */
-	process(chunk: Chunk): Result<OperatorResult>;
+	process(chunk: Chunk): Result<OperatorResult> | Promise<Result<OperatorResult>>;
 
 	/**
 	 * Signal end of input.
 	 * Operators that buffer (aggregate, sort) return final results here.
+	 * May return a Promise for operators that need async I/O (e.g., external sort).
 	 */
-	finish(): Result<OperatorResult>;
+	finish(): Result<OperatorResult> | Promise<Result<OperatorResult>>;
 
 	/**
 	 * Reset operator state for reuse.
@@ -74,7 +76,7 @@ export abstract class SimpleOperator implements Operator {
 	abstract process(chunk: Chunk): Result<OperatorResult>;
 
 	finish(): Result<OperatorResult> {
-		return ok({ chunk: null, hasMore: false, done: true });
+		return ok(opEmpty());
 	}
 
 	reset(): void {

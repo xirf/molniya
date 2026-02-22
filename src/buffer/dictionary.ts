@@ -20,17 +20,31 @@ const INITIAL_CAPACITY = 1024;
 /** Load factor threshold for rehashing */
 const LOAD_FACTOR = 0.75;
 
+/** Default max entries before LRU eviction (0 = unlimited to prevent data corruption during query execution) */
+const DEFAULT_MAX_ENTRIES = 0;
+
 /** Represents the index of a string in the dictionary */
 export type DictIndex = number;
 
 /** Special index for null/missing string */
 export const NULL_INDEX: DictIndex = 0xffffffff;
 
+/** Options for configuring dictionary behavior */
+export interface DictionaryOptions {
+	/** Initial hash table capacity (default: 1024) */
+	initialCapacity?: number;
+	/** Maximum entries before LRU eviction (default: 1_000_000, 0 = unlimited) */
+	maxEntries?: number;
+}
+
 /**
  * Dictionary table for string interning.
  *
  * Stores unique strings and returns indices for deduplication.
  * All string operations use UTF-8 bytes to avoid object allocation.
+ *
+ * When maxEntries is set, uses LRU eviction to cap memory usage.
+ * Evicted indices are reused for new entries.
  */
 export class Dictionary {
 	/** String data storage (concatenated UTF-8 bytes) */
@@ -40,7 +54,7 @@ export class Dictionary {
 
 	/** Offset and length for each string: [offset0, len0, offset1, len1, ...] */
 	private offsets: Uint32Array;
-	/** Number of strings stored */
+	/** Number of strings stored (including evicted slots that are reused) */
 	private count: number;
 
 	/** Hash table: hash -> first index with that hash (for chaining) */
@@ -59,19 +73,55 @@ export class Dictionary {
 	/** Lazy string cache: decoded strings indexed by DictIndex */
 	private stringCache: string[] = [];
 
-	constructor(initialCapacity: number = INITIAL_CAPACITY) {
+	/** Maximum entries before eviction (0 = unlimited) */
+	private readonly maxEntries: number;
+
+	/** Number of live (non-evicted) entries */
+	private liveCount: number;
+
+	/** Whether each index slot is live (1) or evicted/free (0) */
+	private alive: Uint8Array;
+
+	/**
+	 * Two-clock eviction state.
+	 * recentBit[i] = 1 if entry i was accessed since the last eviction sweep.
+	 * On eviction: entries with recentBit=1 get a "second chance" (bit cleared);
+	 * entries with recentBit=0 are evicted.
+	 */
+	private recentBit: Uint8Array;
+	/** Clock hand: next index to check during eviction */
+	private clockHand: number;
+
+	/** Free indices from evicted entries, available for reuse */
+	private freeIndices: number[];
+
+	constructor(options?: DictionaryOptions | number) {
+		const initialCapacity =
+			typeof options === "number"
+				? options
+				: options?.initialCapacity ?? INITIAL_CAPACITY;
+		this.maxEntries =
+			typeof options === "number"
+				? DEFAULT_MAX_ENTRIES
+				: options?.maxEntries ?? DEFAULT_MAX_ENTRIES;
+
 		// Ensure power of 2 for hash table
 		this.hashTableSize = nextPowerOf2(initialCapacity);
 
-		this.data = new Uint8Array(initialCapacity * 32); // Assume avg 32 bytes per string
+		this.data = new Uint8Array(initialCapacity * 32);
 		this.dataOffset = 0;
 
-		this.offsets = new Uint32Array(initialCapacity * 2); // [offset, len] pairs
+		this.offsets = new Uint32Array(initialCapacity * 2);
 		this.count = 0;
+		this.liveCount = 0;
 
 		this.hashTable = new Int32Array(this.hashTableSize).fill(-1);
 		this.chains = new Int32Array(initialCapacity).fill(-1);
 		this.hashes = new Uint32Array(initialCapacity);
+		this.alive = new Uint8Array(initialCapacity);
+		this.recentBit = new Uint8Array(initialCapacity);
+		this.clockHand = 0;
+		this.freeIndices = [];
 
 		this.encoder = new TextEncoder();
 		this.decoder = new TextDecoder("utf-8", { fatal: true });
@@ -90,23 +140,30 @@ export class Dictionary {
 	/**
 	 * Intern a string from UTF-8 bytes.
 	 * Returns the index if string exists, or adds it and returns new index.
+	 * When maxEntries is reached, evicts entries using the two-clock algorithm.
 	 */
 	intern(bytes: Uint8Array): DictIndex {
 		if (bytes.length === 0) {
-			// Empty string gets index 0 if not already present
 			return this.internEmpty();
 		}
 
 		const hash = this.hash(bytes);
 		const slot = hash & (this.hashTableSize - 1);
 
-		// Search chain for existing entry
+		// Search chain for existing entry (only live entries match)
 		let idx = this.hashTable[slot] ?? -1;
 		while (idx !== -1) {
-			if (this.bytesEqual(idx, bytes)) {
+			if (this.alive[idx] && this.bytesEqual(idx, bytes)) {
+				// Mark as recently used
+				this.recentBit[idx] = 1;
 				return idx;
 			}
 			idx = this.chains[idx] ?? -1;
+		}
+
+		// Evict if at capacity
+		if (this.maxEntries > 0 && this.liveCount >= this.maxEntries) {
+			this.evictClock();
 		}
 
 		// Not found, add new entry
@@ -128,19 +185,19 @@ export class Dictionary {
 	/**
 	 * Get string by index (cached).
 	 * First call per index decodes from UTF-8; subsequent calls return cached string.
+	 * Returns undefined for evicted or out-of-range indices.
 	 */
 	getString(index: DictIndex): string | undefined {
-		if (index >= this.count) {
+		if (index >= this.count || !this.alive[index]) {
 			return undefined;
 		}
-		// Check cache (undefined means not yet cached; sparse array access returns undefined)
+		this.recentBit[index] = 1;
+
 		const cached = this.stringCache[index];
 		if (cached !== undefined) return cached;
 
 		const bytes = this.getBytes(index);
-		if (bytes === undefined) {
-			return undefined;
-		}
+		if (bytes === undefined) return undefined;
 		const str = this.decoder.decode(bytes);
 		this.stringCache[index] = str;
 		return str;
@@ -148,11 +205,15 @@ export class Dictionary {
 
 	/**
 	 * Get raw bytes by index (zero-copy view).
+	 * Returns undefined for evicted or out-of-range indices.
 	 */
 	getBytes(index: DictIndex): Uint8Array | undefined {
-		if (index >= this.count) {
+		if (index >= this.count || !this.alive[index]) {
 			return undefined;
 		}
+		// Mark as recently used
+		this.recentBit[index] = 1;
+
 		const offsetIdx = index * 2;
 		const offset = this.offsets[offsetIdx] ?? 0;
 		const length = this.offsets[offsetIdx + 1] ?? 0;
@@ -198,23 +259,27 @@ export class Dictionary {
 
 	/** Handle empty string specially */
 	private internEmpty(): DictIndex {
-		// Check if empty string is already at index 0
-		if (this.count > 0) {
+		if (this.count > 0 && this.alive[0]) {
 			const len = this.offsets[1] ?? 0;
 			if (len === 0) {
+				this.recentBit[0] = 1;
 				return 0;
 			}
 		}
 
-		// Need to add empty string
 		if (this.count === 0) {
 			this.offsets[0] = 0;
 			this.offsets[1] = 0;
+			this.alive[0] = 1;
+			this.recentBit[0] = 1;
 			this.count = 1;
+			this.liveCount = 1;
 			return 0;
 		}
 
-		// Empty string not at index 0, add normally
+		if (this.maxEntries > 0 && this.liveCount >= this.maxEntries) {
+			this.evictClock();
+		}
 		const emptyBytes = new Uint8Array(0);
 		const hash = this.hash(emptyBytes);
 		const slot = hash & (this.hashTableSize - 1);
@@ -223,21 +288,22 @@ export class Dictionary {
 
 	/** Add a new entry to the dictionary */
 	private addEntry(bytes: Uint8Array, hash: number, slot: number): DictIndex {
-		// Check if we need to grow
-		if (this.count >= this.chains.length) {
-			this.grow();
-			// Recalculate slot after grow
-			slot = hash & (this.hashTableSize - 1);
+		let index: number;
+		if (this.freeIndices.length > 0) {
+			index = this.freeIndices.pop()!;
+		} else {
+			if (this.count >= this.chains.length) {
+				this.grow();
+				slot = hash & (this.hashTableSize - 1);
+			}
+			index = this.count;
+			this.count++;
 		}
 
-		// Check if we need more data space
 		if (this.dataOffset + bytes.length > this.data.length) {
 			this.growData(bytes.length);
 		}
 
-		const index = this.count;
-
-		// Store offset and length
 		const offsetIdx = index * 2;
 		if (offsetIdx + 1 >= this.offsets.length) {
 			const newOffsets = new Uint32Array(this.offsets.length * 2);
@@ -247,11 +313,9 @@ export class Dictionary {
 		this.offsets[offsetIdx] = this.dataOffset;
 		this.offsets[offsetIdx + 1] = bytes.length;
 
-		// Copy string data
 		this.data.set(bytes, this.dataOffset);
 		this.dataOffset += bytes.length;
 
-		// Store hash for fast rehash later
 		if (index >= this.hashes.length) {
 			const newHashes = new Uint32Array(this.hashes.length * 2);
 			newHashes.set(this.hashes);
@@ -259,18 +323,78 @@ export class Dictionary {
 		}
 		this.hashes[index] = hash;
 
-		// Add to hash chain
+		// Grow alive and recentBit if needed
+		if (index >= this.alive.length) {
+			const newAlive = new Uint8Array(this.alive.length * 2);
+			newAlive.set(this.alive);
+			this.alive = newAlive;
+			const newRecent = new Uint8Array(this.recentBit.length * 2);
+			newRecent.set(this.recentBit);
+			this.recentBit = newRecent;
+		}
+		this.alive[index] = 1;
+		this.recentBit[index] = 1;
+		this.liveCount++;
+
+		if (this.stringCache[index] !== undefined) {
+			this.stringCache[index] = undefined as unknown as string;
+		}
+
+		if (index >= this.chains.length) {
+			const newChains = new Int32Array(this.chains.length * 2).fill(-1);
+			newChains.set(this.chains);
+			this.chains = newChains;
+		}
 		this.chains[index] = this.hashTable[slot] ?? -1;
 		this.hashTable[slot] = index;
 
-		this.count++;
-
-		// Check load factor
 		if (this.count > this.hashTableSize * LOAD_FACTOR) {
 			this.rehash();
 		}
 
 		return index;
+	}
+
+	/**
+	 * Two-clock eviction: O(capacity) worst case — evicts ~10% of maxEntries.
+	 *
+	 * Pass 1: For each live entry, if recentBit=1, clear it (second chance).
+	 *         If recentBit=0, evict the entry.
+	 * The clock hand advances forward, wrapping around. This approximates LRU
+	 * without maintaining a sorted structure or scanning accessGen arrays.
+	 */
+	private evictClock(): void {
+		const evictTarget = Math.max(1, Math.floor(this.maxEntries * 0.1));
+		let evicted = 0;
+		const n = this.count;
+
+		// We may need up to two full sweeps to evict enough entries
+		// (first sweep gives second chances, second sweep evicts them).
+		for (let sweep = 0; sweep < 2 && evicted < evictTarget; sweep++) {
+			for (let i = 0; i < n && evicted < evictTarget; i++) {
+				const idx = this.clockHand % n;
+				this.clockHand = (this.clockHand + 1) % n;
+
+				if (!this.alive[idx]) continue;
+
+				if (this.recentBit[idx]) {
+					// Second chance: clear the bit and skip
+					this.recentBit[idx] = 0;
+				} else {
+					// Not recently used — evict
+					this.alive[idx] = 0;
+					this.freeIndices.push(idx);
+					if (this.stringCache[idx] !== undefined) {
+						this.stringCache[idx] = undefined as unknown as string;
+					}
+					evicted++;
+					this.liveCount--;
+				}
+			}
+		}
+
+		// Rebuild hash chains to remove evicted entries
+		this.rebuildHashTable();
 	}
 
 	/** FNV-1a hash of bytes */
@@ -285,9 +409,20 @@ export class Dictionary {
 
 	/** Grow the chain array */
 	private grow(): void {
-		const newChains = new Int32Array(this.chains.length * 2).fill(-1);
+		const newSize = this.chains.length * 2;
+		const newChains = new Int32Array(newSize).fill(-1);
 		newChains.set(this.chains);
 		this.chains = newChains;
+
+		// Also grow alive and recentBit arrays
+		if (newSize > this.alive.length) {
+			const newAlive = new Uint8Array(newSize);
+			newAlive.set(this.alive);
+			this.alive = newAlive;
+			const newRecent = new Uint8Array(newSize);
+			newRecent.set(this.recentBit);
+			this.recentBit = newRecent;
+		}
 	}
 
 	/** Grow the data array */
@@ -298,15 +433,28 @@ export class Dictionary {
 		this.data = newData;
 	}
 
-	/** Rehash when load factor exceeded */
+	/** Rehash when load factor exceeded (doubles hash table size) */
 	private rehash(): void {
-		this.hashTableSize *= 2;
-		this.hashTable = new Int32Array(this.hashTableSize).fill(-1);
-		this.chains.fill(-1);
+		this.hashTableSize = nextPowerOf2(this.hashTableSize * 2);
+		this.rebuildHashTable();
+	}
 
-		// Re-insert all entries using cached hashes (no recomputation needed)
+	/** Rebuild hash table and chains without changing size (used after eviction) */
+	private rebuildHashTable(): void {
+		this.hashTable = new Int32Array(this.hashTableSize).fill(-1);
+
+		// Grow chains if needed
+		if (this.count > this.chains.length) {
+			const newChains = new Int32Array(this.count * 2).fill(-1);
+			this.chains = newChains;
+		} else {
+			this.chains.fill(-1);
+		}
+
+		// Re-insert only live entries using cached hashes
 		const mask = this.hashTableSize - 1;
 		for (let i = 0; i < this.count; i++) {
+			if (!this.alive[i]) continue; // Skip evicted entries
 			const slot = (this.hashes[i]!) & mask;
 			this.chains[i] = this.hashTable[slot] ?? -1;
 			this.hashTable[slot] = i;

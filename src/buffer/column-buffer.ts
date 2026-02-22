@@ -27,34 +27,34 @@ export type TypedArray =
 export type TypedArrayFor<K extends DTypeKind> = K extends DTypeKind.Int8
 	? Int8Array
 	: K extends DTypeKind.Int16
-		? Int16Array
-		: K extends DTypeKind.Int32
-			? Int32Array
-			: K extends DTypeKind.Int64
-				? BigInt64Array
-				: K extends DTypeKind.UInt8
-					? Uint8Array
-					: K extends DTypeKind.UInt16
-						? Uint16Array
-						: K extends DTypeKind.UInt32
-							? Uint32Array
-							: K extends DTypeKind.UInt64
-								? BigUint64Array
-								: K extends DTypeKind.Float32
-									? Float32Array
-									: K extends DTypeKind.Float64
-										? Float64Array
-										: K extends DTypeKind.Boolean
-											? Uint8Array
-											: K extends DTypeKind.String | DTypeKind.StringDict
-												? Uint32Array
-												: K extends DTypeKind.StringView
-													? Uint8Array  // Special: handled by AdaptiveStringColumn
-													: K extends DTypeKind.Date
-														? Int32Array
-														: K extends DTypeKind.Timestamp
-															? BigInt64Array
-															: never;
+	? Int16Array
+	: K extends DTypeKind.Int32
+	? Int32Array
+	: K extends DTypeKind.Int64
+	? BigInt64Array
+	: K extends DTypeKind.UInt8
+	? Uint8Array
+	: K extends DTypeKind.UInt16
+	? Uint16Array
+	: K extends DTypeKind.UInt32
+	? Uint32Array
+	: K extends DTypeKind.UInt64
+	? BigUint64Array
+	: K extends DTypeKind.Float32
+	? Float32Array
+	: K extends DTypeKind.Float64
+	? Float64Array
+	: K extends DTypeKind.Boolean
+	? Uint8Array
+	: K extends DTypeKind.String | DTypeKind.StringDict
+	? Uint32Array
+	: K extends DTypeKind.StringView
+	? Uint8Array  // Special: handled by AdaptiveStringColumn
+	: K extends DTypeKind.Date
+	? Int32Array
+	: K extends DTypeKind.Timestamp
+	? BigInt64Array
+	: never;
 
 /**
  * A column buffer storing values of a specific dtype.
@@ -229,6 +229,28 @@ export class ColumnBuffer<K extends DTypeKind = DTypeKind> {
 		// But we MUST zero the null bitmap if it exists
 		if (this.nullBitmap !== null) {
 			this.nullBitmap.fill(0);
+		}
+	}
+
+	/** Ensure capacity */
+	ensureCapacity(minCapacity: number): void {
+		if (this.capacity >= minCapacity) return;
+
+		let newCap = this.capacity === 0 ? 16 : this.capacity;
+		while (newCap < minCapacity) {
+			newCap = Math.max(newCap * 2, 16);
+		}
+
+		const Constructor = DTYPE_ARRAY_CONSTRUCTORS[this.kind] as any;
+		const newData = new Constructor(newCap);
+		newData.set(this.data);
+		(this as any).data = newData;
+		(this as any).capacity = newCap;
+
+		if (this.nullBitmap) {
+			const newBitmap = new Uint8Array(Math.ceil(newCap / 8));
+			newBitmap.set(this.nullBitmap);
+			this.nullBitmap = newBitmap;
 		}
 	}
 }
