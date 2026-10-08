@@ -1,113 +1,67 @@
 # Molniya
 
-**Molniya** is a high-performance, arrow-like dataframe library for TypeScript/Javascript (running on Bun). It focuses on columnar memory layout, zero-copy operations, and a fluent API inspired by Polars/Spark.
+**Make a clear path through your data.**
 
-> [!WARNING]
-> This is experimental project. It is not ready for production use.
+Molniya is an experimental query library for Bun. Describe how a dataset should be read, filtered, grouped, and sorted; then run that same query as rows or batches.
 
-## Features
+```text
+CSV or rows → filter → select → group → sort → collect or stream
+```
 
-- **Columnar Memory**: Uses TypedArrays for efficient storage and SIMD-friendly access.
-- **Lazy Evaluation**: Builds logical plans and executes them in an optimized pipeline.
-- **Streaming**: Processes data in chunks to handle datasets larger than memory.
-- **Fluent API**: Expressive chainable API for data manipulation.
-- **Dictionary Encoding**: Efficient string handling with automatic dictionary encoding.
-- **Strict Typing**: Full TypeScript support with schema validation.
+```ts
+import { readCsv, col, lit, gt, sum } from "molniya";
 
-## Installation
+const report = readCsv("sales.csv", {
+  region: "utf8",
+  amount: "f64",
+})
+  .where(gt(col("amount"), lit(10)))
+  .aggregate(["region"], { total: sum(col("amount")) })
+  .sort([{ column: "total", descending: true }])
+  .limit(10);
 
-```bash
+const rows = await report.collect({ memoryBytes: 64 * 1024 * 1024 });
+```
+
+The schema is explicit, and each operation stays in the query until you ask for results. Use `collect()` for a result array, `rows()` for individual rows, `stream()` for batches, or `pipe()` to write into your own sink. A memory budget guides execution and supported sort and group operations can use temporary files when their working state grows. The budget tracks engine allocations; it is not a cap on total process memory.
+
+## Try it
+
+Molniya currently targets Bun 1.3.5 or newer.
+
+```sh
 bun add molniya
 ```
 
-## Quick Start
+The package is experimental and does not preserve the previous API. The current foundation covers CSV and in-memory sources, typed columns, expressions, filtering, projection, grouping, sorting, distinct rows, concatenation, and joins. Parquet, MBF, and plotting support are not part of this version. See the [migration notes](docs/migration.md) before changing an existing project.
 
-```typescript
-import { readCsv, col, sum, avg, desc, DType } from "molniya";
+## See the flow
 
-// 1. Load Data
-const df = await readCsv("sales.csv", {
-  id: DType.int32,
-  category: DType.string,
-  amount: DType.float64
-});
+`explain()` shows the selected steps and execution strategy before a query runs:
 
-// 2. Transform & Analyze
-const result = df
-  .filter(col("amount").gt(100))
-  .withColumn("tax", col("amount").mul(0.1))
-  .groupBy("category", [
-    { name: "total_sales", expr: sum("amount") },
-    { name: "avg_amount", expr: avg("amount") }
-  ])
-  .sort(desc("total_sales"))
-  .limit(10);
-
-// 3. Show Results
-result.show();
+```ts
+console.log(report.explain({ memoryBytes: 64 * 1024 * 1024 }));
 ```
 
-## File Formats
+For a reproducible comparison against Polars JS on 1,511,443 New York City ride records, run:
 
-Molniya has built-in support for:
-- **CSV**: Streaming CSV parser with type inference
-- **Parquet**: Custom high-performance reader (no dependencies)
-  - Row group streaming for low memory usage
-  - Predicate pushdown via column statistics  
-  - 50% faster type conversions (single-allocation patterns)
-  - Handles 100GB+ files with <3GB RAM
-- **MBF**: Molniya Binary Format for cached streaming (planned)
-
-```typescript
-// Read Parquet files
-const df = await readParquet("data.parquet");
-
-// Read CSV with schema
-const df2 = await readCsv("sales.csv", {
-  id: DType.int32,
-  name: DType.string
-});
+```sh
+bun run benchmark
 ```
 
-::: tip Parquet Performance
-Molniya's Parquet reader reduces memory usage by 90% compared to naive implementations through incremental row group streaming. Successfully processes large files:
-- **29M rows** (195MB Parquet) loaded in **5 seconds** at 5.9M rows/sec
-- **10M rows** (1.9GB CSV) loaded in **13ms** at 754M rows/sec
-- Memory-efficient streaming handles multi-GB datasets
-:::
+The script downloads and verifies the public dataset, checks that both libraries produce the same result, and records each run in `evidence/benchmark.json`. The current measurements and limits are in [the benchmark notes](docs/benchmark.md). Results depend on the machine and runtime; they are measurements, not a performance promise.
 
-## Benchmarks
+In the recorded run on Bun 1.3.5 and an AMD EPYC 9V74, Molniya took about 7.3 seconds at the median; Polars JS took about 0.11 seconds. Molniya was about 67 times slower for this CSV scan and summary. Both returned 557,096 rides and matching coordinate averages. This one workload shows that the current CSV path has substantial room to improve.
 
-Tested on real Kaggle datasets (Apple M1):
+## How it is checked
 
-**Students Dataset (CSV - 1.9GB, 10M rows)**
-| Operation        | Throughput       | Time   |
-| ---------------- | ---------------- | ------ |
-| Load CSV         | ~754M rows/sec   | 13ms   |
-| Filter           | ~365K rows/sec   | 27s    |
-| Select (3 cols)  | ~283K rows/sec   | 35s    |
-| Complex Filter   | ~295K rows/sec   | 34s    |
+Tests link each case to a written requirement. The suite uses SQLite and Polars JS as independent result checks, includes boundaries and seeded CSV cases, and injects allocation and file errors. Coverage is measured with branches and checked against a gate. [Testing notes](docs/testing.md) explain the evidence and [the traceability report](evidence/traceability.md) links requirements to the latest passing cases.
 
-**Sales Dataset (Parquet - 195MB, 29M rows)**
-| Operation        | Throughput       | Time   |
-| ---------------- | ---------------- | ------ |
-| Load Parquet     | ~5.9M rows/sec   | 5s     |
-| Filter           | ~2.2M rows/sec   | 13s    |
-| Select (3 cols)  | ~13.9M rows/sec  | 2s     |
-| Limit (100K)     | ~612K rows/sec   | 163ms  |
+## Project notes
 
-Run benchmarks locally:
-```bash
-bun run scripts/benchmark-real-data.ts
-```
+- [Query model and memory behavior](docs/architecture.md)
+- [Benchmark method and results](docs/benchmark.md)
+- [Requirements and test approach](docs/testing.md)
+- [Moving from earlier Molniya versions](docs/migration.md)
 
-## Architecture
-
-- **Buffer**: Lower level column management (`Chunk`, `ColumnBuffer`, `Dictionary`).
-- **Expr**: AST for expressions (`col('a').gt(5)`), compiler, and type inference.
-- **Ops**: Stream operators (`Filter`, `Project`, `Join`, `GroupBy`, `Sort`).
-- **DataFrame**: High-level API wrapping the pipeline.
-
-## License
-
-MIT
+MIT license.

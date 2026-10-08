@@ -1,0 +1,1398 @@
+{
+  "oracle": "nodejs-polars",
+  "version": "0.26.1",
+  "runtime": "Bun 1.3.5",
+  "cases": [
+    {
+      "case": "flow-17-0-65536",
+      "seed": 17,
+      "rows": 0,
+      "memoryBytes": 65536,
+      "inputSha256": "9eb865f153d52666923e08baab727b6340b95a5610fec518e13e155170143218",
+      "equivalent": true,
+      "actual": [],
+      "polars": [],
+      "metrics": {
+        "memory": {
+          "used": 0,
+          "peak": 303,
+          "limit": 65536,
+          "allocations": 16
+        },
+        "scannedRows": 0,
+        "outputRows": 0,
+        "spillRuns": 0
+      },
+      "molniyaPlan": {
+        "operator": "limit",
+        "strategy": "limit",
+        "reason": "Stops upstream consumption when the requested range is complete",
+        "columns": [
+          "region",
+          "total",
+          "mean",
+          "n",
+          "low",
+          "high"
+        ],
+        "statistics": {
+          "ordering": [
+            {
+              "column": "total",
+              "descending": true
+            },
+            {
+              "column": "region"
+            }
+          ]
+        },
+        "children": [
+          {
+            "operator": "sort",
+            "strategy": "budgeted-sort",
+            "reason": "Runs use at most one quarter of the query budget; two-way merge bounds fan-in",
+            "columns": [
+              "region",
+              "total",
+              "mean",
+              "n",
+              "low",
+              "high"
+            ],
+            "statistics": {
+              "ordering": [
+                {
+                  "column": "total",
+                  "descending": true
+                },
+                {
+                  "column": "region"
+                }
+              ]
+            },
+            "children": [
+              {
+                "operator": "aggregate",
+                "strategy": "sort-aggregate",
+                "reason": "Unknown or large group state uses external sorting and one active group",
+                "columns": [
+                  "region",
+                  "total",
+                  "mean",
+                  "n",
+                  "low",
+                  "high"
+                ],
+                "statistics": {},
+                "children": [
+                  {
+                    "operator": "project",
+                    "strategy": "evaluate",
+                    "reason": "Preserves the declared query semantics",
+                    "columns": [
+                      "region",
+                      "net"
+                    ],
+                    "statistics": {},
+                    "children": [
+                      {
+                        "operator": "filter",
+                        "strategy": "filter",
+                        "reason": "Selection view; null predicates are rejected",
+                        "columns": [
+                          "region",
+                          "amount"
+                        ],
+                        "statistics": {},
+                        "children": [
+                          {
+                            "operator": "scan",
+                            "strategy": "column-scan",
+                            "reason": "Source provides only the requested columns",
+                            "columns": [
+                              "region",
+                              "amount"
+                            ],
+                            "statistics": {},
+                            "children": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "polarsPlan": "SORT BY [slice: (0, 4), descending: [true, false], nulls_last: [true, true]] [col(\"total\"), col(\"region\")]\n  AGGREGATE[maintain_order: false]\n    [col(\"net\").sum().alias(\"total\"), col(\"net\").mean().alias(\"mean\"), col(\"net\").count().alias(\"n\"), col(\"net\").min().alias(\"low\"), col(\"net\").max().alias(\"high\")] BY [col(\"region\")]\n    FROM\n    SELECT [col(\"region\"), (col(\"amount\") * 1.25).alias(\"net\")]\n      Csv SCAN [/tmp/molniya-polars-Tqkqg4/sales.csv]\n      PROJECT 2/3 COLUMNS\n      SELECTION: col(\"amount\") > 10.0"
+    },
+    {
+      "case": "flow-17-1-65536",
+      "seed": 17,
+      "rows": 1,
+      "memoryBytes": 65536,
+      "inputSha256": "e63c439120bdb183195aba88ccb2d18011a662ff2b5ac7b0ca09191415d125a4",
+      "equivalent": true,
+      "actual": [
+        {
+          "region": "south",
+          "total": 20,
+          "mean": 20,
+          "n": 1,
+          "low": 20,
+          "high": 20
+        }
+      ],
+      "polars": [
+        {
+          "region": "south",
+          "total": 20,
+          "mean": 20,
+          "n": 1,
+          "low": 20,
+          "high": 20
+        }
+      ],
+      "metrics": {
+        "memory": {
+          "used": 0,
+          "peak": 556,
+          "limit": 65536,
+          "allocations": 76
+        },
+        "scannedRows": 1,
+        "outputRows": 1,
+        "spillRuns": 0
+      },
+      "molniyaPlan": {
+        "operator": "limit",
+        "strategy": "limit",
+        "reason": "Stops upstream consumption when the requested range is complete",
+        "columns": [
+          "region",
+          "total",
+          "mean",
+          "n",
+          "low",
+          "high"
+        ],
+        "statistics": {
+          "ordering": [
+            {
+              "column": "total",
+              "descending": true
+            },
+            {
+              "column": "region"
+            }
+          ]
+        },
+        "children": [
+          {
+            "operator": "sort",
+            "strategy": "budgeted-sort",
+            "reason": "Runs use at most one quarter of the query budget; two-way merge bounds fan-in",
+            "columns": [
+              "region",
+              "total",
+              "mean",
+              "n",
+              "low",
+              "high"
+            ],
+            "statistics": {
+              "ordering": [
+                {
+                  "column": "total",
+                  "descending": true
+                },
+                {
+                  "column": "region"
+                }
+              ]
+            },
+            "children": [
+              {
+                "operator": "aggregate",
+                "strategy": "sort-aggregate",
+                "reason": "Unknown or large group state uses external sorting and one active group",
+                "columns": [
+                  "region",
+                  "total",
+                  "mean",
+                  "n",
+                  "low",
+                  "high"
+                ],
+                "statistics": {},
+                "children": [
+                  {
+                    "operator": "project",
+                    "strategy": "evaluate",
+                    "reason": "Preserves the declared query semantics",
+                    "columns": [
+                      "region",
+                      "net"
+                    ],
+                    "statistics": {},
+                    "children": [
+                      {
+                        "operator": "filter",
+                        "strategy": "filter",
+                        "reason": "Selection view; null predicates are rejected",
+                        "columns": [
+                          "region",
+                          "amount"
+                        ],
+                        "statistics": {},
+                        "children": [
+                          {
+                            "operator": "scan",
+                            "strategy": "column-scan",
+                            "reason": "Source provides only the requested columns",
+                            "columns": [
+                              "region",
+                              "amount"
+                            ],
+                            "statistics": {},
+                            "children": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "polarsPlan": "SORT BY [slice: (0, 4), descending: [true, false], nulls_last: [true, true]] [col(\"total\"), col(\"region\")]\n  AGGREGATE[maintain_order: false]\n    [col(\"net\").sum().alias(\"total\"), col(\"net\").mean().alias(\"mean\"), col(\"net\").count().alias(\"n\"), col(\"net\").min().alias(\"low\"), col(\"net\").max().alias(\"high\")] BY [col(\"region\")]\n    FROM\n    SELECT [col(\"region\"), (col(\"amount\") * 1.25).alias(\"net\")]\n      Csv SCAN [/tmp/molniya-polars-ioEYhZ/sales.csv]\n      PROJECT 2/3 COLUMNS\n      SELECTION: col(\"amount\") > 10.0"
+    },
+    {
+      "case": "flow-17-250-65536",
+      "seed": 17,
+      "rows": 250,
+      "memoryBytes": 65536,
+      "inputSha256": "10204e60564410283efc7b820b34802bdb8b4420c56819675a0c9bb815f34aaa",
+      "equivalent": true,
+      "actual": [
+        {
+          "region": null,
+          "total": 1097.5,
+          "mean": 45.729166666666664,
+          "n": 24,
+          "low": 13.75,
+          "high": 71.25
+        },
+        {
+          "region": "🧪,lab",
+          "total": 1037.5,
+          "mean": 45.108695652173914,
+          "n": 23,
+          "low": 15,
+          "high": 71.25
+        },
+        {
+          "region": "north",
+          "total": 996.25,
+          "mean": 47.44047619047619,
+          "n": 21,
+          "low": 13.75,
+          "high": 73.75
+        },
+        {
+          "region": "line\nbreak",
+          "total": 665,
+          "mean": 41.5625,
+          "n": 16,
+          "low": 15,
+          "high": 73.75
+        }
+      ],
+      "polars": [
+        {
+          "region": null,
+          "total": 1097.5,
+          "mean": 45.729166666666664,
+          "n": 24,
+          "low": 13.75,
+          "high": 71.25
+        },
+        {
+          "region": "🧪,lab",
+          "total": 1037.5,
+          "mean": 45.108695652173914,
+          "n": 23,
+          "low": 15,
+          "high": 71.25
+        },
+        {
+          "region": "north",
+          "total": 996.25,
+          "mean": 47.44047619047619,
+          "n": 21,
+          "low": 13.75,
+          "high": 73.75
+        },
+        {
+          "region": "line\nbreak",
+          "total": 665,
+          "mean": 41.5625,
+          "n": 16,
+          "low": 15,
+          "high": 73.75
+        }
+      ],
+      "metrics": {
+        "memory": {
+          "used": 0,
+          "peak": 9630,
+          "limit": 65536,
+          "allocations": 5855
+        },
+        "scannedRows": 250,
+        "outputRows": 4,
+        "spillRuns": 0
+      },
+      "molniyaPlan": {
+        "operator": "limit",
+        "strategy": "limit",
+        "reason": "Stops upstream consumption when the requested range is complete",
+        "columns": [
+          "region",
+          "total",
+          "mean",
+          "n",
+          "low",
+          "high"
+        ],
+        "statistics": {
+          "ordering": [
+            {
+              "column": "total",
+              "descending": true
+            },
+            {
+              "column": "region"
+            }
+          ]
+        },
+        "children": [
+          {
+            "operator": "sort",
+            "strategy": "budgeted-sort",
+            "reason": "Runs use at most one quarter of the query budget; two-way merge bounds fan-in",
+            "columns": [
+              "region",
+              "total",
+              "mean",
+              "n",
+              "low",
+              "high"
+            ],
+            "statistics": {
+              "ordering": [
+                {
+                  "column": "total",
+                  "descending": true
+                },
+                {
+                  "column": "region"
+                }
+              ]
+            },
+            "children": [
+              {
+                "operator": "aggregate",
+                "strategy": "sort-aggregate",
+                "reason": "Unknown or large group state uses external sorting and one active group",
+                "columns": [
+                  "region",
+                  "total",
+                  "mean",
+                  "n",
+                  "low",
+                  "high"
+                ],
+                "statistics": {},
+                "children": [
+                  {
+                    "operator": "project",
+                    "strategy": "evaluate",
+                    "reason": "Preserves the declared query semantics",
+                    "columns": [
+                      "region",
+                      "net"
+                    ],
+                    "statistics": {},
+                    "children": [
+                      {
+                        "operator": "filter",
+                        "strategy": "filter",
+                        "reason": "Selection view; null predicates are rejected",
+                        "columns": [
+                          "region",
+                          "amount"
+                        ],
+                        "statistics": {},
+                        "children": [
+                          {
+                            "operator": "scan",
+                            "strategy": "column-scan",
+                            "reason": "Source provides only the requested columns",
+                            "columns": [
+                              "region",
+                              "amount"
+                            ],
+                            "statistics": {},
+                            "children": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "polarsPlan": "SORT BY [slice: (0, 4), descending: [true, false], nulls_last: [true, true]] [col(\"total\"), col(\"region\")]\n  AGGREGATE[maintain_order: false]\n    [col(\"net\").sum().alias(\"total\"), col(\"net\").mean().alias(\"mean\"), col(\"net\").count().alias(\"n\"), col(\"net\").min().alias(\"low\"), col(\"net\").max().alias(\"high\")] BY [col(\"region\")]\n    FROM\n    SELECT [col(\"region\"), (col(\"amount\") * 1.25).alias(\"net\")]\n      Csv SCAN [/tmp/molniya-polars-RrzgJE/sales.csv]\n      PROJECT 2/3 COLUMNS\n      SELECTION: col(\"amount\") > 10.0"
+    },
+    {
+      "case": "flow-17-250-8192",
+      "seed": 17,
+      "rows": 250,
+      "memoryBytes": 8192,
+      "inputSha256": "10204e60564410283efc7b820b34802bdb8b4420c56819675a0c9bb815f34aaa",
+      "equivalent": true,
+      "actual": [
+        {
+          "region": null,
+          "total": 1097.5,
+          "mean": 45.729166666666664,
+          "n": 24,
+          "low": 13.75,
+          "high": 71.25
+        },
+        {
+          "region": "🧪,lab",
+          "total": 1037.5,
+          "mean": 45.108695652173914,
+          "n": 23,
+          "low": 15,
+          "high": 71.25
+        },
+        {
+          "region": "north",
+          "total": 996.25,
+          "mean": 47.44047619047619,
+          "n": 21,
+          "low": 13.75,
+          "high": 73.75
+        },
+        {
+          "region": "line\nbreak",
+          "total": 665,
+          "mean": 41.5625,
+          "n": 16,
+          "low": 15,
+          "high": 73.75
+        }
+      ],
+      "polars": [
+        {
+          "region": null,
+          "total": 1097.5,
+          "mean": 45.729166666666664,
+          "n": 24,
+          "low": 13.75,
+          "high": 71.25
+        },
+        {
+          "region": "🧪,lab",
+          "total": 1037.5,
+          "mean": 45.108695652173914,
+          "n": 23,
+          "low": 15,
+          "high": 71.25
+        },
+        {
+          "region": "north",
+          "total": 996.25,
+          "mean": 47.44047619047619,
+          "n": 21,
+          "low": 13.75,
+          "high": 73.75
+        },
+        {
+          "region": "line\nbreak",
+          "total": 665,
+          "mean": 41.5625,
+          "n": 16,
+          "low": 15,
+          "high": 73.75
+        }
+      ],
+      "metrics": {
+        "memory": {
+          "used": 0,
+          "peak": 3801,
+          "limit": 8192,
+          "allocations": 6459
+        },
+        "scannedRows": 250,
+        "outputRows": 4,
+        "spillRuns": 9
+      },
+      "molniyaPlan": {
+        "operator": "limit",
+        "strategy": "limit",
+        "reason": "Stops upstream consumption when the requested range is complete",
+        "columns": [
+          "region",
+          "total",
+          "mean",
+          "n",
+          "low",
+          "high"
+        ],
+        "statistics": {
+          "ordering": [
+            {
+              "column": "total",
+              "descending": true
+            },
+            {
+              "column": "region"
+            }
+          ]
+        },
+        "children": [
+          {
+            "operator": "sort",
+            "strategy": "budgeted-sort",
+            "reason": "Runs use at most one quarter of the query budget; two-way merge bounds fan-in",
+            "columns": [
+              "region",
+              "total",
+              "mean",
+              "n",
+              "low",
+              "high"
+            ],
+            "statistics": {
+              "ordering": [
+                {
+                  "column": "total",
+                  "descending": true
+                },
+                {
+                  "column": "region"
+                }
+              ]
+            },
+            "children": [
+              {
+                "operator": "aggregate",
+                "strategy": "sort-aggregate",
+                "reason": "Unknown or large group state uses external sorting and one active group",
+                "columns": [
+                  "region",
+                  "total",
+                  "mean",
+                  "n",
+                  "low",
+                  "high"
+                ],
+                "statistics": {},
+                "children": [
+                  {
+                    "operator": "project",
+                    "strategy": "evaluate",
+                    "reason": "Preserves the declared query semantics",
+                    "columns": [
+                      "region",
+                      "net"
+                    ],
+                    "statistics": {},
+                    "children": [
+                      {
+                        "operator": "filter",
+                        "strategy": "filter",
+                        "reason": "Selection view; null predicates are rejected",
+                        "columns": [
+                          "region",
+                          "amount"
+                        ],
+                        "statistics": {},
+                        "children": [
+                          {
+                            "operator": "scan",
+                            "strategy": "column-scan",
+                            "reason": "Source provides only the requested columns",
+                            "columns": [
+                              "region",
+                              "amount"
+                            ],
+                            "statistics": {},
+                            "children": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "polarsPlan": "SORT BY [slice: (0, 4), descending: [true, false], nulls_last: [true, true]] [col(\"total\"), col(\"region\")]\n  AGGREGATE[maintain_order: false]\n    [col(\"net\").sum().alias(\"total\"), col(\"net\").mean().alias(\"mean\"), col(\"net\").count().alias(\"n\"), col(\"net\").min().alias(\"low\"), col(\"net\").max().alias(\"high\")] BY [col(\"region\")]\n    FROM\n    SELECT [col(\"region\"), (col(\"amount\") * 1.25).alias(\"net\")]\n      Csv SCAN [/tmp/molniya-polars-qJTKyA/sales.csv]\n      PROJECT 2/3 COLUMNS\n      SELECTION: col(\"amount\") > 10.0"
+    },
+    {
+      "case": "flow-91-1000-8192",
+      "seed": 91,
+      "rows": 1000,
+      "memoryBytes": 8192,
+      "inputSha256": "bca0f8be4f274342c5bdda2c06ed4a97860935948064ff2c24cad04e66121709",
+      "equivalent": true,
+      "actual": [
+        {
+          "region": "south",
+          "total": 4330,
+          "mean": 47.06521739130435,
+          "n": 92,
+          "low": 13.75,
+          "high": 73.75
+        },
+        {
+          "region": "quoted\"name",
+          "total": 3467.5,
+          "mean": 40.794117647058826,
+          "n": 85,
+          "low": 13.75,
+          "high": 71.25
+        },
+        {
+          "region": "line\nbreak",
+          "total": 3466.25,
+          "mean": 42.271341463414636,
+          "n": 82,
+          "low": 13.75,
+          "high": 73.75
+        },
+        {
+          "region": "🧪,lab",
+          "total": 3441.25,
+          "mean": 48.46830985915493,
+          "n": 71,
+          "low": 16.25,
+          "high": 73.75
+        }
+      ],
+      "polars": [
+        {
+          "region": "south",
+          "total": 4330,
+          "mean": 47.06521739130435,
+          "n": 92,
+          "low": 13.75,
+          "high": 73.75
+        },
+        {
+          "region": "quoted\"name",
+          "total": 3467.5,
+          "mean": 40.794117647058826,
+          "n": 85,
+          "low": 13.75,
+          "high": 71.25
+        },
+        {
+          "region": "line\nbreak",
+          "total": 3466.25,
+          "mean": 42.271341463414636,
+          "n": 82,
+          "low": 13.75,
+          "high": 73.75
+        },
+        {
+          "region": "🧪,lab",
+          "total": 3441.25,
+          "mean": 48.46830985915493,
+          "n": 71,
+          "low": 16.25,
+          "high": 73.75
+        }
+      ],
+      "metrics": {
+        "memory": {
+          "used": 0,
+          "peak": 4187,
+          "limit": 8192,
+          "allocations": 27947
+        },
+        "scannedRows": 1000,
+        "outputRows": 4,
+        "spillRuns": 37
+      },
+      "molniyaPlan": {
+        "operator": "limit",
+        "strategy": "limit",
+        "reason": "Stops upstream consumption when the requested range is complete",
+        "columns": [
+          "region",
+          "total",
+          "mean",
+          "n",
+          "low",
+          "high"
+        ],
+        "statistics": {
+          "ordering": [
+            {
+              "column": "total",
+              "descending": true
+            },
+            {
+              "column": "region"
+            }
+          ]
+        },
+        "children": [
+          {
+            "operator": "sort",
+            "strategy": "budgeted-sort",
+            "reason": "Runs use at most one quarter of the query budget; two-way merge bounds fan-in",
+            "columns": [
+              "region",
+              "total",
+              "mean",
+              "n",
+              "low",
+              "high"
+            ],
+            "statistics": {
+              "ordering": [
+                {
+                  "column": "total",
+                  "descending": true
+                },
+                {
+                  "column": "region"
+                }
+              ]
+            },
+            "children": [
+              {
+                "operator": "aggregate",
+                "strategy": "sort-aggregate",
+                "reason": "Unknown or large group state uses external sorting and one active group",
+                "columns": [
+                  "region",
+                  "total",
+                  "mean",
+                  "n",
+                  "low",
+                  "high"
+                ],
+                "statistics": {},
+                "children": [
+                  {
+                    "operator": "project",
+                    "strategy": "evaluate",
+                    "reason": "Preserves the declared query semantics",
+                    "columns": [
+                      "region",
+                      "net"
+                    ],
+                    "statistics": {},
+                    "children": [
+                      {
+                        "operator": "filter",
+                        "strategy": "filter",
+                        "reason": "Selection view; null predicates are rejected",
+                        "columns": [
+                          "region",
+                          "amount"
+                        ],
+                        "statistics": {},
+                        "children": [
+                          {
+                            "operator": "scan",
+                            "strategy": "column-scan",
+                            "reason": "Source provides only the requested columns",
+                            "columns": [
+                              "region",
+                              "amount"
+                            ],
+                            "statistics": {},
+                            "children": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "polarsPlan": "SORT BY [slice: (0, 4), descending: [true, false], nulls_last: [true, true]] [col(\"total\"), col(\"region\")]\n  AGGREGATE[maintain_order: false]\n    [col(\"net\").sum().alias(\"total\"), col(\"net\").mean().alias(\"mean\"), col(\"net\").count().alias(\"n\"), col(\"net\").min().alias(\"low\"), col(\"net\").max().alias(\"high\")] BY [col(\"region\")]\n    FROM\n    SELECT [col(\"region\"), (col(\"amount\") * 1.25).alias(\"net\")]\n      Csv SCAN [/tmp/molniya-polars-4ngNEY/sales.csv]\n      PROJECT 2/3 COLUMNS\n      SELECTION: col(\"amount\") > 10.0"
+    },
+    {
+      "case": "flow-2026-2000-8192",
+      "seed": 2026,
+      "rows": 2000,
+      "memoryBytes": 8192,
+      "inputSha256": "a0df5b8673a1b7d6dc5d2e0fcf6bd64cda40a351eaee41b34ba02906adb53ea5",
+      "equivalent": true,
+      "actual": [
+        {
+          "region": "south",
+          "total": 7881.25,
+          "mean": 42.83288043478261,
+          "n": 184,
+          "low": 13.75,
+          "high": 73.75
+        },
+        {
+          "region": "🧪,lab",
+          "total": 7648.75,
+          "mean": 42.97050561797753,
+          "n": 178,
+          "low": 13.75,
+          "high": 73.75
+        },
+        {
+          "region": "line\nbreak",
+          "total": 7193.75,
+          "mean": 44.13343558282209,
+          "n": 163,
+          "low": 13.75,
+          "high": 73.75
+        },
+        {
+          "region": "quoted\"name",
+          "total": 6953.75,
+          "mean": 46.05132450331126,
+          "n": 151,
+          "low": 13.75,
+          "high": 73.75
+        }
+      ],
+      "polars": [
+        {
+          "region": "south",
+          "total": 7881.25,
+          "mean": 42.83288043478261,
+          "n": 184,
+          "low": 13.75,
+          "high": 73.75
+        },
+        {
+          "region": "🧪,lab",
+          "total": 7648.75,
+          "mean": 42.97050561797753,
+          "n": 178,
+          "low": 13.75,
+          "high": 73.75
+        },
+        {
+          "region": "line\nbreak",
+          "total": 7193.75,
+          "mean": 44.13343558282209,
+          "n": 163,
+          "low": 13.75,
+          "high": 73.75
+        },
+        {
+          "region": "quoted\"name",
+          "total": 6953.75,
+          "mean": 46.05132450331126,
+          "n": 151,
+          "low": 13.75,
+          "high": 73.75
+        }
+      ],
+      "metrics": {
+        "memory": {
+          "used": 0,
+          "peak": 4320,
+          "limit": 8192,
+          "allocations": 58116
+        },
+        "scannedRows": 2000,
+        "outputRows": 4,
+        "spillRuns": 73
+      },
+      "molniyaPlan": {
+        "operator": "limit",
+        "strategy": "limit",
+        "reason": "Stops upstream consumption when the requested range is complete",
+        "columns": [
+          "region",
+          "total",
+          "mean",
+          "n",
+          "low",
+          "high"
+        ],
+        "statistics": {
+          "ordering": [
+            {
+              "column": "total",
+              "descending": true
+            },
+            {
+              "column": "region"
+            }
+          ]
+        },
+        "children": [
+          {
+            "operator": "sort",
+            "strategy": "budgeted-sort",
+            "reason": "Runs use at most one quarter of the query budget; two-way merge bounds fan-in",
+            "columns": [
+              "region",
+              "total",
+              "mean",
+              "n",
+              "low",
+              "high"
+            ],
+            "statistics": {
+              "ordering": [
+                {
+                  "column": "total",
+                  "descending": true
+                },
+                {
+                  "column": "region"
+                }
+              ]
+            },
+            "children": [
+              {
+                "operator": "aggregate",
+                "strategy": "sort-aggregate",
+                "reason": "Unknown or large group state uses external sorting and one active group",
+                "columns": [
+                  "region",
+                  "total",
+                  "mean",
+                  "n",
+                  "low",
+                  "high"
+                ],
+                "statistics": {},
+                "children": [
+                  {
+                    "operator": "project",
+                    "strategy": "evaluate",
+                    "reason": "Preserves the declared query semantics",
+                    "columns": [
+                      "region",
+                      "net"
+                    ],
+                    "statistics": {},
+                    "children": [
+                      {
+                        "operator": "filter",
+                        "strategy": "filter",
+                        "reason": "Selection view; null predicates are rejected",
+                        "columns": [
+                          "region",
+                          "amount"
+                        ],
+                        "statistics": {},
+                        "children": [
+                          {
+                            "operator": "scan",
+                            "strategy": "column-scan",
+                            "reason": "Source provides only the requested columns",
+                            "columns": [
+                              "region",
+                              "amount"
+                            ],
+                            "statistics": {},
+                            "children": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "polarsPlan": "SORT BY [slice: (0, 4), descending: [true, false], nulls_last: [true, true]] [col(\"total\"), col(\"region\")]\n  AGGREGATE[maintain_order: false]\n    [col(\"net\").sum().alias(\"total\"), col(\"net\").mean().alias(\"mean\"), col(\"net\").count().alias(\"n\"), col(\"net\").min().alias(\"low\"), col(\"net\").max().alias(\"high\")] BY [col(\"region\")]\n    FROM\n    SELECT [col(\"region\"), (col(\"amount\") * 1.25).alias(\"net\")]\n      Csv SCAN [/tmp/molniya-polars-1Jw0y6/sales.csv]\n      PROJECT 2/3 COLUMNS\n      SELECTION: col(\"amount\") > 10.0"
+    },
+    {
+      "case": "join-inner",
+      "equivalent": true,
+      "actual": [
+        {
+          "lrow": 0,
+          "rrow": 0
+        },
+        {
+          "lrow": 0,
+          "rrow": 1
+        },
+        {
+          "lrow": 1,
+          "rrow": 0
+        },
+        {
+          "lrow": 1,
+          "rrow": 1
+        }
+      ],
+      "polars": [
+        {
+          "lrow": 0,
+          "rrow": 0
+        },
+        {
+          "lrow": 0,
+          "rrow": 1
+        },
+        {
+          "lrow": 1,
+          "rrow": 0
+        },
+        {
+          "lrow": 1,
+          "rrow": 1
+        }
+      ]
+    },
+    {
+      "case": "join-left",
+      "equivalent": true,
+      "actual": [
+        {
+          "lrow": 0,
+          "rrow": 0
+        },
+        {
+          "lrow": 0,
+          "rrow": 1
+        },
+        {
+          "lrow": 1,
+          "rrow": 0
+        },
+        {
+          "lrow": 1,
+          "rrow": 1
+        },
+        {
+          "lrow": 2,
+          "rrow": null
+        },
+        {
+          "lrow": 3,
+          "rrow": null
+        }
+      ],
+      "polars": [
+        {
+          "lrow": 0,
+          "rrow": 0
+        },
+        {
+          "lrow": 0,
+          "rrow": 1
+        },
+        {
+          "lrow": 1,
+          "rrow": 0
+        },
+        {
+          "lrow": 1,
+          "rrow": 1
+        },
+        {
+          "lrow": 2,
+          "rrow": null
+        },
+        {
+          "lrow": 3,
+          "rrow": null
+        }
+      ]
+    },
+    {
+      "case": "join-full",
+      "equivalent": true,
+      "actual": [
+        {
+          "lrow": 0,
+          "rrow": 0
+        },
+        {
+          "lrow": 0,
+          "rrow": 1
+        },
+        {
+          "lrow": 1,
+          "rrow": 0
+        },
+        {
+          "lrow": 1,
+          "rrow": 1
+        },
+        {
+          "lrow": 2,
+          "rrow": null
+        },
+        {
+          "lrow": 3,
+          "rrow": null
+        },
+        {
+          "lrow": null,
+          "rrow": 2
+        },
+        {
+          "lrow": null,
+          "rrow": 3
+        }
+      ],
+      "polars": [
+        {
+          "lrow": 0,
+          "rrow": 0
+        },
+        {
+          "lrow": 0,
+          "rrow": 1
+        },
+        {
+          "lrow": 1,
+          "rrow": 0
+        },
+        {
+          "lrow": 1,
+          "rrow": 1
+        },
+        {
+          "lrow": 2,
+          "rrow": null
+        },
+        {
+          "lrow": 3,
+          "rrow": null
+        },
+        {
+          "lrow": null,
+          "rrow": 2
+        },
+        {
+          "lrow": null,
+          "rrow": 3
+        }
+      ]
+    },
+    {
+      "case": "join-semi",
+      "equivalent": true,
+      "actual": [
+        {
+          "lrow": 0
+        },
+        {
+          "lrow": 1
+        }
+      ],
+      "polars": [
+        {
+          "lrow": 0
+        },
+        {
+          "lrow": 1
+        }
+      ]
+    },
+    {
+      "case": "join-anti",
+      "equivalent": true,
+      "actual": [
+        {
+          "lrow": 2
+        },
+        {
+          "lrow": 3
+        }
+      ],
+      "polars": [
+        {
+          "lrow": 2
+        },
+        {
+          "lrow": 3
+        }
+      ]
+    },
+    {
+      "case": "join-cross",
+      "equivalent": true,
+      "actual": [
+        {
+          "lrow": 0,
+          "rrow": 0
+        },
+        {
+          "lrow": 0,
+          "rrow": 1
+        },
+        {
+          "lrow": 0,
+          "rrow": 2
+        },
+        {
+          "lrow": 0,
+          "rrow": 3
+        },
+        {
+          "lrow": 1,
+          "rrow": 0
+        },
+        {
+          "lrow": 1,
+          "rrow": 1
+        },
+        {
+          "lrow": 1,
+          "rrow": 2
+        },
+        {
+          "lrow": 1,
+          "rrow": 3
+        },
+        {
+          "lrow": 2,
+          "rrow": 0
+        },
+        {
+          "lrow": 2,
+          "rrow": 1
+        },
+        {
+          "lrow": 2,
+          "rrow": 2
+        },
+        {
+          "lrow": 2,
+          "rrow": 3
+        },
+        {
+          "lrow": 3,
+          "rrow": 0
+        },
+        {
+          "lrow": 3,
+          "rrow": 1
+        },
+        {
+          "lrow": 3,
+          "rrow": 2
+        },
+        {
+          "lrow": 3,
+          "rrow": 3
+        }
+      ],
+      "polars": [
+        {
+          "lrow": 0,
+          "rrow": 0
+        },
+        {
+          "lrow": 0,
+          "rrow": 1
+        },
+        {
+          "lrow": 0,
+          "rrow": 2
+        },
+        {
+          "lrow": 0,
+          "rrow": 3
+        },
+        {
+          "lrow": 1,
+          "rrow": 0
+        },
+        {
+          "lrow": 1,
+          "rrow": 1
+        },
+        {
+          "lrow": 1,
+          "rrow": 2
+        },
+        {
+          "lrow": 1,
+          "rrow": 3
+        },
+        {
+          "lrow": 2,
+          "rrow": 0
+        },
+        {
+          "lrow": 2,
+          "rrow": 1
+        },
+        {
+          "lrow": 2,
+          "rrow": 2
+        },
+        {
+          "lrow": 2,
+          "rrow": 3
+        },
+        {
+          "lrow": 3,
+          "rrow": 0
+        },
+        {
+          "lrow": 3,
+          "rrow": 1
+        },
+        {
+          "lrow": 3,
+          "rrow": 2
+        },
+        {
+          "lrow": 3,
+          "rrow": 3
+        }
+      ]
+    },
+    {
+      "case": "all-null-sum",
+      "equivalent": false,
+      "expectedDifference": "REQ-AGG-001 uses SQL empty/all-null sum semantics",
+      "actual": [
+        {
+          "s": null
+        }
+      ],
+      "polars": [
+        {
+          "s": 0
+        }
+      ]
+    }
+  ]
+}

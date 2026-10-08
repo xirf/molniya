@@ -1,0 +1,82 @@
+{
+  "sourceDigest": "04683770ba56ef788dd58c04b9931fd2d0f1b70e7d87994c0ae85649fd80d492",
+  "method": "Six targeted semantic mutations; not an exhaustive mutation score",
+  "results": [
+    {
+      "id": "MUT-FILTER-NULL",
+      "file": "execute.ts",
+      "from": "predicate!.evaluate((column) => batch.get(row, column)) === true",
+      "to": "predicate!.evaluate((column) => batch.get(row, column)) !== false",
+      "requirement": "REQ-NULL-001",
+      "killed": true,
+      "killedBy": [
+        "TC-ORACLE-SQLITE-1",
+        "TC-ORACLE-SQLITE-7",
+        "TC-ORACLE-SQLITE-19",
+        "TC-ORACLE-SQLITE-73",
+        "TC-ORACLE-SQLITE-101",
+        "TC-ORACLE-SQLITE-257",
+        "TC-ORACLE-SQLITE-1009",
+        "TC-ORACLE-SQLITE-65537"
+      ]
+    },
+    {
+      "id": "MUT-DIV-ZERO",
+      "file": "expr.ts",
+      "from": "if (expr.op === \"div\" && (y === 0 || y === 0n)) return null;",
+      "to": "if (expr.op === \"div\" && (y === 0 || y === 0n)) return 0;",
+      "requirement": "REQ-EXPR-001",
+      "killed": true,
+      "killedBy": [
+        "TC-EXPR-zero",
+        "TC-EXPR-zero64"
+      ]
+    },
+    {
+      "id": "MUT-BUDGET-EQUALITY",
+      "file": "memory.ts",
+      "from": "bytes > this.limit - this.#used",
+      "to": "bytes >= this.limit - this.#used",
+      "requirement": "REQ-MEM-001",
+      "killed": true,
+      "killedBy": [
+        "TC-MEM-BOUNDARIES"
+      ]
+    },
+    {
+      "id": "MUT-LIMIT-BOUNDARY",
+      "file": "execute.ts",
+      "from": "emitted >= plan.count",
+      "to": "emitted > plan.count",
+      "requirement": "REQ-REL-001",
+      "killed": true,
+      "killedBy": [
+        "TC-LIMIT-1-0"
+      ]
+    },
+    {
+      "id": "MUT-SUM-EMPTY",
+      "file": "execute.ts",
+      "from": "value: null, seen: false",
+      "to": "value: 0, seen: false",
+      "requirement": "REQ-AGG-001",
+      "killed": true,
+      "killedBy": [
+        "TC-AGG-empty",
+        "TC-AGG-all-null",
+        "TC-POLARS-NULL-SUM-CONTRACT"
+      ]
+    },
+    {
+      "id": "MUT-CSV-QUOTE",
+      "file": "csv.ts",
+      "from": "text.replaceAll('\"', '\"\"')",
+      "to": "text.replaceAll('\"', '\"')",
+      "requirement": "REQ-CSV-003",
+      "killed": true,
+      "killedBy": [
+        "TC-CSV-ROUNDTRIP"
+      ]
+    }
+  ]
+}
