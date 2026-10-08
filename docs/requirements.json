@@ -1,0 +1,122 @@
+[
+  {
+    "id": "REQ-SCHEMA-001",
+    "shall": "Schemas shall contain unique nonempty names and supported logical types; invalid values, missing or extra fields, overflow, non-finite numbers and malformed Unicode shall be rejected.",
+    "categories": ["normal", "boundary", "robustness"]
+  },
+  {
+    "id": "REQ-COLUMN-001",
+    "shall": "All supported logical values and nulls shall round-trip through column storage. UTF-8 and dictionary encodings shall produce identical logical results.",
+    "categories": ["normal", "boundary", "property"]
+  },
+  {
+    "id": "REQ-COLUMN-002",
+    "shall": "Automatic string encoding shall select the smaller of dictionary and direct UTF-8 buffer sizes; ties shall use direct UTF-8.",
+    "categories": ["normal", "boundary"]
+  },
+  {
+    "id": "REQ-OWN-001",
+    "shall": "Views shall retain underlying storage until their last owner is disposed. Disposal shall be idempotent; access through a disposed batch shall fail.",
+    "categories": ["normal", "robustness"]
+  },
+  {
+    "id": "REQ-MEM-001",
+    "shall": "Every retained engine buffer and modeled operator state shall be charged to one query budget; exceeding it shall raise MEMORY without exceeding the configured accounting limit.",
+    "categories": ["normal", "boundary", "robustness"]
+  },
+  {
+    "id": "REQ-MEM-002",
+    "shall": "Failure at every logical allocation boundary shall release all acquired resources; a later fresh execution shall return the expected result.",
+    "categories": ["fault"]
+  },
+  {
+    "id": "REQ-PLAN-001",
+    "shall": "Query construction shall not open sources; plans and schemas shall be immutable snapshots, and each execution shall have independent state.",
+    "categories": ["normal", "robustness"]
+  },
+  {
+    "id": "REQ-PLAN-002",
+    "shall": "Physical strategy selection shall use available cardinality, ordering and size statistics, expose its reason, and preserve logical query results.",
+    "categories": ["normal", "differential"]
+  },
+  {
+    "id": "REQ-PLAN-003",
+    "shall": "Filter fusion and source column pruning shall preserve column dependencies, expression evaluation order and results.",
+    "categories": ["normal", "differential"]
+  },
+  {
+    "id": "REQ-EXPR-001",
+    "shall": "Expressions shall validate operand types and arity before execution; arithmetic shall reject overflow, division by zero shall return null, and string length shall count Unicode code points.",
+    "categories": ["normal", "boundary", "robustness"]
+  },
+  {
+    "id": "REQ-NULL-001",
+    "shall": "Comparisons with null shall return null. AND, OR and NOT shall use SQL three-valued logic; a filter shall retain only true.",
+    "categories": ["normal", "decision"]
+  },
+  {
+    "id": "REQ-REL-001",
+    "shall": "Projection shall preserve requested field order and aliases; limit and offset shall select the declared range and stop consuming upstream when complete.",
+    "categories": ["normal", "boundary"]
+  },
+  {
+    "id": "REQ-AGG-001",
+    "shall": "Grouping shall use value equality, including one group for null keys. Count shall ignore null expressions; sum, average, min and max shall ignore nulls. First and last shall include nulls. Empty global count shall be zero and other empty aggregates null.",
+    "categories": ["normal", "boundary", "differential"]
+  },
+  {
+    "id": "REQ-SORT-001",
+    "shall": "Sort shall be stable, honor all keys, direction and explicit null placement, and produce identical results in memory and with spilling.",
+    "categories": ["normal", "boundary", "differential"]
+  },
+  {
+    "id": "REQ-JOIN-001",
+    "shall": "Joins shall preserve duplicate multiplicity, use value equality across encodings, never match null keys, and implement inner, left, full, semi, anti and cross semantics.",
+    "categories": ["normal", "boundary", "differential"]
+  },
+  {
+    "id": "REQ-SET-001",
+    "shall": "Concat shall require identical schemas and preserve input order; distinct shall retain the first row for each declared key, treating null keys as equal.",
+    "categories": ["normal", "robustness"]
+  },
+  {
+    "id": "REQ-LIFE-001",
+    "shall": "Completion, cancellation, consumer early termination and source failures shall close cursors and release engine-owned allocations and temporary storage.",
+    "categories": ["normal", "fault"]
+  },
+  {
+    "id": "REQ-CSV-001",
+    "shall": "CSV parsing shall preserve quoted delimiters, escaped quotes, CR/LF within quoted fields, empty strings, a leading BOM and valid Unicode independently of byte chunk boundaries.",
+    "categories": ["normal", "boundary", "property"]
+  },
+  {
+    "id": "REQ-CSV-002",
+    "shall": "CSV shall reject malformed quotes, invalid UTF-8, schema/header mismatches, invalid typed values and fields exceeding the configured length. Only an unquoted configured null token denotes null.",
+    "categories": ["boundary", "robustness", "fuzz"]
+  },
+  {
+    "id": "REQ-CSV-003",
+    "shall": "CSV input shall be lazy and replayable. Output shall round-trip all supported values, including empty strings, null tokens, bigint and negative zero.",
+    "categories": ["normal", "property"]
+  },
+  {
+    "id": "REQ-IO-001",
+    "shall": "CSV publication shall write and sync a unique neighboring temporary file before atomic rename. Any injected single I/O failure shall leave the destination as the old or complete new file and clean temporary resources.",
+    "categories": ["normal", "fault"]
+  },
+  {
+    "id": "REQ-SPILL-001",
+    "shall": "External sort shall bound each run by a byte target, merge at most two runs concurrently, validate spill values and remove temporary files on success or failure.",
+    "categories": ["normal", "fault", "robustness"]
+  },
+  {
+    "id": "REQ-ORACLE-001",
+    "shall": "Seeded relational workloads shall agree with an independent SQLite oracle and simple row-model oracles across data distributions and execution budgets.",
+    "categories": ["differential", "property"]
+  },
+  {
+    "id": "REQ-EVIDENCE-001",
+    "shall": "Each automated case shall identify requirements, objective, preconditions, exact steps, expected result and cleanup. Reports shall record outcomes, runtime and source digest, and CI shall reject untraced requirements, failures or coverage below the committed gates.",
+    "categories": ["process"]
+  }
+]
