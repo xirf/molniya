@@ -51,7 +51,7 @@ bun run benchmark
 
 The script downloads and verifies the public dataset, checks that both libraries produce the same result, and records each run in `evidence/benchmark.json`. The current measurements and limits are in [the benchmark notes](docs/benchmark.md). Results depend on the machine and runtime; they are measurements, not a performance promise.
 
-In the recorded run on Bun 1.3.5 and an AMD EPYC 9V74, Molniya took about 7.3 seconds at the median; Polars JS took about 0.11 seconds. Molniya was about 67 times slower for this CSV scan and summary. Both returned 557,096 rides and matching coordinate averages. This one workload shows that the current CSV path has substantial room to improve.
+In the recorded run on Bun 1.3.5 and an AMD EPYC 9V74, Molniya took about 6.2 seconds at the median; Polars JS took about 0.13 seconds. Molniya was about 47 times slower for this CSV scan and summary. Both returned 557,096 rides and matching coordinate averages. This one workload shows that the current CSV path has substantial room to improve.
 
 ## How it is checked
 

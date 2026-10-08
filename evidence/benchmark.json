@@ -1,5 +1,5 @@
 {
-  "sourceDigest": "04683770ba56ef788dd58c04b9931fd2d0f1b70e7d87994c0ae85649fd80d492",
+  "sourceDigest": "f4c82a4fbe83318dd4fe3f2e06dc1a533fa5eb4354fba6d6748b26f1c401a9a1",
   "dataset": {
     "name": "New York City Uber rides, April to September 2014",
     "source": "Plotly datasets repository",
@@ -19,10 +19,10 @@
     "equivalent": true,
     "comparison": "Ride counts match exactly; mean latitude and longitude are compared with relative tolerance 1e-10.",
     "molniya": {
-      "medianMs": 7292.172767000002,
+      "medianMs": 6206.435495,
       "runs": [
         {
-          "elapsedMs": 6643.771000999999,
+          "elapsedMs": 6206.435495,
           "metrics": {
             "memory": {
               "used": 0,
@@ -36,7 +36,7 @@
           }
         },
         {
-          "elapsedMs": 7292.172767000002,
+          "elapsedMs": 6328.921810999998,
           "metrics": {
             "memory": {
               "used": 0,
@@ -50,7 +50,7 @@
           }
         },
         {
-          "elapsedMs": 7669.361410999998,
+          "elapsedMs": 6174.043098000002,
           "metrics": {
             "memory": {
               "used": 0,
@@ -73,16 +73,16 @@
       ]
     },
     "polars": {
-      "medianMs": 108.83494500000052,
+      "medianMs": 132.99967000000106,
       "runs": [
         {
-          "elapsedMs": 103.08906100000058
+          "elapsedMs": 139.43347499999982
         },
         {
-          "elapsedMs": 108.83494500000052
+          "elapsedMs": 99.97431099999994
         },
         {
-          "elapsedMs": 137.32639899999776
+          "elapsedMs": 132.99967000000106
         }
       ],
       "output": [
@@ -93,7 +93,7 @@
         }
       ]
     },
-    "molniyaToPolarsMedianRatio": 67.0021266331321
+    "molniyaToPolarsMedianRatio": 46.66504431928252
   },
   "memoryNote": "Molniya peak bytes are engine-accounted allocations. They do not include all JavaScript, native, runtime, allocator, or operating system memory and are not directly comparable with Polars process memory."
 }

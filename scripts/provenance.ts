@@ -12,7 +12,14 @@ export async function fingerprint(root: string): Promise<string> {
       if (/\.(ts|json|yml)$/.test(name)) await include(`${directory}/${name}`);
     }
   }
-  for (const name of ["package.json", "bun.lock", "tsconfig.json", "bunfig.toml", "biome.json"])
+  for (const name of [
+    "package.json",
+    "bun.lock",
+    "tsconfig.json",
+    "bunfig.toml",
+    "biome.json",
+    "vercel.json",
+  ])
     await include(name);
   return hasher.digest("hex");
 }

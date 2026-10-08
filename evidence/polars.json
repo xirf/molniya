@@ -126,7 +126,7 @@
           }
         ]
       },
-      "polarsPlan": "SORT BY [slice: (0, 4), descending: [true, false], nulls_last: [true, true]] [col(\"total\"), col(\"region\")]\n  AGGREGATE[maintain_order: false]\n    [col(\"net\").sum().alias(\"total\"), col(\"net\").mean().alias(\"mean\"), col(\"net\").count().alias(\"n\"), col(\"net\").min().alias(\"low\"), col(\"net\").max().alias(\"high\")] BY [col(\"region\")]\n    FROM\n    SELECT [col(\"region\"), (col(\"amount\") * 1.25).alias(\"net\")]\n      Csv SCAN [/tmp/molniya-polars-Tqkqg4/sales.csv]\n      PROJECT 2/3 COLUMNS\n      SELECTION: col(\"amount\") > 10.0"
+      "polarsPlan": "SORT BY [slice: (0, 4), descending: [true, false], nulls_last: [true, true]] [col(\"total\"), col(\"region\")]\n  AGGREGATE[maintain_order: false]\n    [col(\"net\").sum().alias(\"total\"), col(\"net\").mean().alias(\"mean\"), col(\"net\").count().alias(\"n\"), col(\"net\").min().alias(\"low\"), col(\"net\").max().alias(\"high\")] BY [col(\"region\")]\n    FROM\n    SELECT [col(\"region\"), (col(\"amount\") * 1.25).alias(\"net\")]\n      Csv SCAN [/tmp/molniya-polars-wNk7xO/sales.csv]\n      PROJECT 2/3 COLUMNS\n      SELECTION: col(\"amount\") > 10.0"
     },
     {
       "case": "flow-17-1-65536",
@@ -269,7 +269,7 @@
           }
         ]
       },
-      "polarsPlan": "SORT BY [slice: (0, 4), descending: [true, false], nulls_last: [true, true]] [col(\"total\"), col(\"region\")]\n  AGGREGATE[maintain_order: false]\n    [col(\"net\").sum().alias(\"total\"), col(\"net\").mean().alias(\"mean\"), col(\"net\").count().alias(\"n\"), col(\"net\").min().alias(\"low\"), col(\"net\").max().alias(\"high\")] BY [col(\"region\")]\n    FROM\n    SELECT [col(\"region\"), (col(\"amount\") * 1.25).alias(\"net\")]\n      Csv SCAN [/tmp/molniya-polars-ioEYhZ/sales.csv]\n      PROJECT 2/3 COLUMNS\n      SELECTION: col(\"amount\") > 10.0"
+      "polarsPlan": "SORT BY [slice: (0, 4), descending: [true, false], nulls_last: [true, true]] [col(\"total\"), col(\"region\")]\n  AGGREGATE[maintain_order: false]\n    [col(\"net\").sum().alias(\"total\"), col(\"net\").mean().alias(\"mean\"), col(\"net\").count().alias(\"n\"), col(\"net\").min().alias(\"low\"), col(\"net\").max().alias(\"high\")] BY [col(\"region\")]\n    FROM\n    SELECT [col(\"region\"), (col(\"amount\") * 1.25).alias(\"net\")]\n      Csv SCAN [/tmp/molniya-polars-hE4MCY/sales.csv]\n      PROJECT 2/3 COLUMNS\n      SELECTION: col(\"amount\") > 10.0"
     },
     {
       "case": "flow-17-250-65536",
@@ -460,7 +460,7 @@
           }
         ]
       },
-      "polarsPlan": "SORT BY [slice: (0, 4), descending: [true, false], nulls_last: [true, true]] [col(\"total\"), col(\"region\")]\n  AGGREGATE[maintain_order: false]\n    [col(\"net\").sum().alias(\"total\"), col(\"net\").mean().alias(\"mean\"), col(\"net\").count().alias(\"n\"), col(\"net\").min().alias(\"low\"), col(\"net\").max().alias(\"high\")] BY [col(\"region\")]\n    FROM\n    SELECT [col(\"region\"), (col(\"amount\") * 1.25).alias(\"net\")]\n      Csv SCAN [/tmp/molniya-polars-RrzgJE/sales.csv]\n      PROJECT 2/3 COLUMNS\n      SELECTION: col(\"amount\") > 10.0"
+      "polarsPlan": "SORT BY [slice: (0, 4), descending: [true, false], nulls_last: [true, true]] [col(\"total\"), col(\"region\")]\n  AGGREGATE[maintain_order: false]\n    [col(\"net\").sum().alias(\"total\"), col(\"net\").mean().alias(\"mean\"), col(\"net\").count().alias(\"n\"), col(\"net\").min().alias(\"low\"), col(\"net\").max().alias(\"high\")] BY [col(\"region\")]\n    FROM\n    SELECT [col(\"region\"), (col(\"amount\") * 1.25).alias(\"net\")]\n      Csv SCAN [/tmp/molniya-polars-w59DxD/sales.csv]\n      PROJECT 2/3 COLUMNS\n      SELECTION: col(\"amount\") > 10.0"
     },
     {
       "case": "flow-17-250-8192",
@@ -651,7 +651,7 @@
           }
         ]
       },
-      "polarsPlan": "SORT BY [slice: (0, 4), descending: [true, false], nulls_last: [true, true]] [col(\"total\"), col(\"region\")]\n  AGGREGATE[maintain_order: false]\n    [col(\"net\").sum().alias(\"total\"), col(\"net\").mean().alias(\"mean\"), col(\"net\").count().alias(\"n\"), col(\"net\").min().alias(\"low\"), col(\"net\").max().alias(\"high\")] BY [col(\"region\")]\n    FROM\n    SELECT [col(\"region\"), (col(\"amount\") * 1.25).alias(\"net\")]\n      Csv SCAN [/tmp/molniya-polars-qJTKyA/sales.csv]\n      PROJECT 2/3 COLUMNS\n      SELECTION: col(\"amount\") > 10.0"
+      "polarsPlan": "SORT BY [slice: (0, 4), descending: [true, false], nulls_last: [true, true]] [col(\"total\"), col(\"region\")]\n  AGGREGATE[maintain_order: false]\n    [col(\"net\").sum().alias(\"total\"), col(\"net\").mean().alias(\"mean\"), col(\"net\").count().alias(\"n\"), col(\"net\").min().alias(\"low\"), col(\"net\").max().alias(\"high\")] BY [col(\"region\")]\n    FROM\n    SELECT [col(\"region\"), (col(\"amount\") * 1.25).alias(\"net\")]\n      Csv SCAN [/tmp/molniya-polars-o1MzTP/sales.csv]\n      PROJECT 2/3 COLUMNS\n      SELECTION: col(\"amount\") > 10.0"
     },
     {
       "case": "flow-91-1000-8192",
@@ -842,7 +842,7 @@
           }
         ]
       },
-      "polarsPlan": "SORT BY [slice: (0, 4), descending: [true, false], nulls_last: [true, true]] [col(\"total\"), col(\"region\")]\n  AGGREGATE[maintain_order: false]\n    [col(\"net\").sum().alias(\"total\"), col(\"net\").mean().alias(\"mean\"), col(\"net\").count().alias(\"n\"), col(\"net\").min().alias(\"low\"), col(\"net\").max().alias(\"high\")] BY [col(\"region\")]\n    FROM\n    SELECT [col(\"region\"), (col(\"amount\") * 1.25).alias(\"net\")]\n      Csv SCAN [/tmp/molniya-polars-4ngNEY/sales.csv]\n      PROJECT 2/3 COLUMNS\n      SELECTION: col(\"amount\") > 10.0"
+      "polarsPlan": "SORT BY [slice: (0, 4), descending: [true, false], nulls_last: [true, true]] [col(\"total\"), col(\"region\")]\n  AGGREGATE[maintain_order: false]\n    [col(\"net\").sum().alias(\"total\"), col(\"net\").mean().alias(\"mean\"), col(\"net\").count().alias(\"n\"), col(\"net\").min().alias(\"low\"), col(\"net\").max().alias(\"high\")] BY [col(\"region\")]\n    FROM\n    SELECT [col(\"region\"), (col(\"amount\") * 1.25).alias(\"net\")]\n      Csv SCAN [/tmp/molniya-polars-dS48Bi/sales.csv]\n      PROJECT 2/3 COLUMNS\n      SELECTION: col(\"amount\") > 10.0"
     },
     {
       "case": "flow-2026-2000-8192",
@@ -1033,7 +1033,7 @@
           }
         ]
       },
-      "polarsPlan": "SORT BY [slice: (0, 4), descending: [true, false], nulls_last: [true, true]] [col(\"total\"), col(\"region\")]\n  AGGREGATE[maintain_order: false]\n    [col(\"net\").sum().alias(\"total\"), col(\"net\").mean().alias(\"mean\"), col(\"net\").count().alias(\"n\"), col(\"net\").min().alias(\"low\"), col(\"net\").max().alias(\"high\")] BY [col(\"region\")]\n    FROM\n    SELECT [col(\"region\"), (col(\"amount\") * 1.25).alias(\"net\")]\n      Csv SCAN [/tmp/molniya-polars-1Jw0y6/sales.csv]\n      PROJECT 2/3 COLUMNS\n      SELECTION: col(\"amount\") > 10.0"
+      "polarsPlan": "SORT BY [slice: (0, 4), descending: [true, false], nulls_last: [true, true]] [col(\"total\"), col(\"region\")]\n  AGGREGATE[maintain_order: false]\n    [col(\"net\").sum().alias(\"total\"), col(\"net\").mean().alias(\"mean\"), col(\"net\").count().alias(\"n\"), col(\"net\").min().alias(\"low\"), col(\"net\").max().alias(\"high\")] BY [col(\"region\")]\n    FROM\n    SELECT [col(\"region\"), (col(\"amount\") * 1.25).alias(\"net\")]\n      Csv SCAN [/tmp/molniya-polars-PXlpi5/sales.csv]\n      PROJECT 2/3 COLUMNS\n      SELECTION: col(\"amount\") > 10.0"
     },
     {
       "case": "join-inner",

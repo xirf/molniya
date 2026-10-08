@@ -18,7 +18,7 @@ The input is cached under `.cache/benchmark/`; its SHA-256 is checked on every r
 
 The latest recorded result is in [`evidence/benchmark.json`](../evidence/benchmark.json). Molniya and Polars results are checked before timing output is saved. Review the medians, per-run times, runtime, CPU, and input digest there; no speed claim is inferred from one machine's result.
 
-On the recorded machine (Bun 1.3.5, Polars JS 0.26.1, AMD EPYC 9V74), Molniya's median was about **7.3 seconds** and Polars JS's was about **0.11 seconds**. Molniya was about **67 times slower** for this workload. Both returned 557,096 rides; mean latitude and longitude agreed within the comparison tolerance. The evidence file lists every measured run.
+On the recorded machine (Bun 1.3.5, Polars JS 0.26.1, AMD EPYC 9V74), Molniya's median was about **6.2 seconds** and Polars JS's was about **0.13 seconds**. Molniya was about **47 times slower** for this workload. Both returned 557,096 rides; mean latitude and longitude agreed within the comparison tolerance. The evidence file lists every measured run.
 
 This measures one query on one machine. It points to CSV scanning and parsing as an area to improve; it does not predict performance for other files or queries.
 
