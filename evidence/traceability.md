@@ -1,6 +1,6 @@
 # Requirements and last test results
 
-Runtime: Bun 1.3.5. Source SHA-256: `f4c82a4fbe83318dd4fe3f2e06dc1a533fa5eb4354fba6d6748b26f1c401a9a1`.
+Runtime: Bun 1.3.5. Source SHA-256: `457c9d9dfd23698d69f5cb7bb89fca43924bfed7c2dbd925b440e7a2da69bfba`.
 
 | Requirement | Passing test cases |
 | --- | --- |

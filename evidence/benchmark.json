@@ -1,5 +1,5 @@
 {
-  "sourceDigest": "f4c82a4fbe83318dd4fe3f2e06dc1a533fa5eb4354fba6d6748b26f1c401a9a1",
+  "sourceDigest": "457c9d9dfd23698d69f5cb7bb89fca43924bfed7c2dbd925b440e7a2da69bfba",
   "dataset": {
     "name": "New York City Uber rides, April to September 2014",
     "source": "Plotly datasets repository",
@@ -19,10 +19,10 @@
     "equivalent": true,
     "comparison": "Ride counts match exactly; mean latitude and longitude are compared with relative tolerance 1e-10.",
     "molniya": {
-      "medianMs": 6206.435495,
+      "medianMs": 6668.9860499999995,
       "runs": [
         {
-          "elapsedMs": 6206.435495,
+          "elapsedMs": 7283.343896,
           "metrics": {
             "memory": {
               "used": 0,
@@ -36,7 +36,7 @@
           }
         },
         {
-          "elapsedMs": 6328.921810999998,
+          "elapsedMs": 6301.409731,
           "metrics": {
             "memory": {
               "used": 0,
@@ -50,7 +50,7 @@
           }
         },
         {
-          "elapsedMs": 6174.043098000002,
+          "elapsedMs": 6668.9860499999995,
           "metrics": {
             "memory": {
               "used": 0,
@@ -73,16 +73,16 @@
       ]
     },
     "polars": {
-      "medianMs": 132.99967000000106,
+      "medianMs": 92.18795599999976,
       "runs": [
         {
-          "elapsedMs": 139.43347499999982
+          "elapsedMs": 98.31785799999852
         },
         {
-          "elapsedMs": 99.97431099999994
+          "elapsedMs": 92.18795599999976
         },
         {
-          "elapsedMs": 132.99967000000106
+          "elapsedMs": 89.96765800000139
         }
       ],
       "output": [
@@ -93,7 +93,7 @@
         }
       ]
     },
-    "molniyaToPolarsMedianRatio": 46.66504431928252
+    "molniyaToPolarsMedianRatio": 72.34118576183658
   },
   "memoryNote": "Molniya peak bytes are engine-accounted allocations. They do not include all JavaScript, native, runtime, allocator, or operating system memory and are not directly comparable with Polars process memory."
 }
